@@ -125,16 +125,111 @@ const Dashboard = () => {
     }
   };
 
-  const handlePayAppointment = async (appointmentId) => {
+  const [paying, setPaying] = useState(false);
+
+  const startDirectAppointmentPaystack = async (appointment) => {
+    const appointmentId = appointment.id || appointment._id;
+    const price = parseFloat(appointment.service_id?.price || 0);
+
+    // 1. Ensure Paystack inline script is ready
+    if (typeof window.PaystackPop === 'undefined') {
+      const script = document.createElement('script');
+      script.src = 'https://js.paystack.co/v1/inline.js';
+      script.async = true;
+      document.head.appendChild(script);
+      await new Promise((res) => { script.onload = res; script.onerror = res; });
+    }
+
+    let publicKey = 'pk_live_060e4958254697673bb978c4a4df3694fae9099b';
     try {
+      const configRes = await axios.get(`${API_URL}/payments/config`);
+      if (configRes.data.success && configRes.data.publicKey) {
+        publicKey = configRes.data.publicKey;
+      }
+    } catch (e) {}
+
+    let popupOpened = false;
+    if (typeof window.PaystackPop !== 'undefined') {
+      try {
+        const handler = window.PaystackPop.setup({
+          key: publicKey,
+          email: user?.email || 'client@dworld.com',
+          amount: Math.round(price * 100),
+          currency: 'NGN',
+          ref: 'APT-' + Date.now() + '-' + Math.floor(Math.random() * 1000),
+          metadata: {
+            purpose: 'appointment_pay',
+            appointment_id: appointmentId,
+            user_id: user?.id || user?._id
+          },
+          callback: async (response) => {
+            try {
+              const verifyRes = await axios.post(`${API_URL}/payments/verify`, {
+                reference: response.reference
+              });
+              if (verifyRes.data.success) {
+                addToast('Payment successful! Expert payout released.', 'success');
+                setSelectedAppointment(null);
+                fetchData();
+              } else {
+                addToast(verifyRes.data.message || 'Payment verification failed', 'error');
+              }
+            } catch (err) {
+              addToast(err.response?.data?.message || 'Verification error', 'error');
+            }
+          }
+        });
+        handler.openIframe();
+        popupOpened = true;
+      } catch (e) {
+        console.warn('Paystack inline popup blocked or failed:', e);
+      }
+    }
+
+    if (!popupOpened) {
+      // 2. Guaranteed server redirect checkout fallback
+      const initRes = await axios.post(`${API_URL}/payments/initialize`, {
+        amount: price,
+        purpose: 'appointment_pay',
+        appointment_id: appointmentId
+      });
+      if (initRes.data.success && initRes.data.data?.authorization_url) {
+        window.location.href = initRes.data.data.authorization_url;
+      } else {
+        throw new Error('Payment initialization failed');
+      }
+    }
+  };
+
+  const handlePayAppointment = async (appointment) => {
+    if (!appointment) return;
+    const appointmentId = appointment.id || appointment._id;
+
+    try {
+      setPaying(true);
+      // First attempt: pay from wallet balance
       const res = await axios.post(`${API_URL}/appointments/${appointmentId}/pay`);
       if (res.data.success) {
         addToast(res.data.message, 'success');
         setSelectedAppointment(null);
         fetchData();
+        return;
       }
     } catch (err) {
-      addToast(err.response?.data?.message || 'Payment failed. Please check your wallet balance.', 'error');
+      const errMsg = err.response?.data?.message || 'Payment failed.';
+      // If wallet balance is insufficient, start Paystack direct card/bank checkout!
+      if (errMsg.toLowerCase().includes('insufficient') || errMsg.toLowerCase().includes('wallet')) {
+        addToast('Starting Paystack checkout...', 'info');
+        try {
+          await startDirectAppointmentPaystack(appointment);
+        } catch (paystackErr) {
+          addToast('Could not start direct checkout. Please fund your wallet.', 'error');
+        }
+      } else {
+        addToast(errMsg, 'error');
+      }
+    } finally {
+      setPaying(false);
     }
   };
 
@@ -227,48 +322,47 @@ const Dashboard = () => {
       />
 
       {/* LIGHT MODE BENTO HERO BANNER */}
-      <div className="bento-card" style={{ padding: '2.25rem', background: 'linear-gradient(135deg, rgba(79, 70, 229, 0.08), rgba(124, 58, 237, 0.08), rgba(2, 132, 199, 0.06))', borderColor: 'rgba(79, 70, 229, 0.15)' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1.5rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
+      <div className="bento-card" style={{ padding: '1.75rem', background: 'linear-gradient(135deg, rgba(79, 70, 229, 0.08), rgba(124, 58, 237, 0.08), rgba(2, 132, 199, 0.06))', borderColor: 'rgba(79, 70, 229, 0.15)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', minWidth: 0 }}>
             <div style={{ 
-              width: '60px', 
-              height: '60px', 
-              borderRadius: '16px', 
+              width: '50px', 
+              height: '50px', 
+              borderRadius: '14px', 
               background: 'linear-gradient(135deg, var(--primary), var(--secondary))', 
               display: 'flex', 
               alignItems: 'center', 
               justifyContent: 'center',
               color: 'white',
-              boxShadow: '0 6px 20px rgba(79, 70, 229, 0.25)'
+              boxShadow: '0 6px 18px rgba(79, 70, 229, 0.25)',
+              flexShrink: 0
             }}>
-              <Sparkles size={30} />
+              <Sparkles size={24} />
             </div>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.2rem' }}>
-                <h1 style={{ fontSize: '1.85rem', margin: 0, fontFamily: 'Outfit' }}>
-                  {getGreeting()}, {user?.name || 'User'}
+            <div style={{ minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginBottom: '0.15rem', flexWrap: 'wrap' }}>
+                <h1 style={{ fontSize: 'clamp(1.25rem, 4vw, 1.75rem)', margin: 0, fontFamily: 'Outfit', lineHeight: 1.1 }}>
+                  {getGreeting()}, {user?.name?.split(' ')[0] || 'User'}
                 </h1>
                 {nextUpcoming && (
-                  <span style={{ background: '#dcfce7', border: '1px solid #bbf7d0', color: '#15803d', padding: '0.25rem 0.7rem', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
-                    <Clock size={12} /> Next: {nextUpcoming.date}
+                  <span style={{ background: '#dcfce7', border: '1px solid #bbf7d0', color: '#15803d', padding: '0.2rem 0.55rem', borderRadius: '9999px', fontSize: '0.72rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '0.3rem', flexShrink: 0 }}>
+                    <Clock size={11} /> Next: {nextUpcoming.date}
                   </span>
                 )}
               </div>
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.925rem', margin: 0 }}>
-                Welcome to your D.WORLD workspace. Manage your appointments and schedules in real-time.
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', margin: 0 }}>
+                Welcome to your D.WORLD workspace. Manage bookings in real-time.
               </p>
             </div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <button 
-              onClick={() => { setPreselectedServiceId(null); setIsWizardOpen(true); }}
-              className="btn btn-primary"
-              style={{ padding: '0.85rem 1.75rem', fontSize: '0.95rem' }}
-            >
-              <CalendarPlus size={18} /> Book Appointment
-            </button>
-          </div>
+          <button 
+            onClick={() => { setPreselectedServiceId(null); setIsWizardOpen(true); }}
+            className="btn btn-primary"
+            style={{ padding: '0.8rem 1.5rem', fontSize: '0.9rem', flexShrink: 0 }}
+          >
+            <CalendarPlus size={17} /> Book Appointment
+          </button>
         </div>
       </div>
 
@@ -333,7 +427,8 @@ const Dashboard = () => {
               </div>
 
               {/* Status Filter Chips & Clear History */}
-              <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap', alignItems: 'center' }}>
+              <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', paddingBottom: '0.1rem' }}>
+                <div style={{ display: 'inline-flex', gap: '0.35rem', alignItems: 'center', whiteSpace: 'nowrap', minWidth: 'max-content' }}>
                 {['all', 'pending', 'approved', 'completed', 'cancelled'].map(status => (
                   <button
                     key={status}
@@ -347,7 +442,8 @@ const Dashboard = () => {
                       fontSize: '0.75rem',
                       fontWeight: 600,
                       cursor: 'pointer',
-                      textTransform: 'capitalize'
+                      textTransform: 'capitalize',
+                      minHeight: '30px'
                     }}
                   >
                     {status}
@@ -369,12 +465,14 @@ const Dashboard = () => {
                       display: 'inline-flex',
                       alignItems: 'center',
                       gap: '0.25rem',
-                      marginLeft: '0.25rem'
+                      marginLeft: '0.25rem',
+                      minHeight: '30px'
                     }}
                   >
-                    <Trash2 size={12} /> Clear History
+                    <Trash2 size={12} /> Clear
                   </button>
                 )}
+                </div>
               </div>
             </div>
 
@@ -389,47 +487,49 @@ const Dashboard = () => {
                     <div 
                       key={app.id || app._id}
                       onClick={() => setSelectedAppointment(app)}
+                      className="hover-card-select appt-list-item"
                       style={{ 
                         display: 'flex', 
                         justifyContent: 'space-between', 
                         alignItems: 'center',
-                        padding: '1.25rem 1.5rem',
+                        padding: '1.1rem 1.25rem',
                         borderBottom: '1px solid var(--border-light)',
                         cursor: 'pointer',
-                        transition: 'all 0.2s ease'
+                        transition: 'all 0.2s ease',
+                        gap: '0.75rem'
                       }}
-                      className="hover-card-select"
                     >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', minWidth: 0 }}>
                         <div style={{
-                          width: '44px',
-                          height: '44px',
-                          borderRadius: '12px',
+                          width: '42px',
+                          height: '42px',
+                          borderRadius: '11px',
                           background: 'rgba(99, 102, 241, 0.1)',
                           border: '1px solid rgba(99, 102, 241, 0.2)',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          color: 'var(--primary)'
+                          color: 'var(--primary)',
+                          flexShrink: 0
                         }}>
-                          <CalendarCheck size={20} />
+                          <CalendarCheck size={18} />
                         </div>
-                        <div>
-                          <span style={{ fontWeight: 700, color: 'var(--text-main)', fontSize: '0.975rem', display: 'block', fontFamily: 'Outfit' }}>
+                        <div style={{ minWidth: 0 }}>
+                          <span style={{ fontWeight: 700, color: 'var(--text-main)', fontSize: '0.95rem', display: 'block', fontFamily: 'Outfit', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {app.service_id?.name || 'Appointment'}
                           </span>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginTop: '0.25rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginTop: '0.2rem', fontSize: '0.78rem', color: 'var(--text-muted)', flexWrap: 'wrap' }}>
                             <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                              <Clock size={13} color="var(--primary)" /> {app.date} at {app.time}
+                              <Clock size={12} color="var(--primary)" /> {app.date} at {app.time}
                             </span>
                             <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                              <User size={13} color="var(--secondary)" /> {app.service_id?.duration || 45} mins
+                              <User size={12} color="var(--secondary)" /> {app.service_id?.duration || 45} mins
                             </span>
                           </div>
                         </div>
                       </div>
 
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                      <div className="appt-list-item-actions" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
                         <button
                           type="button"
                           onClick={(e) => {
@@ -440,23 +540,24 @@ const Dashboard = () => {
                             background: 'rgba(99, 102, 241, 0.1)',
                             border: '1px solid rgba(99, 102, 241, 0.25)',
                             color: 'var(--primary)',
-                            padding: '0.35rem 0.65rem',
+                            padding: '0.35rem 0.6rem',
                             borderRadius: '8px',
                             cursor: 'pointer',
                             display: 'inline-flex',
                             alignItems: 'center',
-                            gap: '0.35rem',
-                            fontSize: '0.78rem',
-                            fontWeight: 600
+                            gap: '0.3rem',
+                            fontSize: '0.75rem',
+                            fontWeight: 600,
+                            minHeight: '32px'
                           }}
                           title="Message Stylist"
                         >
-                          <MessageSquare size={13} /> Chat
+                          <MessageSquare size={12} /> Chat
                         </button>
                         <span className={`status-badge status-${app.status}`}>
                           {app.status}
                         </span>
-                        <Eye size={16} color="var(--text-subtle)" />
+                        <Eye size={15} color="var(--text-subtle)" />
                       </div>
                     </div>
                   ))}
@@ -671,13 +772,14 @@ const Dashboard = () => {
                 >
                   <MessageSquare size={16} /> Chat with Expert
                 </button>
-                {selectedAppointment.status === 'completed' && selectedAppointment.paymentStatus !== 'paid' && (
+                {(selectedAppointment.status === 'approved' || selectedAppointment.status === 'completed') && selectedAppointment.paymentStatus !== 'paid' && (
                   <button 
-                    onClick={() => handlePayAppointment(selectedAppointment.id || selectedAppointment._id)}
+                    disabled={paying}
+                    onClick={() => handlePayAppointment(selectedAppointment)}
                     className="btn btn-primary"
-                    style={{ background: 'linear-gradient(135deg, #10b981, #059669)', color: 'white', fontWeight: 800 }}
+                    style={{ background: 'linear-gradient(135deg, #10b981, #059669)', color: 'white', fontWeight: 800, minHeight: '44px' }}
                   >
-                    Pay Expert (₦{(selectedAppointment.service_id?.price || 0).toLocaleString()})
+                    {paying ? 'Processing Payment...' : `Pay Expert (₦${(selectedAppointment.service_id?.price || 0).toLocaleString()})`}
                   </button>
                 )}
 
@@ -704,12 +806,6 @@ const Dashboard = () => {
                   >
                     Cancel Booking
                   </button>
-                )}
-
-                {selectedAppointment.status === 'approved' && selectedAppointment.paymentStatus !== 'paid' && (
-                  <span style={{ background: '#fef3c7', color: '#b45309', border: '1px solid #fde68a', padding: '0.4rem 0.85rem', borderRadius: '8px', fontWeight: 600, fontSize: '0.8rem' }}>
-                    Confirmed by expert — cannot be cancelled
-                  </span>
                 )}
                 {(selectedAppointment.status === 'completed' || selectedAppointment.status === 'cancelled') && (
                   <button 

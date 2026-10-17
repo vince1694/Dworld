@@ -49,44 +49,55 @@ const ExpertActivationModal = ({ isOpen, user, onActivated, onClose }) => {
         console.warn('Using fallback Paystack key', e);
       }
 
-      // 3. Open Paystack popup
+      // 3. Try Paystack popup first
+      let popupOpened = false;
+      const userEmail = user.email || 'expert@dworld.com';
+      const userName = user.name || 'Expert Specialist';
+
       if (typeof window.PaystackPop !== 'undefined') {
-        const handler = window.PaystackPop.setup({
-          key: publicKey,
-          email: user.email,
-          amount: 3000 * 100,
-          currency: 'NGN',
-          ref: 'ACT-' + Date.now() + '-' + Math.floor(Math.random() * 1000),
-          metadata: {
-            custom_fields: [
-              { display_name: 'Expert Name', variable_name: 'expert_name', value: user.name },
-              { display_name: 'Purpose', variable_name: 'purpose', value: 'expert_activation' }
-            ],
-            purpose: 'expert_activation',
-            user_id: user.id || user._id
-          },
-          callback: async (response) => {
-            try {
-              const verifyRes = await axios.post(`${API_URL}/payments/verify`, {
-                reference: response.reference
-              });
-              if (verifyRes.data.success) {
-                setSuccess(true);
-                setTimeout(() => { if (onActivated) onActivated(); }, 1800);
-              } else {
-                setError(verifyRes.data.message || 'Payment verification failed');
+        try {
+          const handler = window.PaystackPop.setup({
+            key: publicKey,
+            email: userEmail,
+            amount: 3000 * 100,
+            currency: 'NGN',
+            ref: 'ACT-' + Date.now() + '-' + Math.floor(Math.random() * 1000),
+            metadata: {
+              custom_fields: [
+                { display_name: 'Expert Name', variable_name: 'expert_name', value: userName },
+                { display_name: 'Purpose', variable_name: 'purpose', value: 'expert_activation' }
+              ],
+              purpose: 'expert_activation',
+              user_id: user.id || user._id
+            },
+            callback: async (response) => {
+              try {
+                const verifyRes = await axios.post(`${API_URL}/payments/verify`, {
+                  reference: response.reference
+                });
+                if (verifyRes.data.success) {
+                  setSuccess(true);
+                  setTimeout(() => { if (onActivated) onActivated(); }, 1800);
+                } else {
+                  setError(verifyRes.data.message || 'Payment verification failed');
+                }
+              } catch (err) {
+                setError(err.response?.data?.message || 'Server verification failed');
+              } finally {
+                setLoading(false);
               }
-            } catch (err) {
-              setError(err.response?.data?.message || 'Server verification failed');
-            } finally {
-              setLoading(false);
-            }
-          },
-          onClose: () => setLoading(false)
-        });
-        handler.openIframe();
-      } else {
-        // 4. Hard fallback: server redirect
+            },
+            onClose: () => setLoading(false)
+          });
+          handler.openIframe();
+          popupOpened = true;
+        } catch (popupErr) {
+          console.warn('Paystack inline popup could not be initialized:', popupErr);
+        }
+      }
+
+      // 4. Guaranteed fallback: server-side transaction authorization URL
+      if (!popupOpened) {
         const initRes = await axios.post(`${API_URL}/payments/initialize`, {
           amount: 3000,
           purpose: 'expert_activation'
@@ -94,7 +105,7 @@ const ExpertActivationModal = ({ isOpen, user, onActivated, onClose }) => {
         if (initRes.data.success && initRes.data.data?.authorization_url) {
           window.location.href = initRes.data.data.authorization_url;
         } else {
-          setError('Could not open Paystack checkout. Please try again.');
+          setError(initRes.data.message || 'Could not connect to payment gateway. Please try again.');
           setLoading(false);
         }
       }

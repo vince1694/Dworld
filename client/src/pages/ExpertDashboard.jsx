@@ -237,7 +237,7 @@ const ExpertDashboard = () => {
   const completedApps = appointments.filter(a => a.status === 'completed').length;
   const paidEarnings = appointments
     .filter(a => a.paymentStatus === 'paid')
-    .reduce((sum, a) => sum + (parseFloat(a.service_id?.price) || 0), 0);
+    .reduce((sum, a) => sum + (a.expertPayout || Math.round((parseFloat(a.service_id?.price) || 0) * 0.90)), 0);
 
   return (
     <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
@@ -246,38 +246,34 @@ const ExpertDashboard = () => {
 
       {/* Header Banner */}
       <div 
-        className="app-card" 
+        className="app-card expert-hero-banner" 
         style={{ 
-          padding: '2rem', 
-          background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.15), rgba(99, 102, 241, 0.15))',
+          padding: '1.75rem', 
+          background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.12), rgba(99, 102, 241, 0.12))',
           borderColor: 'rgba(168, 85, 247, 0.2)',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          gap: '1.5rem'
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1.1rem', flexWrap: 'wrap' }}>
           <div style={{ 
-            width: '60px', 
-            height: '60px', 
-            borderRadius: '16px', 
-            background: 'rgba(168, 85, 247, 0.2)', 
+            width: '52px', 
+            height: '52px', 
+            borderRadius: '14px', 
+            background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.25), rgba(99, 102, 241, 0.2))', 
             display: 'flex', 
             alignItems: 'center', 
             justifyContent: 'center',
             color: 'var(--secondary)',
-            boxShadow: '0 8px 20px rgba(168, 85, 247, 0.25)'
+            boxShadow: '0 6px 18px rgba(168, 85, 247, 0.22)',
+            flexShrink: 0
           }}>
-            <Sparkles size={32} />
+            <Sparkles size={26} />
           </div>
-          <div>
-            <h1 style={{ fontSize: '1.85rem', marginBottom: '0.25rem', fontFamily: 'Outfit' }}>
-              Expert Professional Schedule
+          <div style={{ minWidth: 0 }}>
+            <h1 className="expert-hero-title" style={{ marginBottom: '0.2rem', fontFamily: 'Outfit' }}>
+              Expert Workspace
             </h1>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.925rem' }}>
-              Manage your availability, review client bookings, and track your service earnings.
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', margin: 0, lineHeight: 1.4 }}>
+              Manage availability, review bookings &amp; track earnings.
             </p>
           </div>
         </div>
@@ -401,36 +397,38 @@ const ExpertDashboard = () => {
         </div>
       )}
 
-      {/* TABS CONTAINER */}
-      <div className="app-card" style={{ padding: '0.5rem', display: 'inline-flex', gap: '0.5rem', borderBottom: 'none', borderRadius: '14px', marginBottom: '-1rem' }}>
-        <button
-          onClick={() => setSearchParams({ tab: 'appointments' })}
-          className={`btn ${activeTab === 'appointments' ? 'btn-primary' : 'btn-secondary'}`}
-          style={{ fontSize: '0.85rem' }}
-        >
-          <CalendarRange size={16} /> My Schedule ({appointments.length})
-        </button>
-        <button
-          onClick={() => setSearchParams({ tab: 'services' })}
-          className={`btn ${activeTab === 'services' ? 'btn-primary' : 'btn-secondary'}`}
-          style={{ fontSize: '0.85rem' }}
-        >
-          <Briefcase size={16} /> My Services ({services.length})
-        </button>
-        <button
-          onClick={() => setSearchParams({ tab: 'availability' })}
-          className={`btn ${activeTab === 'availability' ? 'btn-primary' : 'btn-secondary'}`}
-          style={{ fontSize: '0.85rem' }}
-        >
-          <Clock size={16} /> Working Hours & Availability
-        </button>
-        <button
-          onClick={() => setSearchParams({ tab: 'profile' })}
-          className={`btn ${activeTab === 'profile' ? 'btn-primary' : 'btn-secondary'}`}
-          style={{ fontSize: '0.85rem' }}
-        >
-          <User size={16} /> Profile Settings
-        </button>
+      {/* TABS CONTAINER — scrollable chips on mobile */}
+      <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', paddingBottom: '0.15rem' }}>
+        <div style={{ display: 'inline-flex', gap: '0.5rem', padding: '0.4rem', background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: '14px', whiteSpace: 'nowrap', minWidth: 'max-content' }}>
+          <button
+            onClick={() => setSearchParams({ tab: 'appointments' })}
+            className={`btn ${activeTab === 'appointments' ? 'btn-primary' : 'btn-secondary'}`}
+            style={{ fontSize: '0.82rem', padding: '0.5rem 0.9rem', minHeight: '38px', whiteSpace: 'nowrap' }}
+          >
+            <CalendarRange size={15} /> Schedule ({appointments.length})
+          </button>
+          <button
+            onClick={() => setSearchParams({ tab: 'services' })}
+            className={`btn ${activeTab === 'services' ? 'btn-primary' : 'btn-secondary'}`}
+            style={{ fontSize: '0.82rem', padding: '0.5rem 0.9rem', minHeight: '38px', whiteSpace: 'nowrap' }}
+          >
+            <Briefcase size={15} /> Services ({services.length})
+          </button>
+          <button
+            onClick={() => setSearchParams({ tab: 'availability' })}
+            className={`btn ${activeTab === 'availability' ? 'btn-primary' : 'btn-secondary'}`}
+            style={{ fontSize: '0.82rem', padding: '0.5rem 0.9rem', minHeight: '38px', whiteSpace: 'nowrap' }}
+          >
+            <Clock size={15} /> Hours &amp; Availability
+          </button>
+          <button
+            onClick={() => setSearchParams({ tab: 'profile' })}
+            className={`btn ${activeTab === 'profile' ? 'btn-primary' : 'btn-secondary'}`}
+            style={{ fontSize: '0.82rem', padding: '0.5rem 0.9rem', minHeight: '38px', whiteSpace: 'nowrap' }}
+          >
+            <User size={15} /> Profile
+          </button>
+        </div>
       </div>
 
       {/* MAIN TAB CONTENT */}
@@ -446,121 +444,114 @@ const ExpertDashboard = () => {
                   <h3 style={{ margin: 0, fontSize: '1.15rem' }}>Assigned Appointments</h3>
                 </div>
 
-                <div className="card-body" style={{ padding: '1rem 1.5rem' }}>
+                <div className="card-body" style={{ padding: '1rem' }}>
                   {appointments.length > 0 ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
                       {appointments.map((app) => (
                         <div 
                           key={app.id || app._id}
+                          className="appt-expert-card"
                           style={{
-                            padding: '1.25rem',
-                            borderRadius: '16px',
-                            background: 'rgba(255, 255, 255, 0.02)',
+                            padding: '1.1rem 1.25rem',
+                            borderRadius: '14px',
+                            background: '#f8fafc',
                             border: '1px solid var(--border-light)',
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                            flexWrap: 'wrap',
-                            gap: '1rem'
                           }}
                         >
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                            <div style={{ padding: '0.75rem', background: 'rgba(99, 102, 241, 0.1)', borderRadius: '12px', color: 'var(--primary)' }}>
-                              <User size={24} />
+                          {/* Top row: client info + status */}
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+                              <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'rgba(99, 102, 241, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary)', flexShrink: 0 }}>
+                                <User size={20} />
+                              </div>
+                              <div>
+                                <span style={{ fontWeight: 700, color: 'var(--text-main)', fontSize: '0.95rem', display: 'block', fontFamily: 'Outfit' }}>
+                                  {app.user_id?.name || app.client_name || 'Client'}
+                                </span>
+                                <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                                  {app.service_id?.name || 'Session'} · <strong>₦{(app.service_id?.price || 0).toLocaleString()}</strong>
+                                </span>
+                              </div>
                             </div>
-                            <div>
-                              <span style={{ fontWeight: 700, color: 'var(--text-main)', fontSize: '0.975rem', display: 'block', fontFamily: 'Outfit' }}>
-                                {app.user_id?.name || app.client_name || 'Client'}
-                              </span>
-                              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                                Service: <strong>{app.service_id?.name || 'Session'}</strong>
-                              </span>
-                            </div>
-                          </div>
-
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', fontSize: '0.825rem', color: 'var(--text-muted)' }}>
-                            <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                              <Clock size={14} color="var(--primary)" /> {app.date} at {app.time}
-                            </span>
-                            <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                              Fee: <strong>₦{(app.service_id?.price || 0).toLocaleString()}</strong>
-                            </span>
-                          </div>
-
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-                            <span className={`status-badge status-${app.status}`}>
+                            <span className={`status-badge status-${app.status}`} style={{ flexShrink: 0 }}>
                               {app.status}
                             </span>
+                          </div>
 
-                            {/* Chat Button */}
+                          {/* Mid row: date/time */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.85rem', flexWrap: 'wrap' }}>
+                            <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                              <Clock size={13} color="var(--primary)" /> {app.date} at {app.time}
+                            </span>
+                          </div>
+
+                          {/* Action row */}
+                          <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', alignItems: 'center' }}>
                             <button
                               type="button"
                               onClick={() => setChatAppointment(app)}
-                              className="btn btn-secondary"
                               style={{
-                                padding: '0.35rem 0.65rem',
-                                fontSize: '0.78rem',
+                                padding: '0.35rem 0.7rem',
+                                fontSize: '0.775rem',
                                 color: 'var(--primary)',
                                 background: 'rgba(99, 102, 241, 0.1)',
-                                border: '1px solid rgba(99, 102, 241, 0.3)',
+                                border: '1px solid rgba(99, 102, 241, 0.25)',
+                                borderRadius: '8px',
+                                cursor: 'pointer',
                                 display: 'inline-flex',
                                 alignItems: 'center',
-                                gap: '0.35rem',
+                                gap: '0.3rem',
                                 fontWeight: 600
                               }}
                             >
-                              <MessageSquare size={13} /> Chat with Client
+                              <MessageSquare size={12} /> Chat
                             </button>
 
-                            {/* Calendar Exports */}
-                            <div style={{ display: 'inline-flex', gap: '0.3rem' }}>
-                              <a
-                                href={getGoogleCalendarUrl(app)}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="btn btn-secondary"
-                                style={{ padding: '0.35rem 0.55rem', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '0.25rem', textDecoration: 'none' }}
-                                title="Add to Google Calendar"
-                              >
-                                <Calendar size={13} color="var(--primary)" /> Cal
-                              </a>
-                              <button
-                                type="button"
-                                onClick={() => downloadIcsFile(app)}
-                                className="btn btn-secondary"
-                                style={{ padding: '0.35rem 0.55rem', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}
-                                title="Download .ics Calendar File"
-                              >
-                                <Download size={13} color="var(--secondary)" /> .ics
-                              </button>
-                            </div>
+                            <a
+                              href={getGoogleCalendarUrl(app)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="btn btn-secondary"
+                              style={{ padding: '0.35rem 0.55rem', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '0.25rem', textDecoration: 'none', minHeight: '34px' }}
+                              title="Add to Google Calendar"
+                            >
+                              <Calendar size={12} color="var(--primary)" /> Cal
+                            </a>
+                            <button
+                              type="button"
+                              onClick={() => downloadIcsFile(app)}
+                              className="btn btn-secondary"
+                              style={{ padding: '0.35rem 0.55rem', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '0.25rem', minHeight: '34px' }}
+                            >
+                              <Download size={12} color="var(--secondary)" /> .ics
+                            </button>
 
-                            <div style={{ display: 'flex', gap: '0.4rem' }}>
+                            <div style={{ marginLeft: 'auto', display: 'flex', gap: '0.35rem' }}>
                               {app.status !== 'approved' && app.status !== 'completed' && (
                                 <button 
                                   onClick={() => handleUpdateStatus(app.id || app._id, 'approved')}
                                   className="btn btn-secondary"
-                                  style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem', color: 'var(--success)' }}
+                                  style={{ padding: '0.35rem 0.65rem', fontSize: '0.775rem', color: 'var(--success)', minHeight: '34px' }}
                                 >
-                                  <CheckCircle size={14} /> Accept
+                                  <CheckCircle size={13} /> Accept
                                 </button>
                               )}
                               {app.status === 'approved' && (
                                 <button 
                                   onClick={() => handleUpdateStatus(app.id || app._id, 'completed')}
                                   className="btn btn-primary"
-                                  style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem' }}
+                                  style={{ padding: '0.35rem 0.65rem', fontSize: '0.775rem', minHeight: '34px' }}
                                 >
-                                  <CheckCircle size={14} /> Complete
+                                  <CheckCircle size={13} /> Done
                                 </button>
                               )}
-                              {app.status !== 'cancelled' && (
+                              {app.status !== 'cancelled' && app.status !== 'completed' && (
                                 <button 
                                   onClick={() => handleUpdateStatus(app.id || app._id, 'cancelled')}
                                   className="btn btn-secondary"
-                                  style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem', color: '#ef4444' }}
+                                  style={{ padding: '0.35rem 0.55rem', fontSize: '0.775rem', color: '#ef4444', minHeight: '34px' }}
                                 >
-                                  <XCircle size={14} /> Cancel
+                                  <XCircle size={13} />
                                 </button>
                               )}
                             </div>
@@ -569,7 +560,7 @@ const ExpertDashboard = () => {
                       ))}
                     </div>
                   ) : (
-                    <div style={{ padding: '4rem 1.5rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                    <div style={{ padding: '3.5rem 1.5rem', textAlign: 'center', color: 'var(--text-muted)' }}>
                       No assigned client appointments found.
                     </div>
                   )}

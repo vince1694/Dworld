@@ -5,6 +5,25 @@ import axios from 'axios';
 
 import { API_URL } from '../config/api';
 
+const PAYSTACK_FALLBACK_KEY = 'pk_live_060e4958254697673bb978c4a4df3694fae9099b';
+
+/** Dynamically ensure Paystack inline script is loaded */
+const loadPaystackScript = () => new Promise((resolve, reject) => {
+  if (typeof window.PaystackPop !== 'undefined') return resolve();
+  const existing = document.querySelector('script[src*="paystack"]');
+  if (existing) {
+    existing.addEventListener('load', resolve);
+    existing.addEventListener('error', reject);
+    return;
+  }
+  const script = document.createElement('script');
+  script.src = 'https://js.paystack.co/v1/inline.js';
+  script.async = true;
+  script.onload = resolve;
+  script.onerror = () => reject(new Error('Paystack script failed to load'));
+  document.head.appendChild(script);
+});
+
 const WalletModal = ({ isOpen, onClose, onWalletUpdated }) => {
   const [walletBalance, setWalletBalance] = useState(0);
   const [transactions, setTransactions] = useState([]);
@@ -36,26 +55,39 @@ const WalletModal = ({ isOpen, onClose, onWalletUpdated }) => {
 
   const handleTopup = async (e) => {
     e.preventDefault();
+    if (!topupAmount || Number(topupAmount) <= 0) {
+      setMessage({ text: 'Please enter a valid amount in Naira', type: 'error' });
+      return;
+    }
+
     try {
       setSubmitting(true);
       setMessage('');
 
-      // Check if Paystack inline is loaded
-      if (typeof window.PaystackPop !== 'undefined') {
-        let publicKey = 'pk_live_060e4958254697673bb978c4a4df3694fae9099b';
-        try {
-          const configRes = await axios.get(`${API_URL}/payments/config`);
-          if (configRes.data.success && configRes.data.publicKey) {
-            publicKey = configRes.data.publicKey;
-          }
-        } catch (e) {
-          // fallback to live key
+      // 1. Ensure Paystack inline script is ready
+      try {
+        await loadPaystackScript();
+      } catch (err) {
+        console.warn('Paystack script dynamic load warning:', err);
+      }
+
+      // 2. Fetch public key
+      let publicKey = PAYSTACK_FALLBACK_KEY;
+      try {
+        const configRes = await axios.get(`${API_URL}/payments/config`);
+        if (configRes.data.success && configRes.data.publicKey) {
+          publicKey = configRes.data.publicKey;
         }
+      } catch (e) {
+        console.warn('Using fallback Paystack key', e);
+      }
 
-        const userRes = await axios.get(`${API_URL}/auth/me`);
-        const userEmail = userRes.data?.user?.email || 'client@dworld.com';
-        const userName = userRes.data?.user?.name || 'Client';
+      const userRes = await axios.get(`${API_URL}/auth/me`);
+      const userEmail = userRes.data?.user?.email || 'client@dworld.com';
+      const userName = userRes.data?.user?.name || 'Client';
 
+      // 3. Try popup first
+      if (typeof window.PaystackPop !== 'undefined') {
         const handler = window.PaystackPop.setup({
           key: publicKey,
           email: userEmail,
@@ -64,7 +96,8 @@ const WalletModal = ({ isOpen, onClose, onWalletUpdated }) => {
           ref: 'WAL-' + Date.now() + '-' + Math.floor(Math.random() * 1000),
           metadata: {
             purpose: 'wallet_topup',
-            user_name: userName
+            user_name: userName,
+            user_id: userRes.data?.user?._id || userRes.data?.user?.id
           },
           callback: async (response) => {
             try {
@@ -76,6 +109,8 @@ const WalletModal = ({ isOpen, onClose, onWalletUpdated }) => {
                 setWalletBalance(verifyRes.data.walletBalance);
                 fetchWallet();
                 if (onWalletUpdated) onWalletUpdated(verifyRes.data.walletBalance);
+              } else {
+                setMessage({ text: verifyRes.data.message || 'Payment verification failed', type: 'error' });
               }
             } catch (err) {
               setMessage({ text: err.response?.data?.message || 'Payment verification failed', type: 'error' });
@@ -92,17 +127,20 @@ const WalletModal = ({ isOpen, onClose, onWalletUpdated }) => {
         return;
       }
 
-      // Fallback dev topup
-      const res = await axios.post(`${API_URL}/auth/wallet/topup`, { amount: topupAmount });
-      if (res.data.success) {
-        setMessage({ text: res.data.message, type: 'success' });
-        setWalletBalance(res.data.walletBalance);
-        fetchWallet();
-        if (onWalletUpdated) onWalletUpdated(res.data.walletBalance);
+      // 4. Hard fallback: server-side transaction initialize redirect
+      const initRes = await axios.post(`${API_URL}/payments/initialize`, {
+        amount: Number(topupAmount),
+        purpose: 'wallet_topup'
+      });
+      if (initRes.data.success && initRes.data.data?.authorization_url) {
+        window.location.href = initRes.data.data.authorization_url;
+      } else {
+        setMessage({ text: 'Could not start payment. Please check your network and try again.', type: 'error' });
+        setSubmitting(false);
       }
     } catch (err) {
-      setMessage({ text: err.response?.data?.message || 'Failed to topup wallet', type: 'error' });
-    } finally {
+      console.error('Wallet topup error:', err);
+      setMessage({ text: err.response?.data?.message || 'Could not start payment. Please try again.', type: 'error' });
       setSubmitting(false);
     }
   };

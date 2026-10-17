@@ -4,6 +4,9 @@ const User = require('../models/User');
 const Appointment = require('../models/Appointment');
 const Notification = require('../models/Notification');
 
+const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET_KEY || '';
+const PAYSTACK_PUBLIC = process.env.PAYSTACK_PUBLIC_KEY || '';
+
 // Helper to make HTTPS requests to Paystack API
 const paystackRequest = (endpoint, method = 'GET', data = null) => {
     return new Promise((resolve, reject) => {
@@ -13,7 +16,7 @@ const paystackRequest = (endpoint, method = 'GET', data = null) => {
             path: endpoint,
             method: method,
             headers: {
-                Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+                Authorization: `Bearer ${PAYSTACK_SECRET}`,
                 'Content-Type': 'application/json'
             }
         };
@@ -46,7 +49,7 @@ const paystackRequest = (endpoint, method = 'GET', data = null) => {
 const getPaymentConfig = async (req, res) => {
     res.status(200).json({
         success: true,
-        publicKey: process.env.PAYSTACK_PUBLIC_KEY || ''
+        publicKey: PAYSTACK_PUBLIC
     });
 };
 
@@ -258,7 +261,7 @@ const verifyPayment = async (req, res, next) => {
 // @access  Public
 const paystackWebhook = async (req, res) => {
     try {
-        const secret = process.env.PAYSTACK_SECRET_KEY;
+        const secret = PAYSTACK_SECRET;
         const hash = crypto.createHmac('sha512', secret).update(JSON.stringify(req.body)).digest('hex');
 
         if (hash !== req.headers['x-paystack-signature']) {

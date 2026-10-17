@@ -338,12 +338,23 @@ const AppLayout = ({ children }) => {
               )}
             </div>
 
-            <div className="system-status-pill">
+            <div className="system-status-pill desktop-only">
               <span className="pulse-dot"></span>
               <span className="status-label">Operational</span>
             </div>
-            <div className="topbar-divider"></div>
-            <span className="topbar-welcome">Logged in: <strong>{user.email}</strong></span>
+            <div className="topbar-divider desktop-only"></div>
+            <span className="topbar-welcome desktop-only">Logged in: <strong>{user.email}</strong></span>
+
+            {/* VISIBLE LOGOUT BUTTON */}
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="topbar-logout-btn"
+              title="Sign Out of Account"
+            >
+              <LogOut size={16} />
+              <span className="logout-text">Sign Out</span>
+            </button>
           </div>
         </header>
 
@@ -400,41 +411,45 @@ const AppLayout = ({ children }) => {
         </div>
       )}
 
-      {/* Mobile Bottom Dock for App-like Navigation */}
-      <div className="mobile-bottom-dock">
+      {/* Mobile Bottom Dock for Native-like Navigation */}
+      <nav className="mobile-bottom-dock">
         {navItems.map((item, idx) => {
           const isActive = checkActive(item, idx);
           return (
             <Link 
               key={idx}
               to={item.path}
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '0.2rem',
-                color: isActive ? 'var(--primary)' : 'var(--text-muted)',
-                textDecoration: 'none',
-                fontSize: '0.7rem',
-                fontWeight: isActive ? 700 : 500
-              }}
+              className={`bottom-dock-item ${isActive ? 'active' : ''}`}
             >
-              <div style={{
-                padding: '0.2rem 0.6rem',
-                borderRadius: '12px',
-                background: isActive ? 'rgba(99, 102, 241, 0.15)' : 'transparent',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}>
+              <div className="dock-icon-wrapper">
                 {item.icon}
               </div>
-              <span>{item.name.split(' ')[0]}</span>
+              <span className="dock-label">{item.name.split(' ')[0]}</span>
             </Link>
           );
         })}
-      </div>
+        <button
+          type="button"
+          onClick={() => setIsWalletOpen(true)}
+          className="bottom-dock-item"
+        >
+          <div className="dock-icon-wrapper">
+            <Wallet size={18} />
+          </div>
+          <span className="dock-label">Wallet</span>
+        </button>
+        <button
+          type="button"
+          onClick={handleLogout}
+          className="bottom-dock-item"
+          style={{ color: '#ef4444' }}
+        >
+          <div className="dock-icon-wrapper" style={{ color: '#ef4444' }}>
+            <LogOut size={18} />
+          </div>
+          <span className="dock-label" style={{ color: '#ef4444', fontWeight: 700 }}>Exit</span>
+        </button>
+      </nav>
 
       {/* Styled Block for AppShell Layout */}
       <style>{`
@@ -715,6 +730,111 @@ const AppLayout = ({ children }) => {
           100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
         }
 
+        .topbar-actions-wrapper {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+        }
+
+        .topbar-wallet-pill {
+          background: linear-gradient(135deg, var(--primary), var(--secondary));
+          color: white;
+          border: none;
+          padding: 0.45rem 0.85rem;
+          border-radius: 10px;
+          font-weight: 700;
+          font-size: 0.85rem;
+          display: flex;
+          align-items: center;
+          gap: 0.4rem;
+          cursor: pointer;
+          box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);
+          transition: transform 0.15s ease;
+        }
+
+        .topbar-wallet-pill:active {
+          transform: scale(0.96);
+        }
+
+        .topbar-icon-btn {
+          background: rgba(255, 255, 255, 0.04);
+          border: 1px solid var(--border-light);
+          width: 38px;
+          height: 38px;
+          border-radius: 10px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          color: var(--text-main);
+          position: relative;
+          transition: all 0.2s;
+        }
+
+        .topbar-icon-btn:hover {
+          background: rgba(255, 255, 255, 0.08);
+        }
+
+        .notif-badge {
+          position: absolute;
+          top: -4px;
+          right: -4px;
+          background: #ef4444;
+          color: white;
+          border-radius: 50%;
+          width: 18px;
+          height: 18px;
+          font-size: 0.65rem;
+          font-weight: 800;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .notif-dropdown {
+          position: absolute;
+          right: 0;
+          top: 46px;
+          width: min(340px, 88vw);
+          background: var(--nav-bg);
+          border: 1px solid var(--border-light);
+          border-radius: 16px;
+          box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.4);
+          z-index: 2550;
+          padding: 1rem;
+          overflow: hidden;
+        }
+
+        .topbar-logout-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.4rem;
+          padding: 0.45rem 0.8rem;
+          border-radius: 10px;
+          background: rgba(239, 68, 68, 0.12);
+          border: 1px solid rgba(239, 68, 68, 0.28);
+          color: #ef4444;
+          font-size: 0.8rem;
+          font-weight: 700;
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+
+        .topbar-logout-btn:hover {
+          background: rgba(239, 68, 68, 0.22);
+          border-color: rgba(239, 68, 68, 0.45);
+          color: #f87171;
+        }
+
+        .desktop-only {
+          display: flex;
+          align-items: center;
+        }
+
+        .mobile-bottom-dock {
+          display: none;
+        }
+
         /* --- Responsive Styles --- */
         @media (max-width: 992px) {
           .app-sidebar {
@@ -725,16 +845,96 @@ const AppLayout = ({ children }) => {
             display: block;
           }
 
+          .desktop-only {
+            display: none !important;
+          }
+
           .app-topbar {
-            padding: 0 1.25rem;
+            padding: 0 1rem;
+            height: 60px;
           }
 
           .app-workspace-content {
-            padding: 1.25rem;
+            padding: 1.25rem 1rem;
           }
 
           .topbar-actions-wrapper {
+            gap: 0.5rem;
+          }
+
+          .wallet-label-full {
             display: none;
+          }
+        }
+
+        @media (max-width: 768px) {
+          .mobile-bottom-dock {
+            display: flex;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 62px;
+            background: var(--nav-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-top: 1px solid var(--border-light);
+            justify-content: space-around;
+            align-items: center;
+            z-index: 999;
+            padding: 0 0.5rem;
+            padding-bottom: env(safe-area-inset-bottom, 0px);
+            box-shadow: 0 -4px 25px rgba(0, 0, 0, 0.2);
+          }
+
+          .app-workspace-content {
+            padding-bottom: 5.5rem !important;
+          }
+
+          .bottom-dock-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 0.2rem;
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 0.68rem;
+            font-weight: 600;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            padding: 0.25rem 0.5rem;
+            border-radius: 8px;
+            transition: color 0.15s;
+          }
+
+          .bottom-dock-item.active {
+            color: var(--primary);
+            font-weight: 700;
+          }
+
+          .dock-icon-wrapper {
+            padding: 0.15rem 0.5rem;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+          }
+
+          .bottom-dock-item.active .dock-icon-wrapper {
+            background: rgba(99, 102, 241, 0.15);
+          }
+
+          .topbar-logout-btn .logout-text {
+            display: none;
+          }
+
+          .topbar-logout-btn {
+            padding: 0.45rem;
+            width: 36px;
+            height: 36px;
+            justify-content: center;
           }
         }
 
@@ -748,7 +948,7 @@ const AppLayout = ({ children }) => {
         }
 
         .mobile-sidebar {
-          width: 280px;
+          width: 290px;
           height: 100vh;
           background: var(--nav-bg);
           border-right: 1px solid var(--border-light);
@@ -775,6 +975,7 @@ const AppLayout = ({ children }) => {
         .mobile-sidebar-footer {
           padding: 1.5rem;
           border-top: 1px solid var(--border-light);
+          margin-top: auto;
         }
 
         @keyframes slide-in {

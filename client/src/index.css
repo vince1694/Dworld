@@ -146,6 +146,32 @@ h1, h2, h3, h4, h5, h6 {
   border-color: var(--border-strong);
 }
 
+/* Interactive list row highlight */
+.hover-card-select {
+  transition: background 0.15s ease;
+}
+
+.hover-card-select:hover {
+  background: rgba(79, 70, 229, 0.03) !important;
+}
+
+/* Animate in on load */
+.animate-fade-in {
+  animation: fadeInUp 0.35s ease both;
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Expert hero title responsive */
+.expert-hero-title {
+  font-size: clamp(1.1rem, 4vw, 1.65rem);
+  line-height: 1.15;
+  margin: 0;
+}
+
 .bento-span-12 { grid-column: span 12; }
 .bento-span-8  { grid-column: span 8; }
 .bento-span-7  { grid-column: span 7; }
@@ -377,7 +403,7 @@ h1, h2, h3, h4, h5, h6 {
   .topbar-actions-wrapper {
     display: flex !important;
     align-items: center !important;
-    gap: 0.5rem !important;
+    gap: 0.4rem !important;
     margin-left: auto !important;
   }
 
@@ -389,36 +415,146 @@ h1, h2, h3, h4, h5, h6 {
   }
 
   .topbar-title-wrapper h2 {
-    font-size: 0.95rem !important;
+    font-size: 0.9rem !important;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 110px;
+    max-width: 100px;
   }
 
   .app-topbar {
-    padding: 0.6rem 0.75rem !important;
+    padding: 0 0.75rem !important;
+    height: 56px !important;
     display: flex !important;
     justify-content: space-between !important;
     align-items: center !important;
     width: 100% !important;
   }
 
-  /* Bento Grids Mobile Collapse */
+  /* Bento Grids Mobile 2-Column Responsive Layout */
   .bento-grid {
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 1rem !important;
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 0.75rem !important;
   }
 
-  .bento-span-12, .bento-span-8, .bento-span-7, .bento-span-6, .bento-span-5, .bento-span-4, .bento-span-3 {
+  .bento-span-3, .bento-span-4, .bento-span-6 {
+    grid-column: span 1 !important;
     width: 100% !important;
   }
 
-  /* Mobile Modals */
-  .modal-card {
-    padding: 1.25rem !important;
-    border-radius: 18px !important;
-    max-height: 85vh !important;
+  .bento-span-12, .bento-span-8, .bento-span-7, .bento-span-5 {
+    grid-column: span 2 !important;
+    width: 100% !important;
   }
+
+  /* Bento stat card compact sizes */
+  .bento-card h2 {
+    font-size: 1.6rem !important;
+  }
+
+  .bento-card [style*="font-size: 2rem"] {
+    font-size: 1.55rem !important;
+  }
+
+  /* Mobile Modals — slide up sheet style */
+  .modal-overlay {
+    align-items: flex-end !important;
+    padding: 0 !important;
+  }
+
+  .modal-card {
+    padding: 1.5rem 1.25rem 2rem !important;
+    border-radius: 24px 24px 0 0 !important;
+    max-height: 88vh !important;
+    width: 100% !important;
+    margin: 0 !important;
+    border-bottom: none !important;
+  }
+
+  /* Touch & Fluid Mobile Tweaks */
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .btn {
+    min-height: 44px;
+    font-size: 0.875rem;
+  }
+
+  .card-header {
+    padding: 1rem 1.1rem !important;
+    flex-wrap: wrap !important;
+    gap: 0.75rem !important;
+  }
+
+  .card-body {
+    padding: 1rem !important;
+  }
+
+  .app-card, .bento-card {
+    border-radius: 16px !important;
+  }
+
+  /* Larger touch targets for action buttons */
+  .btn-primary, .btn-secondary, .btn-outline {
+    padding: 0.65rem 1rem !important;
+  }
+
+  /* Hero banners — compact on mobile */
+  .hero-banner-compact {
+    padding: 1.25rem !important;
+  }
+
+  /* Input fields — larger on mobile for usability */
+  .input-group input, .input-group select, .input-group textarea {
+    font-size: 16px !important; /* prevents iOS zoom */
+    padding: 0.85rem 1rem !important;
+  }
+
+  /* Grid cols-2 stays 2 on mobile for compact forms */
+  .grid-cols-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  /* Tab bar as horizontal chip scroller */
+  .tab-bar-scroll {
+    overflow-x: auto !important;
+    flex-wrap: nowrap !important;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    gap: 0.4rem !important;
+    padding-bottom: 0.25rem;
+  }
+
+  .tab-bar-scroll::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Appointment list items on mobile */
+  .appt-list-item {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 0.75rem !important;
+    padding: 1rem !important;
+  }
+
+  .appt-list-item-actions {
+    width: 100% !important;
+    justify-content: flex-start !important;
+    flex-wrap: wrap !important;
+  }
+}
+
+/* Horizontal Chip Scroller without scrollbar */
+.chips-scroller {
+  display: flex;
+  gap: 0.4rem;
+  overflow-x: auto;
+  padding-bottom: 0.25rem;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.chips-scroller::-webkit-scrollbar {
+  display: none;
 }
