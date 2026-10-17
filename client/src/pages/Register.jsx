@@ -386,9 +386,21 @@ const Register = () => {
               <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.25rem' }}>
                 <Link to="/">
                   <img 
-                    src="/logo.png" 
+                    src="/logo-192.png" 
                     alt="D.WORLD Official Logo" 
-                    style={{ width: 68, height: 68, borderRadius: 18, objectFit: 'cover', boxShadow: '0 8px 24px rgba(79, 70, 229, 0.25)' }} 
+                    width="68"
+                    height="68"
+                    loading="eager"
+                    decoding="async"
+                    style={{ 
+                      width: 68, 
+                      height: 68, 
+                      borderRadius: 18, 
+                      objectFit: 'cover', 
+                      boxShadow: '0 8px 24px rgba(79, 70, 229, 0.25)',
+                      transform: 'translateZ(0)',
+                      willChange: 'transform'
+                    }} 
                   />
                 </Link>
               </div>

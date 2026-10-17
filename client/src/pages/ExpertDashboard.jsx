@@ -331,9 +331,22 @@ const ExpertDashboard = () => {
           <div className="expert-sidebar-logo">
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
               <img 
-                src="/logo.png" 
+                src="/logo-sm.png" 
                 alt="D.WORLD Logo" 
-                style={{ width: 34, height: 34, borderRadius: 10, objectFit: 'cover', flexShrink: 0, boxShadow: '0 4px 12px rgba(99, 102, 241, 0.25)' }} 
+                width="34"
+                height="34"
+                loading="eager"
+                decoding="async"
+                style={{ 
+                  width: 34, 
+                  height: 34, 
+                  borderRadius: 10, 
+                  objectFit: 'cover', 
+                  flexShrink: 0, 
+                  boxShadow: '0 4px 12px rgba(99, 102, 241, 0.25)',
+                  transform: 'translateZ(0)',
+                  willChange: 'transform'
+                }} 
               />
               <div>
                 <div style={{ fontFamily: 'Outfit', fontWeight: 800, fontSize: '1rem', color: 'var(--text-main)', letterSpacing: '0.03em' }}>D.WORLD</div>

@@ -168,9 +168,22 @@ const AppLayout = ({ children }) => {
         <div className="sidebar-brand-wrapper">
           <Link to="/" className="sidebar-brand-link">
             <img 
-              src="/logo.png" 
+              src="/logo-sm.png" 
               alt="D.WORLD Logo" 
-              style={{ width: 34, height: 34, borderRadius: 10, objectFit: 'cover', flexShrink: 0, boxShadow: '0 4px 12px rgba(79, 70, 229, 0.25)' }} 
+              width="34"
+              height="34"
+              loading="eager"
+              decoding="async"
+              style={{ 
+                width: 34, 
+                height: 34, 
+                borderRadius: 10, 
+                objectFit: 'cover', 
+                flexShrink: 0, 
+                boxShadow: '0 4px 12px rgba(79, 70, 229, 0.25)',
+                transform: 'translateZ(0)',
+                willChange: 'transform'
+              }} 
             />
             {!collapsed && (
               <div>
@@ -453,9 +466,22 @@ const AppLayout = ({ children }) => {
             <div className="mobile-brand-wrapper">
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
                 <img 
-                  src="/logo.png" 
+                  src="/logo-sm.png" 
                   alt="D.WORLD Logo" 
-                  style={{ width: 34, height: 34, borderRadius: 10, objectFit: 'cover', flexShrink: 0, boxShadow: '0 4px 12px rgba(79, 70, 229, 0.25)' }} 
+                  width="34"
+                  height="34"
+                  loading="eager"
+                  decoding="async"
+                  style={{ 
+                    width: 34, 
+                    height: 34, 
+                    borderRadius: 10, 
+                    objectFit: 'cover', 
+                    flexShrink: 0, 
+                    boxShadow: '0 4px 12px rgba(79, 70, 229, 0.25)',
+                    transform: 'translateZ(0)',
+                    willChange: 'transform'
+                  }} 
                 />
                 <div>
                   <span className="brand-text">D.WORLD</span>

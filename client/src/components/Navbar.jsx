@@ -63,9 +63,22 @@ const Navbar = () => {
           gap: '0.5rem'
         }}>
           <img 
-            src="/logo.png" 
+            src="/logo-sm.png" 
             alt="D.WORLD Logo" 
-            style={{ width: 32, height: 32, borderRadius: 8, objectFit: 'cover', flexShrink: 0, boxShadow: '0 2px 8px rgba(79, 70, 229, 0.25)' }} 
+            width="32"
+            height="32"
+            loading="eager"
+            decoding="async"
+            style={{ 
+              width: 32, 
+              height: 32, 
+              borderRadius: 8, 
+              objectFit: 'cover', 
+              flexShrink: 0, 
+              boxShadow: '0 2px 8px rgba(79, 70, 229, 0.25)',
+              transform: 'translateZ(0)',
+              willChange: 'transform'
+            }} 
           />
           D.WORLD
         </div>
