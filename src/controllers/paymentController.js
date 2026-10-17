@@ -84,10 +84,18 @@ const initializePayment = async (req, res, next) => {
             return res.status(400).json({ success: false, message: 'A valid email address is required to process Paystack payment.' });
         }
 
+        const clientUrl = process.env.CLIENT_URL || 'https://dworld.ink';
+        const callbackUrl = purpose === 'appointment_pay'
+            ? `${clientUrl}/dashboard?tab=appointments&paid=1`
+            : purpose === 'expert_activation'
+            ? `${clientUrl}/expert?activated=1`
+            : `${clientUrl}/dashboard?tab=wallet&status=success`;
+
         const payload = {
             email: email.trim().toLowerCase(),
             amount: amountInKobo,
             currency: 'NGN',
+            callback_url: callbackUrl,
             metadata: {
                 user_id: userId,
                 user_name: name,

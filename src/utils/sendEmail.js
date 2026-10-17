@@ -58,7 +58,8 @@ const BASE_STYLES = `
 const footerHtml = () => `
   <div class="footer">
     &copy; ${new Date().getFullYear()} <strong style="color:#6366f1;">D.WORLD</strong> &mdash; Lead City University Campus Services<br/>
-    <span style="font-size:11px;color:#1f2937;">This is an automated message. Do not reply directly.</span>
+    <a href="https://dworld.ink" style="color:#818cf8;text-decoration:none;font-weight:600;font-size:12px;display:inline-block;margin-top:6px;">🌐 dworld.ink</a><br/>
+    <span style="font-size:11px;color:#475569;display:inline-block;margin-top:4px;">This is an automated message from the D.WORLD Campus Platform.</span>
   </div>
 `;
 
@@ -259,6 +260,12 @@ const sendWelcomeEmail = async (email, name, role = 'user') => {
       <p class="txt">Your D.WORLD account is officially verified and ready. D.WORLD is built exclusively for Lead City University students to make campus appointments fast, reliable, and 100% cashless.</p>
       
       ${stepsHtml}
+
+      <div style="text-align:center;margin:28px 0 20px;">
+        <a href="https://dworld.ink/${isExpert ? 'expert' : 'dashboard'}" style="display:inline-block;padding:14px 28px;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#ffffff;text-decoration:none;border-radius:12px;font-weight:800;font-size:15px;box-shadow:0 8px 20px rgba(79,70,229,0.35);">
+          Open My D.WORLD Workspace &rarr;
+        </a>
+      </div>
 
       <div class="notice">
         🔒 <strong>Safety Tip:</strong> Always keep appointments within D.WORLD for secure payments, auto-refunds, and campus support.
