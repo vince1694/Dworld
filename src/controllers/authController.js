@@ -66,26 +66,21 @@ const initiateRegister = async (req, res, next) => {
             createdAt: Date.now()
         });
 
-        console.log(`[REGISTRATION OTP] OTP generated for ${cleanEmail}: ${otp}`);
-
-        // Send OTP email (non-blocking fallback guaranteed)
-        let emailDelivered = true;
-        let emailErrorMessage = '';
+        // Send OTP email exclusively via Gmail (no OTP leaks in logs/response)
         try {
             await sendRegistrationOtpEmail(cleanEmail, name, otp);
         } catch (emailErr) {
-            emailDelivered = false;
-            emailErrorMessage = emailErr.message || 'Email delivery notice';
-            console.warn('[REG OTP EMAIL WARN]:', emailErrorMessage);
+            console.error('[REGISTRATION EMAIL FAILED]:', emailErr.message);
+            return res.status(500).json({
+                success: false,
+                message: 'Failed to deliver verification code to your email. Please ensure your email is correct and try again.'
+            });
         }
 
         res.status(200).json({
             success: true,
-            emailDelivered,
-            message: emailDelivered 
-                ? 'Verification code sent to your email. Please check your inbox.' 
-                : 'Verification code generated. If email is delayed, use the code below.',
-            devOtp: !emailDelivered ? otp : undefined,
+            emailDelivered: true,
+            message: 'Verification code sent to your email. Please check your inbox.',
             email: cleanEmail
         });
     } catch (error) {
@@ -259,23 +254,20 @@ const forgotPassword = async (req, res, next) => {
         user.resetOtpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
         await user.save();
 
-        // Send email via Brevo
-        let emailDelivered = true;
+        // Send email via Gmail
         try {
             await sendPasswordResetEmail(user.email, user.name, otp);
         } catch (emailErr) {
-            emailDelivered = false;
-            console.error('Email sending failed:', emailErr.message);
-            // Even if Brevo fails, keep OTP saved for dev fallback
+            console.error('[PASSWORD RESET EMAIL FAILED]:', emailErr.message);
+            return res.status(500).json({
+                success: false,
+                message: 'Failed to send verification code. Please try again later.'
+            });
         }
 
         res.json({ 
             success: true, 
-            emailDelivered,
-            message: emailDelivered 
-                ? 'Verification code sent to your email.' 
-                : 'Email service pending Brevo activation. Test code provided.',
-            devOtp: !emailDelivered ? otp : undefined
+            message: 'Verification code sent to your email.'
         });
     } catch (error) {
         next(error);
@@ -382,20 +374,24 @@ const updateAvailability = async (req, res, next) => {
 
 const getMe = async (req, res, next) => {
     try {
-        const user = await User.findById(req.user.id);
+        const userId = req.user?.id || req.user?._id;
+        const user = (req.user && req.user.name) ? req.user : await User.findById(userId);
         if (!user) {
             return res.status(404).json({ success: false, message: 'User not found' });
         }
         res.json({ success: true, user: {
-            id: user.id || user._id,
+            id: String(user.id || user._id),
+            _id: String(user.id || user._id),
             name: user.name,
             email: user.email,
             role: user.role,
             isActivated: user.role === 'expert' ? Boolean(user.isActivated) : true,
             activationFee: user.activationFee || 3000,
-            phone: user.phone,
-            bio: user.bio,
-            specialty: user.specialty,
+            phone: user.phone || '',
+            bio: user.bio || '',
+            matricNo: user.matricNo || '',
+            department: user.department || 'Cosmetology & Campus Styling',
+            specialty: user.specialty || '',
             workingDays: user.workingDays || ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
             workingHours: user.workingHours || { start: '09:00', end: '18:00' },
             walletBalance: Number(user.walletBalance || 0)
@@ -407,7 +403,8 @@ const getMe = async (req, res, next) => {
 
 const getWallet = async (req, res, next) => {
     try {
-        const user = await User.findById(req.user.id);
+        const userId = req.user?.id || req.user?._id;
+        const user = (req.user && req.user.walletBalance !== undefined) ? req.user : await User.findById(userId);
         if (!user) {
             return res.status(404).json({ success: false, message: 'User not found' });
         }

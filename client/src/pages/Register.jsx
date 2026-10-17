@@ -43,7 +43,7 @@ const EXPERT_SPECIALTIES = [
 ];
 
 // ── OTP Step Component ────────────────────────────────────────────────────────
-const OtpStep = ({ email, onVerify, onResend, error, loading, devOtp }) => {
+const OtpStep = ({ email, onVerify, onResend, error, loading }) => {
   const [digits, setDigits] = useState(['', '', '', '', '', '']);
   const [countdown, setCountdown] = useState(600); // 10 min
   const [resending, setResending] = useState(false);
@@ -150,50 +150,6 @@ const OtpStep = ({ email, onVerify, onResend, error, loading, devOtp }) => {
           </div>
         )}
 
-        {devOtp && (
-          <div style={{
-            background: 'rgba(245, 158, 11, 0.1)',
-            border: '1px solid rgba(245, 158, 11, 0.3)',
-            borderRadius: '12px',
-            padding: '0.85rem 1rem',
-            marginBottom: '1.25rem',
-            fontSize: '0.825rem',
-            color: '#b45309'
-          }}>
-            <div style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.45rem', marginBottom: '0.35rem' }}>
-              <Sparkles size={15} /> Instant Verification Code
-            </div>
-            <p style={{ margin: '0 0 0.5rem', fontSize: '0.78rem', color: '#4b5563' }}>
-              SMTP verification sandbox active. Use this one-click auto-fill:
-            </p>
-            <button
-              type="button"
-              onClick={() => {
-                const arr = String(devOtp).split('').slice(0, 6);
-                setDigits(arr);
-                refs.current[5]?.focus();
-              }}
-              style={{
-                width: '100%',
-                padding: '0.55rem',
-                background: '#fef3c7',
-                border: '1px solid #fde68a',
-                color: '#92400e',
-                fontWeight: 700,
-                fontSize: '0.85rem',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '0.4rem'
-              }}
-            >
-              <span>⚡ Auto-fill code: <strong>{devOtp}</strong></span>
-            </button>
-          </div>
-        )}
-
         <form onSubmit={handleSubmit}>
           {/* 6 Digit Inputs */}
           <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center', marginBottom: '1.25rem' }}>
@@ -285,7 +241,6 @@ const Register = () => {
   const [step, setStep] = useState('form'); // 'form' | 'otp'
   const [pendingEmail, setPendingEmail] = useState('');
   const [pendingFormData, setPendingFormData] = useState(null);
-  const [devOtp, setDevOtp] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
   const [formData, setFormData] = useState({
@@ -354,7 +309,6 @@ const Register = () => {
       if (res && res.success) {
         setPendingEmail(res.email || formData.email.trim().toLowerCase());
         setPendingFormData(formData);
-        if (res.devOtp) setDevOtp(res.devOtp);
         setStep('otp');
         notify.success(res.message || 'Verification code sent to your email.');
       } else {
@@ -394,8 +348,7 @@ const Register = () => {
 
   const handleResend = async () => {
     try {
-      const res = await initiateRegister(pendingFormData);
-      if (res?.devOtp) setDevOtp(res.devOtp);
+      await initiateRegister(pendingFormData);
       notify.info('New verification code sent to your email.');
     } catch (err) {
       const msg = err.response?.data?.message || 'Failed to resend code.';
@@ -417,7 +370,6 @@ const Register = () => {
             onResend={handleResend}
             error={error}
             loading={loading}
-            devOtp={devOtp}
           />
         ) : (
           <motion.div
