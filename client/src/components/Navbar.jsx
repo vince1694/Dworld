@@ -45,11 +45,14 @@ const Navbar = () => {
       display: 'flex',
       justifyContent: 'space-between',
       alignItems: 'center',
-      background: 'var(--nav-bg)',
+      background: 'rgba(255, 255, 255, 0.82)',
+      backdropFilter: 'blur(16px)',
+      WebkitBackdropFilter: 'blur(16px)',
       position: 'sticky',
       top: 0,
       zIndex: 1000,
-      borderBottom: '1px solid var(--border-light)'
+      borderBottom: '1px solid rgba(226, 232, 240, 0.6)',
+      boxShadow: '0 1px 3px rgba(15, 23, 42, 0.04)'
     }}>
       <Link to="/" style={{ textDecoration: 'none' }}>
         <div style={{
@@ -179,14 +182,36 @@ const Navbar = () => {
           font-size: 0.95rem;
           transition: color 0.2s ease;
           font-family: 'Inter', sans-serif;
+          position: relative;
+          padding-bottom: 2px;
+        }
+        .nav-link::after {
+          content: '';
+          position: absolute;
+          bottom: -4px;
+          left: 0;
+          width: 0;
+          height: 2px;
+          background: linear-gradient(90deg, var(--primary), var(--secondary));
+          border-radius: 2px;
+          transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
         }
         .nav-link:hover, .nav-link.active {
           color: var(--text-main);
+        }
+        .nav-link.active::after, .nav-link:hover::after {
+          width: 100%;
         }
         
         .mobile-toggle {
           display: none;
           cursor: pointer;
+          padding: 0.35rem;
+          border-radius: 8px;
+          transition: background 0.2s ease;
+        }
+        .mobile-toggle:hover {
+          background: var(--primary-light);
         }
 
         .mobile-nav {
@@ -194,13 +219,21 @@ const Navbar = () => {
           top: 100%;
           left: 0;
           width: 100%;
-          background: var(--nav-bg);
+          background: rgba(255, 255, 255, 0.92);
+          backdrop-filter: blur(20px);
+          -webkit-backdrop-filter: blur(20px);
           padding: 1.5rem 5%;
           display: flex;
           flex-direction: column;
           gap: 1rem;
           border-bottom: 1px solid var(--border-light);
-          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
+          box-shadow: 0 8px 24px -4px rgba(15, 23, 42, 0.08);
+          animation: slideDownNav 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
+        }
+        
+        @keyframes slideDownNav {
+          from { opacity: 0; transform: translateY(-8px); }
+          to   { opacity: 1; transform: translateY(0); }
         }
 
         .mobile-nav-link {
@@ -208,11 +241,18 @@ const Navbar = () => {
           text-decoration: none;
           font-weight: 500;
           font-size: 1.05rem;
-          padding: 0.5rem 0;
+          padding: 0.6rem 0.75rem;
+          border-radius: 10px;
+          transition: all 0.15s ease;
         }
-        
+        .mobile-nav-link:hover {
+          background: var(--primary-light);
+          color: var(--primary);
+        }
         .mobile-nav-link.active {
           color: var(--primary);
+          background: var(--primary-light);
+          font-weight: 600;
         }
 
         @media (max-width: 768px) {

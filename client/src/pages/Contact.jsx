@@ -92,14 +92,17 @@ const Contact = () => {
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               style={{ 
-              padding: '1rem', 
-              borderRadius: '12px', 
+              padding: '1rem 1.25rem', 
+              borderRadius: '14px', 
               marginBottom: '1.5rem', 
-              fontSize: '0.95rem',
-              fontWeight: 500,
-              background: status.type === 'success' ? 'var(--success-glow)' : status.type === 'error' ? 'var(--error-glow)' : 'rgba(255, 255, 255, 0.1)',
+              fontSize: '0.9rem',
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.65rem',
+              background: status.type === 'success' ? 'var(--success-glow)' : status.type === 'error' ? 'var(--error-glow)' : 'var(--info-glow)',
               color: status.type === 'success' ? 'var(--success)' : status.type === 'error' ? 'var(--error)' : 'var(--info)',
-              border: `1px solid ${status.type === 'success' ? 'rgba(16,185,129,0.3)' : status.type === 'error' ? 'rgba(239,68,68,0.3)' : 'rgba(255,255,255,0.2)'}`
+              border: `1.5px solid ${status.type === 'success' ? 'rgba(16,185,129,0.25)' : status.type === 'error' ? 'rgba(239,68,68,0.25)' : 'rgba(59,130,246,0.25)'}`
             }}>
               {status.text}
             </motion.div>

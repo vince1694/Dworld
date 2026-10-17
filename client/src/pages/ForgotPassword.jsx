@@ -25,32 +25,40 @@ const ForgotPassword = () => {
   };
 
   return (
-    <div className="page-wrapper flex-center animate-fade-in" style={{ padding: '2rem 1rem' }}>
+    <div className="page-wrapper flex-center animate-fade-in" style={{ padding: '2.5rem 1rem' }}>
       <motion.div 
-        initial={{ opacity: 0, scale: 0.98, y: 10 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        transition={{ duration: 0.3 }}
-        className="app-card" 
-        style={{ width: '100%', maxWidth: '420px' }}
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.25 }}
+        className="auth-card" 
+        style={{ width: '100%', maxWidth: '440px' }}
       >
         {!submitted ? (
           <>
-            <div className="card-header" style={{ flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
-              <div style={{ background: '#e0e7ff', padding: '0.75rem', borderRadius: '50%', color: 'var(--primary)', marginBottom: '1rem' }}>
+            <div className="auth-header" style={{ textAlign: 'center' }}>
+              <div style={{ background: 'var(--primary-light)', padding: '0.85rem', borderRadius: '50%', color: 'var(--primary)', marginBottom: '1rem', display: 'inline-flex' }}>
                 <KeyRound size={28} />
               </div>
-              <h1 style={{ fontSize: '1.5rem', marginBottom: '0.25rem', letterSpacing: '-0.02em' }}>Forgot Password</h1>
-              <p style={{ margin: 0 }}>No worries, we'll send you reset instructions.</p>
+              <h1>Forgot Password</h1>
+              <p>No worries, we'll send you reset instructions.</p>
             </div>
 
-            <div className="card-body">
+            <div className="auth-body">
               {error && (
                 <div style={{ 
-                  background: '#fee2e2', color: '#b91c1c', border: '1px solid #fca5a5',
-                  padding: '1rem', borderRadius: '6px', marginBottom: '1.5rem', 
-                  display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.9rem', fontWeight: 500
+                  background: 'var(--error-glow)',
+                  color: '#dc2626',
+                  border: '1px solid rgba(239, 68, 68, 0.25)',
+                  padding: '0.85rem 1rem',
+                  borderRadius: '12px',
+                  marginBottom: '1.25rem', 
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.65rem',
+                  fontSize: '0.85rem',
+                  fontWeight: 500
                 }}>
-                  <AlertCircle size={18} />
+                  <AlertCircle size={16} style={{ flexShrink: 0 }} />
                   {error}
                 </div>
               )}
@@ -69,7 +77,7 @@ const ForgotPassword = () => {
 
                 <button 
                   type="submit" className="btn btn-primary" 
-                  style={{ width: '100%', padding: '0.75rem', marginTop: '0.5rem', fontSize: '1rem' }} disabled={loading}
+                  style={{ width: '100%', height: '48px', borderRadius: '14px', fontSize: '0.95rem', fontWeight: 700, justifyContent: 'center', marginTop: '0.5rem' }} disabled={loading}
                 >
                   {loading ? 'Sending link...' : 'Reset password'}
                 </button>
@@ -84,18 +92,18 @@ const ForgotPassword = () => {
           </>
         ) : (
           <>
-            <div className="card-header" style={{ flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
-              <div style={{ background: '#dcfce7', padding: '0.75rem', borderRadius: '50%', color: '#15803d', marginBottom: '1rem' }}>
+            <div className="auth-header" style={{ textAlign: 'center' }}>
+              <div style={{ background: 'var(--success-glow)', padding: '0.85rem', borderRadius: '50%', color: 'var(--success)', marginBottom: '1rem', display: 'inline-flex' }}>
                 <Mail size={28} />
               </div>
-              <h1 style={{ fontSize: '1.5rem', marginBottom: '0.25rem', letterSpacing: '-0.02em' }}>Check your email</h1>
-              <p style={{ margin: 0, lineHeight: 1.5 }}>
+              <h1>Check your email</h1>
+              <p style={{ lineHeight: 1.5 }}>
                 We sent a password reset link to <br/>
                 <strong style={{ color: 'var(--text-main)' }}>{email}</strong>
               </p>
             </div>
-            <div className="card-body">
-              <button onClick={() => setSubmitted(false)} className="btn btn-secondary" style={{ width: '100%', padding: '0.75rem', fontSize: '1rem' }}>
+            <div className="auth-body">
+              <button onClick={() => setSubmitted(false)} className="btn btn-secondary" style={{ width: '100%', height: '48px', borderRadius: '14px', fontSize: '0.95rem', fontWeight: 600, justifyContent: 'center' }}>
                 Didn't receive the email? Click to resend
               </button>
             </div>

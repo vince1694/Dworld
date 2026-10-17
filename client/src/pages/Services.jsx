@@ -149,11 +149,11 @@ const Services = () => {
 
       {/* HEADER SECTION */}
       <header style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
-        <h1 style={{ fontSize: '2.5rem', marginBottom: '0.75rem', color: 'var(--text-main)', letterSpacing: '-0.02em', fontFamily: 'Outfit' }}>
-          What do you want done?
+        <h1 style={{ fontSize: '2.5rem', marginBottom: '0.75rem', color: 'var(--text-main)', letterSpacing: '-0.02em', fontFamily: 'Outfit', fontWeight: 900 }}>
+          Campus Services & Verified Specialists
         </h1>
         <p style={{ color: 'var(--text-muted)', fontSize: '1.05rem', maxWidth: '680px', margin: '0 auto 2rem' }}>
-          Choose your service tier below. You can specify your exact hairstyle, nail design, or lash preference during booking!
+          Explore approved Lead City University stylists by location, specialty, and pricing.
         </p>
 
         {/* MASTER VIEW TOGGLE SWITCH (SERVICES VS EXPERTS) */}
@@ -161,7 +161,7 @@ const Services = () => {
           <button
             onClick={() => setSearchParams({ tab: 'services' })}
             style={{
-              padding: '0.5rem 1.5rem',
+              padding: '0.55rem 1.5rem',
               borderRadius: '9999px',
               border: 'none',
               background: activeTab === 'services' ? 'var(--primary)' : 'transparent',
@@ -182,7 +182,7 @@ const Services = () => {
           <button
             onClick={() => setSearchParams({ tab: 'experts' })}
             style={{
-              padding: '0.5rem 1.5rem',
+              padding: '0.55rem 1.5rem',
               borderRadius: '9999px',
               border: 'none',
               background: activeTab === 'experts' ? 'var(--secondary)' : 'transparent',
@@ -197,7 +197,7 @@ const Services = () => {
               transition: 'all 0.2s ease'
             }}
           >
-            <Users size={16} /> Specialist Experts ({experts.length})
+            <Users size={16} /> Verified Specialists ({experts.length})
           </button>
         </div>
       </header>
@@ -208,19 +208,20 @@ const Services = () => {
           
           {/* Service Category Chips */}
           <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center', flexWrap: 'wrap', marginBottom: '2rem' }}>
-            {['All', 'Hair', 'Nails', 'Lashes', 'Makeup', 'Barbering', 'Skincare', 'Wellness'].map(cat => (
+            {['All', 'Lash Techs', 'Nail Techs', 'Hair Braider', 'Wig Installers', 'Barber', 'Body Care'].map(cat => (
               <button
                 key={cat}
                 onClick={() => setSelectedCategory(cat)}
                 style={{
-                  padding: '0.4rem 0.85rem',
+                  padding: '0.45rem 0.95rem',
                   borderRadius: '9999px',
-                  border: selectedCategory === cat ? '1px solid var(--primary)' : '1px solid var(--border-light)',
+                  border: selectedCategory === cat ? '1.5px solid var(--primary)' : '1px solid var(--border-light)',
                   background: selectedCategory === cat ? 'rgba(79, 70, 229, 0.1)' : '#ffffff',
                   color: selectedCategory === cat ? 'var(--primary)' : 'var(--text-muted)',
                   fontSize: '0.8rem',
                   fontWeight: 700,
-                  cursor: 'pointer'
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease'
                 }}
               >
                 {cat}
@@ -428,9 +429,17 @@ const Services = () => {
                             })}
                           </div>
                         ) : (
-                          <span style={{ fontSize: '0.8rem', color: 'var(--text-subtle)' }}>No custom services listed yet.</span>
+                          <span style={{ fontSize: '0.8rem', color: 'var(--text-subtle)' }}>Verified campus specialist.</span>
                         )}
                       </div>
+
+                      <button
+                        onClick={() => navigate(`/book?expertId=${expId}`)}
+                        className="btn btn-primary"
+                        style={{ width: '100%', justifyContent: 'center', marginTop: '0.75rem', borderRadius: '12px', fontWeight: 700 }}
+                      >
+                        <CalendarPlus size={16} /> Book With {exp.name.split(' ')[0]}
+                      </button>
                     </div>
                   </motion.div>
                 );

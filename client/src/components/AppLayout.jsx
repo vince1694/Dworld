@@ -128,9 +128,9 @@ const AppLayout = ({ children }) => {
   const navItems = getNavItems();
 
   const getWorkspaceTitle = () => {
-    if (user.role === 'admin') return 'System Console';
-    if (['expert', 'stylist'].includes(user.role)) return 'Expert Workspace';
-    return 'Customer Dashboard';
+    if (user.role === 'admin') return 'Admin Console';
+    if (['expert', 'stylist'].includes(user.role)) return 'Expert Hub';
+    return 'Dashboard';
   };
 
   const getRoleBadgeColor = () => {
@@ -786,7 +786,9 @@ const AppLayout = ({ children }) => {
 
         .app-topbar {
           height: 65px;
-          background: var(--nav-bg);
+          background: rgba(255, 255, 255, 0.88);
+          backdrop-filter: blur(12px);
+          -webkit-backdrop-filter: blur(12px);
           border-bottom: 1px solid var(--border-light);
           padding: 0 2rem;
           display: flex;
@@ -799,24 +801,44 @@ const AppLayout = ({ children }) => {
 
         .mobile-menu-toggle {
           display: none;
-          background: transparent;
-          border: none;
-          color: var(--text-main);
+          background: rgba(79, 70, 229, 0.08);
+          border: 1px solid rgba(79, 70, 229, 0.2);
+          color: var(--primary);
+          padding: 0.45rem 0.75rem;
+          border-radius: 10px;
           cursor: pointer;
+          align-items: center;
+          gap: 0.35rem;
+          transition: all 0.15s ease;
+        }
+
+        .mobile-menu-toggle:active {
+          transform: scale(0.96);
+        }
+
+        .topbar-title-wrapper {
+          display: flex;
+          align-items: center;
+          overflow: hidden;
         }
 
         .topbar-title-wrapper h2 {
           font-family: 'Outfit', sans-serif;
-          font-size: 1.2rem;
-          font-weight: 700;
+          font-size: 1.25rem;
+          font-weight: 800;
           margin: 0;
-          letter-spacing: -0.01em;
+          letter-spacing: -0.02em;
+          color: var(--text-main);
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
         }
 
         .topbar-actions-wrapper {
           display: flex;
           align-items: center;
-          gap: 1.25rem;
+          gap: 0.85rem;
+          flex-shrink: 0;
         }
 
         .system-status-pill {
