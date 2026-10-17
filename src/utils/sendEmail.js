@@ -13,17 +13,21 @@ const nodemailer = require('nodemailer');
 
 // ── Gmail Transporter ─────────────────────────────────────────────────────────
 const getTransporter = () => {
-    const user = process.env.GMAIL_USER || 'ifeanyichukwubethel1@gmail.com';
+    const user = (process.env.GMAIL_USER || 'ifeanyichukwubethel1@gmail.com').trim();
     const pass = (process.env.GMAIL_APP_PASSWORD || '').replace(/\s+/g, '');
 
     if (!pass) throw new Error('GMAIL_APP_PASSWORD is not set in environment variables.');
 
     return nodemailer.createTransport({
-        service: 'gmail',
-        auth: { user: user.trim(), pass: pass.trim() },
-        connectionTimeout: 10000,
-        greetingTimeout: 10000,
-        socketTimeout: 10000
+        host: 'smtp.gmail.com',
+        port: 465,
+        secure: true,
+        auth: { user, pass },
+        pool: true,
+        maxConnections: 3,
+        connectionTimeout: 15000,
+        greetingTimeout: 15000,
+        socketTimeout: 20000
     });
 };
 

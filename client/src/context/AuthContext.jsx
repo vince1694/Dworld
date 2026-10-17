@@ -66,13 +66,13 @@ export const AuthProvider = ({ children }) => {
 
   // Step 1: submit form data → triggers OTP email via Gmail
   const initiateRegister = async (userData) => {
-    const res = await axios.post(`${API_URL}/auth/register`, userData, { timeout: 15000 });
+    const res = await axios.post(`${API_URL}/auth/register`, userData, { timeout: 25000 });
     return res.data; // { success, message, email }
   };
 
   // Step 2: submit OTP → creates account and logs in
   const verifyRegistration = async (email, otp) => {
-    const res = await axios.post(`${API_URL}/auth/register/verify`, { email, otp }, { timeout: 15000 });
+    const res = await axios.post(`${API_URL}/auth/register/verify`, { email, otp }, { timeout: 25000 });
     const { token, user } = res.data;
     
     localStorage.setItem('token', token);
