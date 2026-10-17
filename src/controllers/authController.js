@@ -149,19 +149,6 @@ const login = async (req, res, next) => {
     }
 };
 
-const updateProfile = async (req, res, next) => {
-    try {
-        const { name, phone } = req.body;
-        const userId = req.user.id;
-
-        await User.update(userId, { name, phone });
-
-        res.json({ success: true, message: 'Profile updated successfully' });
-    } catch (error) {
-        next(error);
-    }
-};
-
 const forgotPassword = async (req, res, next) => {
     try {
         const { email } = req.body;
