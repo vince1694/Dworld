@@ -1,12 +1,29 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShieldCheck, Lock, CheckCircle2, CreditCard, Sparkles, AlertCircle, ArrowRight } from 'lucide-react';
+import { ShieldCheck, Lock, CheckCircle2, CreditCard, Sparkles, AlertCircle, ArrowRight, X } from 'lucide-react';
 import axios from 'axios';
 import { API_URL } from '../config/api';
 
 const PAYSTACK_FALLBACK_KEY = 'pk_live_060e4958254697673bb978c4a4df3694fae9099b';
 
-const ExpertActivationModal = ({ isOpen, user, onActivated }) => {
+/** Dynamically load Paystack inline.js if not already present */
+const loadPaystackScript = () => new Promise((resolve, reject) => {
+  if (typeof window.PaystackPop !== 'undefined') return resolve();
+  const existing = document.querySelector('script[src*="paystack"]');
+  if (existing) {
+    existing.addEventListener('load', resolve);
+    existing.addEventListener('error', reject);
+    return;
+  }
+  const script = document.createElement('script');
+  script.src = 'https://js.paystack.co/v1/inline.js';
+  script.async = true;
+  script.onload = resolve;
+  script.onerror = () => reject(new Error('Paystack script failed to load'));
+  document.head.appendChild(script);
+});
+
+const ExpertActivationModal = ({ isOpen, user, onActivated, onClose }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
@@ -18,7 +35,10 @@ const ExpertActivationModal = ({ isOpen, user, onActivated }) => {
     setLoading(true);
 
     try {
-      // 1. Fetch public key configuration from backend
+      // 1. Ensure Paystack inline script is loaded
+      await loadPaystackScript();
+
+      // 2. Fetch public key from backend (fallback to hardcoded)
       let publicKey = PAYSTACK_FALLBACK_KEY;
       try {
         const configRes = await axios.get(`${API_URL}/payments/config`);
@@ -29,42 +49,30 @@ const ExpertActivationModal = ({ isOpen, user, onActivated }) => {
         console.warn('Using fallback Paystack key', e);
       }
 
-      // 2. Check if PaystackPop inline script is loaded in window
+      // 3. Open Paystack popup
       if (typeof window.PaystackPop !== 'undefined') {
         const handler = window.PaystackPop.setup({
           key: publicKey,
           email: user.email,
-          amount: 3000 * 100, // ₦3,000 in kobo
+          amount: 3000 * 100,
           currency: 'NGN',
           ref: 'ACT-' + Date.now() + '-' + Math.floor(Math.random() * 1000),
           metadata: {
             custom_fields: [
-              {
-                display_name: 'Expert Name',
-                variable_name: 'expert_name',
-                value: user.name
-              },
-              {
-                display_name: 'Purpose',
-                variable_name: 'purpose',
-                value: 'expert_activation'
-              }
+              { display_name: 'Expert Name', variable_name: 'expert_name', value: user.name },
+              { display_name: 'Purpose', variable_name: 'purpose', value: 'expert_activation' }
             ],
             purpose: 'expert_activation',
             user_id: user.id || user._id
           },
           callback: async (response) => {
             try {
-              // Verify on server
               const verifyRes = await axios.post(`${API_URL}/payments/verify`, {
                 reference: response.reference
               });
-
               if (verifyRes.data.success) {
                 setSuccess(true);
-                setTimeout(() => {
-                  if (onActivated) onActivated();
-                }, 1800);
+                setTimeout(() => { if (onActivated) onActivated(); }, 1800);
               } else {
                 setError(verifyRes.data.message || 'Payment verification failed');
               }
@@ -74,29 +82,29 @@ const ExpertActivationModal = ({ isOpen, user, onActivated }) => {
               setLoading(false);
             }
           },
-          onClose: () => {
-            setLoading(false);
-          }
+          onClose: () => setLoading(false)
         });
-
         handler.openIframe();
       } else {
-        // Fallback: Initialize via server redirect
+        // 4. Hard fallback: server redirect
         const initRes = await axios.post(`${API_URL}/payments/initialize`, {
           amount: 3000,
           purpose: 'expert_activation'
         });
-
-        if (initRes.data.success && initRes.data.data.authorization_url) {
+        if (initRes.data.success && initRes.data.data?.authorization_url) {
           window.location.href = initRes.data.data.authorization_url;
         } else {
-          setError('Could not initialize Paystack checkout. Please try again.');
+          setError('Could not open Paystack checkout. Please try again.');
           setLoading(false);
         }
       }
     } catch (err) {
       console.error('Paystack activation error:', err);
-      setError(err.response?.data?.message || 'Failed to start payment. Please check your internet connection.');
+      setError(
+        err.message === 'Paystack script failed to load'
+          ? 'Could not load Paystack. Check your internet connection and try again.'
+          : (err.response?.data?.message || 'Payment could not be started. Please try again.')
+      );
       setLoading(false);
     }
   };
@@ -113,9 +121,29 @@ const ExpertActivationModal = ({ isOpen, user, onActivated }) => {
           padding: '2.25rem',
           borderRadius: '24px',
           boxShadow: '0 25px 60px -15px rgba(0, 0, 0, 0.3)',
-          border: '1px solid rgba(99, 102, 241, 0.25)'
+          border: '1px solid rgba(99, 102, 241, 0.25)',
+          position: 'relative'
         }}
       >
+        {/* ── Close (X) button — dismiss to pay later ── */}
+        {!success && onClose && (
+          <button
+            onClick={onClose}
+            aria-label="Close activation modal"
+            style={{
+              position: 'absolute', top: '1.1rem', right: '1.1rem',
+              background: 'rgba(0,0,0,0.06)', border: 'none', borderRadius: '50%',
+              width: 32, height: 32, cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: 'var(--text-muted)', transition: 'background 0.2s'
+            }}
+            onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,0,0,0.12)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'rgba(0,0,0,0.06)'}
+          >
+            <X size={16} />
+          </button>
+        )}
+
         {success ? (
           <div style={{ textAlign: 'center', padding: '1.5rem 0' }}>
             <div style={{

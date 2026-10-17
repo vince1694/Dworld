@@ -39,6 +39,7 @@ import { API_URL } from '../config/api';
 const ExpertDashboard = () => {
   const { user, refreshUser } = useAuth();
   const [showActivationModal, setShowActivationModal] = useState(false);
+  const [activationDismissed, setActivationDismissed] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get('tab') || 'appointments';
   
@@ -929,14 +930,47 @@ const ExpertDashboard = () => {
 
       {/* EXPERT PAYSTACK ACTIVATION MODAL (₦3,000) */}
       <ExpertActivationModal
-        isOpen={user?.role === 'expert' && (!user?.isActivated || showActivationModal)}
+        isOpen={
+          user?.role === 'expert' &&
+          !user?.isActivated &&
+          (!activationDismissed || showActivationModal)
+        }
         user={user}
+        onClose={() => {
+          setActivationDismissed(true);
+          setShowActivationModal(false);
+        }}
         onActivated={() => {
           setShowActivationModal(false);
+          setActivationDismissed(false);
           if (refreshUser) refreshUser();
-          addToast('Account activated successfully! Your workspace is unlocked.', 'success');
+          addToast('Account activated successfully! Your workspace is fully unlocked. 🎉', 'success');
         }}
       />
+
+      {/* Sticky banner when modal is dismissed but account still unactivated */}
+      {user?.role === 'expert' && !user?.isActivated && activationDismissed && !showActivationModal && (
+        <div style={{
+          position: 'fixed', bottom: '1.5rem', left: '50%', transform: 'translateX(-50%)',
+          background: 'linear-gradient(135deg, #4f46e5, #7c3aed)',
+          color: '#fff', padding: '0.75rem 1.5rem', borderRadius: '9999px',
+          display: 'flex', alignItems: 'center', gap: '0.75rem',
+          boxShadow: '0 8px 24px rgba(99,102,241,0.45)', zIndex: 9998,
+          fontSize: '0.875rem', fontWeight: 600, whiteSpace: 'nowrap'
+        }}>
+          <span>🔒 Account not yet activated</span>
+          <button
+            onClick={() => setShowActivationModal(true)}
+            style={{
+              background: 'rgba(255,255,255,0.2)', border: '1px solid rgba(255,255,255,0.35)',
+              color: '#fff', borderRadius: '9999px', padding: '0.3rem 0.9rem',
+              cursor: 'pointer', fontSize: '0.8rem', fontWeight: 700
+            }}
+          >
+            Pay ₦3,000 →
+          </button>
+        </div>
+      )}
 
     </div>
   );
