@@ -107,8 +107,7 @@ const Dashboard = () => {
   };
 
   const openBookingForService = (serviceId) => {
-    setPreselectedServiceId(serviceId);
-    setIsWizardOpen(true);
+    navigate(serviceId ? `/book?serviceId=${serviceId}` : '/book');
   };
 
   const handleCancelAppointment = async (appointmentId) => {
@@ -588,7 +587,7 @@ const Dashboard = () => {
                   <CalendarX2 size={48} style={{ color: 'var(--border-strong)' }} />
                   <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>No appointments match your filter.</p>
                   <button 
-                    onClick={() => { setPreselectedServiceId(null); setIsWizardOpen(true); }}
+                    onClick={() => navigate('/book')}
                     className="btn btn-secondary" 
                     style={{ fontSize: '0.85rem' }}
                   >

@@ -55,8 +55,7 @@ const ExpertsDirectory = () => {
   };
 
   const handleBookExpert = (serviceId) => {
-    setPreselectedServiceId(serviceId);
-    setIsWizardOpen(true);
+    navigate(serviceId ? `/book?serviceId=${serviceId}` : '/book');
   };
 
   const filteredExperts = experts.filter(exp => {

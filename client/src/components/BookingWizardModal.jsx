@@ -297,103 +297,140 @@ const BookingWizardModal = ({ isOpen, onClose, onBookingSuccess, preselectedServ
                   )}
                 </div>
 
-                {/* Tier Switcher Pills */}
-                <div style={{ display: 'flex', gap: '0.35rem', overflowX: 'auto', marginBottom: '1rem', paddingBottom: '0.25rem' }}>
-                  {[
-                    { id: 'all', label: 'All Offers' },
-                    { id: 'single', label: '🟢 Single' },
-                    { id: 'double', label: '🔵 Double' },
-                    { id: 'triple', label: '🟣 Triple' },
-                    { id: 'premium', label: '👑 Premium' }
-                  ].map(tier => (
-                    <button
-                      key={tier.id}
-                      type="button"
-                      onClick={() => setWizardTier(tier.id)}
-                      style={{
-                        padding: '0.35rem 0.75rem',
-                        borderRadius: '9999px',
-                        border: '1px solid var(--border-light)',
-                        background: wizardTier === tier.id ? 'var(--primary)' : 'rgba(255, 255, 255, 0.05)',
-                        color: wizardTier === tier.id ? 'white' : 'var(--text-muted)',
-                        fontSize: '0.775rem',
-                        fontWeight: 700,
-                        cursor: 'pointer',
-                        whiteSpace: 'nowrap'
-                      }}
-                    >
-                      {tier.label}
-                    </button>
-                  ))}
+                {/* Dedicated Page Shortcut */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', background: 'rgba(99, 102, 241, 0.08)', padding: '0.65rem 1rem', borderRadius: '12px', border: '1px solid rgba(99, 102, 241, 0.2)' }}>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-main)', fontWeight: 600 }}>
+                    ✨ Choose your certified campus specialist below:
+                  </span>
+                  <a
+                    href="/book"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      onClose();
+                      window.location.href = '/book';
+                    }}
+                    style={{ fontSize: '0.78rem', color: 'var(--primary)', fontWeight: 700, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+                  >
+                    Open Full Page ↗
+                  </a>
                 </div>
 
-                {loadingServices ? (
+                {expertsList.length === 0 && loadingServices ? (
                   <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
-                    Loading services & AI verified sellers...
+                    Loading verified specialists & services...
                   </div>
                 ) : (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '1rem', maxHeight: '320px', overflowY: 'auto', paddingRight: '0.25rem' }}>
-                    {services
-                      .filter(s => wizardTier === 'all' || s.type === wizardTier || (wizardTier === 'premium' && s.type === 'package'))
-                      .map((service) => {
-                        const serviceId = String(service._id || service.id);
-                        const selectedId = selectedService ? String(selectedService._id || selectedService.id) : null;
-                        const isSelected = selectedId === serviceId;
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '0.9rem', maxHeight: '360px', overflowY: 'auto', paddingRight: '0.25rem' }}>
+                    {expertsList.map((exp) => {
+                      const expId = String(exp._id || exp.id);
+                      const isSelected = selectedExpert && String(selectedExpert._id || selectedExpert.id) === expId;
+                      const expService = exp.services?.[0] || services.find(s => String(s.stylist_id) === expId) || {
+                        name: exp.specialty || 'Campus Styling',
+                        price: 3500,
+                        duration: 45,
+                        description: `${exp.name}'s campus specialty service.`
+                      };
 
-                        return (
-                          <div
-                            key={serviceId}
-                            onClick={() => { 
-                              setSelectedService(service); 
-                              setErrorMsg('');
-                              // AI Match expert connected to this service
-                              if (expertsList && expertsList.length > 0) {
-                                const matched = expertsList.find(exp => String(exp._id) === String(service.stylist_id)) || expertsList[0];
-                                setSelectedExpert(matched);
-                              }
-                            }}
-                            className="hover-card-select"
-                            style={{
-                              padding: '1.15rem',
-                              borderRadius: '14px',
-                              background: isSelected ? 'rgba(234, 179, 8, 0.15)' : 'rgba(255, 255, 255, 0.03)',
-                              border: isSelected ? '2px solid var(--secondary)' : '1px solid var(--border-light)',
-                              cursor: 'pointer',
-                              transition: 'all 0.2s ease',
-                              display: 'flex',
-                              flexDirection: 'column',
-                              justifyContent: 'space-between',
-                              pointerEvents: 'auto',
-                              position: 'relative'
-                            }}
-                          >
-                            <div>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.35rem' }}>
-                                <span style={{ fontWeight: 700, fontSize: '0.95rem', color: isSelected ? 'var(--secondary)' : 'var(--text-main)', fontFamily: 'Outfit' }}>
-                                  {service.name}
-                                </span>
-                                {isSelected && (
-                                  <span style={{ background: 'var(--secondary)', color: '#070b16', borderRadius: '50%', padding: '0.15rem', display: 'flex' }}>
-                                    <Check size={14} />
+                      return (
+                        <div
+                          key={expId}
+                          onClick={() => {
+                            setSelectedExpert(exp);
+                            setSelectedService(expService);
+                            setErrorMsg('');
+                          }}
+                          className="hover-card-select"
+                          style={{
+                            padding: '1.15rem',
+                            borderRadius: '16px',
+                            background: isSelected ? 'rgba(79, 70, 229, 0.12)' : 'rgba(255, 255, 255, 0.03)',
+                            border: isSelected ? '2px solid var(--primary)' : '1px solid var(--border-light)',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'space-between',
+                            pointerEvents: 'auto',
+                            position: 'relative'
+                          }}
+                        >
+                          <div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                                <div style={{
+                                  width: 36,
+                                  height: 36,
+                                  borderRadius: '10px',
+                                  background: 'var(--primary)',
+                                  color: '#fff',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  fontWeight: 800,
+                                  fontSize: '0.95rem',
+                                  fontFamily: 'Outfit'
+                                }}>
+                                  {exp.name ? exp.name.charAt(0).toUpperCase() : 'E'}
+                                </div>
+                                <div>
+                                  <span style={{ fontWeight: 800, fontSize: '0.95rem', color: isSelected ? 'var(--primary)' : 'var(--text-main)', fontFamily: 'Outfit', display: 'block' }}>
+                                    {exp.name}
                                   </span>
-                                )}
+                                  <span style={{ fontSize: '0.72rem', color: 'var(--text-subtle)' }}>
+                                    {exp.matricNo || 'Verified Expert'}
+                                  </span>
+                                </div>
                               </div>
-                              <p style={{ fontSize: '0.775rem', color: 'var(--text-muted)', marginBottom: '0.85rem', lineHeight: 1.35 }}>
-                                {service.description || 'Verified specialist beauty offering.'}
-                              </p>
+                              {isSelected && (
+                                <span style={{ background: 'var(--primary)', color: '#fff', borderRadius: '50%', padding: '0.15rem', display: 'flex' }}>
+                                  <Check size={14} />
+                                </span>
+                              )}
                             </div>
-                            
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.825rem', fontWeight: 600 }}>
-                              <span style={{ color: 'var(--secondary)', display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
-                                ₦{service.price?.toLocaleString()}
+
+                            {/* Location Badge */}
+                            <div style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.35rem',
+                              background: 'rgba(16, 185, 129, 0.08)',
+                              color: '#047857',
+                              padding: '0.25rem 0.55rem',
+                              borderRadius: '8px',
+                              fontSize: '0.75rem',
+                              fontWeight: 600,
+                              marginBottom: '0.65rem'
+                            }}>
+                              <MapPin size={12} color="#10b981" />
+                              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {exp.address || exp.location || 'Lead City University Campus'}
                               </span>
-                              <span style={{ color: 'var(--text-subtle)', display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
-                                <Clock size={13} /> {service.duration || '45'} mins
+                            </div>
+
+                            {/* Service and Price */}
+                            <div style={{ background: 'rgba(0,0,0,0.02)', padding: '0.65rem 0.75rem', borderRadius: '10px', marginBottom: '0.5rem' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <strong style={{ fontSize: '0.85rem', color: 'var(--text-main)', fontFamily: 'Outfit' }}>
+                                  {expService.name}
+                                </strong>
+                                <span style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--secondary)' }}>
+                                  ₦{expService.price?.toLocaleString()}
+                                </span>
+                              </div>
+                              <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block', marginTop: '0.2rem' }}>
+                                ⏱ {expService.duration || 45} mins • 1-on-1 Session
                               </span>
                             </div>
                           </div>
-                        );
-                      })}
+
+                          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.4rem' }}>
+                            <span style={{ fontSize: '0.75rem', fontWeight: 700, color: isSelected ? 'var(--primary)' : 'var(--text-muted)' }}>
+                              {isSelected ? '✓ Selected' : 'Tap to Select'}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </motion.div>
