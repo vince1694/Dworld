@@ -75,7 +75,7 @@ const htmlWrap = (topBar, body) => `<!DOCTYPE html>
 // ── Core send: Brevo HTTPS REST API (Port 443) with Gmail SMTP fallback ────────
 const sendEmail = async ({ to, subject, html }) => {
     const brevoApiKey = (process.env.BREVO_API_KEY || '').trim();
-    const senderEmail = (process.env.BREVO_SENDER_EMAIL || process.env.GMAIL_USER || 'ifeanyichukwubethel1@gmail.com').trim();
+    const senderEmail = (process.env.BREVO_SENDER_EMAIL || '1bethel312@gmail.com').trim();
     const senderName = 'D.WORLD LCU';
 
     // 1. If BREVO_API_KEY is configured, use Brevo REST API over HTTPS (Port 443)
