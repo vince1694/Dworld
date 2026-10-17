@@ -72,13 +72,50 @@ const htmlWrap = (topBar, body) => `<!DOCTYPE html>
   ${footerHtml()}
 </div></body></html>`;
 
-// ── Core send via Gmail SMTP ───────────────────────────────────────────────────
+// ── Core send: Brevo HTTPS REST API (Port 443) with Gmail SMTP fallback ────────
 const sendEmail = async ({ to, subject, html }) => {
+    const brevoApiKey = (process.env.BREVO_API_KEY || '').trim();
+    const senderEmail = (process.env.BREVO_SENDER_EMAIL || process.env.GMAIL_USER || 'ifeanyichukwubethel1@gmail.com').trim();
+    const senderName = 'D.WORLD LCU';
+
+    // 1. If BREVO_API_KEY is configured, use Brevo REST API over HTTPS (Port 443)
+    // Port 443 is NEVER blocked by Render or cloud firewalls
+    if (brevoApiKey) {
+        console.log(`[EMAIL ATTEMPT] Sending "${subject}" → ${to} via Brevo HTTP API (Port 443)...`);
+        const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+            method: 'POST',
+            headers: {
+                'accept': 'application/json',
+                'api-key': brevoApiKey,
+                'content-type': 'application/json'
+            },
+            body: JSON.stringify({
+                sender: {
+                    name: senderName,
+                    email: senderEmail
+                },
+                to: [{ email: to.trim() }],
+                subject: subject,
+                htmlContent: html
+            })
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+            console.error('[BREVO ERROR]:', data);
+            throw new Error(data.message || 'Failed to send email via Brevo');
+        }
+
+        console.log(`[EMAIL SENT via Brevo] ✔ "${subject}" → ${to} | MsgId: ${data.messageId}`);
+        return { success: true, provider: 'brevo', messageId: data.messageId };
+    }
+
+    // 2. Fall back to Gmail SMTP (ideal for local development)
     const transporter = getTransporter();
     console.log(`[EMAIL ATTEMPT] Sending "${subject}" → ${to} via Gmail SMTP (smtp.gmail.com:465)...`);
     const info = await transporter.sendMail({ from: FROM, to, subject, html });
-    console.log(`[EMAIL SENT] ✔ "${subject}" → ${to} | MsgId: ${info.messageId}`);
-    return { success: true, messageId: info.messageId };
+    console.log(`[EMAIL SENT via Gmail] ✔ "${subject}" → ${to} | MsgId: ${info.messageId}`);
+    return { success: true, provider: 'gmail', messageId: info.messageId };
 };
 
 // ── 1. Registration OTP ───────────────────────────────────────────────────────
