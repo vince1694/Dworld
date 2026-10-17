@@ -15,6 +15,7 @@ import Services from './pages/Services';
 import ExpertsDirectory from './pages/ExpertsDirectory';
 import Contact from './pages/Contact';
 import ForgotPassword from './pages/ForgotPassword';
+import BookAppointment from './pages/BookAppointment';
 
 const ProtectedRoute = ({ children, allowedRoles, redirectTo = '/login' }) => {
   const { user, loading } = useAuth();
@@ -51,6 +52,14 @@ function App() {
           <Route path="/contact" element={
             <ProtectedRoute>
               <Contact />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/book" element={
+            <ProtectedRoute>
+              <AppLayout>
+                <BookAppointment />
+              </AppLayout>
             </ProtectedRoute>
           } />
           

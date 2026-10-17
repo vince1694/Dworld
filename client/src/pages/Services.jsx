@@ -71,8 +71,7 @@ const Services = () => {
   };
 
   const handleBookService = (serviceId) => {
-    setPreselectedServiceId(serviceId);
-    setIsWizardOpen(true);
+    navigate(`/book?serviceId=${serviceId}`);
   };
 
   const toggleReviews = async (expertId) => {

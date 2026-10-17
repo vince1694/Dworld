@@ -68,13 +68,29 @@ const initializePayment = async (req, res, next) => {
         const numericAmount = Number(amount);
         const amountInKobo = Math.round(numericAmount * 100);
 
+        let email = (req.body.email && req.body.email.trim()) || user?.email;
+        let name = req.body.name || user?.name || 'D.WORLD Specialist';
+        const userId = user?.id || user?._id;
+
+        if (!email && userId) {
+            const dbUser = await User.findById(userId);
+            if (dbUser) {
+                email = dbUser.email;
+                name = name || dbUser.name;
+            }
+        }
+
+        if (!email) {
+            return res.status(400).json({ success: false, message: 'A valid email address is required to process Paystack payment.' });
+        }
+
         const payload = {
-            email: user.email,
+            email: email.trim().toLowerCase(),
             amount: amountInKobo,
             currency: 'NGN',
             metadata: {
-                user_id: user.id || user._id,
-                user_name: user.name,
+                user_id: userId,
+                user_name: name,
                 purpose: purpose || 'wallet_topup',
                 appointment_id: appointment_id || null
             }

@@ -187,11 +187,12 @@ const Dashboard = () => {
     }
 
     if (!popupOpened) {
-      // 2. Guaranteed server redirect checkout fallback
       const initRes = await axios.post(`${API_URL}/payments/initialize`, {
         amount: price,
         purpose: 'appointment_pay',
-        appointment_id: appointmentId
+        appointment_id: appointmentId,
+        email: user?.email,
+        name: user?.name
       });
       if (initRes.data.success && initRes.data.data?.authorization_url) {
         window.location.href = initRes.data.data.authorization_url;
@@ -357,7 +358,7 @@ const Dashboard = () => {
           </div>
 
           <button 
-            onClick={() => { setPreselectedServiceId(null); setIsWizardOpen(true); }}
+            onClick={() => navigate('/book')}
             className="btn btn-primary"
             style={{ padding: '0.8rem 1.5rem', fontSize: '0.9rem', flexShrink: 0 }}
           >

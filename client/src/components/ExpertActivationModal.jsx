@@ -51,8 +51,14 @@ const ExpertActivationModal = ({ isOpen, user, onActivated, onClose }) => {
 
       // 3. Try Paystack popup first
       let popupOpened = false;
-      const userEmail = user.email || 'expert@dworld.com';
-      const userName = user.name || 'Expert Specialist';
+      const userEmail = (user?.email && user.email.trim()) || '';
+      const userName = user?.name || 'Expert Specialist';
+
+      if (!userEmail) {
+        setError('Please update your profile with a valid email address before proceeding with activation.');
+        setLoading(false);
+        return;
+      }
 
       if (typeof window.PaystackPop !== 'undefined') {
         try {
@@ -100,7 +106,9 @@ const ExpertActivationModal = ({ isOpen, user, onActivated, onClose }) => {
       if (!popupOpened) {
         const initRes = await axios.post(`${API_URL}/payments/initialize`, {
           amount: 3000,
-          purpose: 'expert_activation'
+          purpose: 'expert_activation',
+          email: userEmail,
+          name: userName
         });
         if (initRes.data.success && initRes.data.data?.authorization_url) {
           window.location.href = initRes.data.data.authorization_url;

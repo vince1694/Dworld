@@ -110,6 +110,7 @@ const AppLayout = ({ children }) => {
       // Customer
       return [
         { name: 'Dashboard', path: '/dashboard?tab=overview', tab: 'overview', icon: <LayoutDashboard size={18} /> },
+        { name: 'Book Appointment', path: '/book', icon: <CalendarRange size={18} /> },
         { name: 'Services & Experts', path: '/services', icon: <UserCheck size={18} /> },
         { name: 'Profile Settings', path: '/dashboard?tab=profile', tab: 'profile', icon: <User size={18} /> },
       ];

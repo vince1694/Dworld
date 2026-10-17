@@ -127,10 +127,11 @@ const WalletModal = ({ isOpen, onClose, onWalletUpdated }) => {
         return;
       }
 
-      // 4. Hard fallback: server-side transaction initialize redirect
       const initRes = await axios.post(`${API_URL}/payments/initialize`, {
         amount: Number(topupAmount),
-        purpose: 'wallet_topup'
+        purpose: 'wallet_topup',
+        email: userEmail,
+        name: userName
       });
       if (initRes.data.success && initRes.data.data?.authorization_url) {
         window.location.href = initRes.data.data.authorization_url;
