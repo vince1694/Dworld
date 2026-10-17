@@ -162,9 +162,65 @@ const updateAppointmentStatus = async (req, res, next) => {
 
         if (status === 'cancelled') {
             await TimeSlot.markAvailable(appointment.date, appointment.time);
+
+            // Automated Refund: If appointment was already paid for, refund client and reverse expert payout
+            if (appointment.paymentStatus === 'paid') {
+                const User = require('../models/User');
+                const refundAmount = appointment.amountPaid || parseFloat(appointment.service_id?.price || 0);
+                const expertPayoutToReverse = appointment.expertPayout || (refundAmount * 0.90);
+
+                // 1. Credit 100% back to client's wallet
+                const clientUserId = appointment.user_id?._id || appointment.user_id;
+                if (clientUserId) {
+                    const clientUser = await User.findById(clientUserId);
+                    if (clientUser) {
+                        clientUser.walletBalance = (clientUser.walletBalance || 0) + refundAmount;
+                        clientUser.transactions.push({
+                            type: 'refund',
+                            amount: refundAmount,
+                            description: `100% Refund for cancelled booking: ${appointment.service_id?.name || 'Service'}`,
+                            reference_id: `REFUND-${appointment._id}`
+                        });
+                        await clientUser.save();
+
+                        await createNotificationHelper(
+                            clientUserId,
+                            'Refund Processed! 💳',
+                            `₦${refundAmount.toLocaleString()} has been fully refunded to your D.WORLD wallet for your cancelled booking.`,
+                            'payment'
+                        );
+                    }
+                }
+
+                // 2. Reverse credited amount from expert's wallet
+                let expertId = appointment.stylist_id || appointment.service_id?.stylist_id;
+                if (expertId) {
+                    const expertUser = await User.findById(expertId);
+                    if (expertUser) {
+                        expertUser.walletBalance = Math.max(0, (expertUser.walletBalance || 0) - expertPayoutToReverse);
+                        expertUser.transactions.push({
+                            type: 'refund_deduction',
+                            amount: expertPayoutToReverse,
+                            description: `Earnings reversal for cancelled booking: ${appointment.service_id?.name || 'Service'}`,
+                            reference_id: `REV-${appointment._id}`
+                        });
+                        await expertUser.save();
+
+                        await createNotificationHelper(
+                            expertId,
+                            'Booking Cancelled & Earnings Reversed ⚠️',
+                            `Booking on ${appointment.date} was cancelled. ₦${expertPayoutToReverse.toLocaleString()} has been reversed from your wallet.`,
+                            'payment'
+                        );
+                    }
+                }
+
+                appointment.paymentStatus = 'refunded';
+            }
         }
 
-        await Appointment.updateStatus(appointmentId, status);
+        appointment.status = status;
+        await appointment.save();
 
         // Send notification to Client
         const clientUserId = appointment.user_id?._id || appointment.user_id;
@@ -244,6 +300,9 @@ const payAppointment = async (req, res, next) => {
         }
 
         const amount = parseFloat(appointment.service_id?.price || 0);
+        const commissionRate = 0.10; // 10% platform commission cut
+        const commissionAmount = Math.round(amount * commissionRate);
+        const expertPayout = amount - commissionAmount;
 
         // Fetch Client User
         const clientUser = await User.findById(clientId);
@@ -258,7 +317,7 @@ const payAppointment = async (req, res, next) => {
             });
         }
 
-        // Deduct from Client Wallet
+        // Deduct 100% of price from Client Wallet
         clientUser.walletBalance -= amount;
         clientUser.transactions.push({
             type: 'payment',
@@ -267,16 +326,16 @@ const payAppointment = async (req, res, next) => {
             reference_id: `PAY-${appointment._id}`
         });
 
-        // Credit to Expert Wallet
+        // Credit 90% (expertPayout) to Expert Wallet (10% platform fee retained)
         let expertId = appointment.stylist_id || appointment.service_id?.stylist_id;
         if (expertId) {
             const expertUser = await User.findById(expertId);
             if (expertUser) {
-                expertUser.walletBalance = (expertUser.walletBalance || 0) + amount;
+                expertUser.walletBalance = (expertUser.walletBalance || 0) + expertPayout;
                 expertUser.transactions.push({
                     type: 'earning',
-                    amount: amount,
-                    description: `Earned from ${clientUser.name} for ${appointment.service_id?.name || 'Service'}`,
+                    amount: expertPayout,
+                    description: `Earned from ${clientUser.name} for ${appointment.service_id?.name || 'Service'} (₦${amount.toLocaleString()} - 10% D.WORLD fee ₦${commissionAmount.toLocaleString()})`,
                     reference_id: `EARN-${appointment._id}`
                 });
                 await expertUser.save();
@@ -285,20 +344,27 @@ const payAppointment = async (req, res, next) => {
                 await createNotificationHelper(
                     expertId,
                     'Payment Received! 💰',
-                    `You received ₦${amount.toLocaleString()} from ${clientUser.name} for "${appointment.service_id?.name || 'Service'}".`,
+                    `You received ₦${expertPayout.toLocaleString()} (after 10% platform fee of ₦${commissionAmount.toLocaleString()}) from ${clientUser.name} for "${appointment.service_id?.name || 'Service'}".`,
                     'payment'
                 );
             }
         }
 
         appointment.paymentStatus = 'paid';
+        appointment.amountPaid = amount;
+        appointment.commissionRate = commissionRate;
+        appointment.commissionAmount = commissionAmount;
+        appointment.expertPayout = expertPayout;
+
         await appointment.save();
         await clientUser.save();
 
         res.status(200).json({
             success: true,
-            message: `Payment of ₦${amount.toLocaleString()} successfully released to expert!`,
-            clientWalletBalance: clientUser.walletBalance
+            message: `Payment of ₦${amount.toLocaleString()} confirmed (₦${expertPayout.toLocaleString()} disbursed to expert, 10% platform fee retained)!`,
+            clientWalletBalance: clientUser.walletBalance,
+            expertPayout,
+            commissionAmount
         });
     } catch (error) {
         next(error);

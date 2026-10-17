@@ -8,7 +8,11 @@ const appointmentSchema = new mongoose.Schema({
   time: { type: String, required: true },
   notes: { type: String, default: '' },
   status: { type: String, enum: ['pending', 'approved', 'completed', 'cancelled'], default: 'pending' },
-  paymentStatus: { type: String, enum: ['unpaid', 'paid'], default: 'unpaid' }
+  paymentStatus: { type: String, enum: ['unpaid', 'paid', 'refunded'], default: 'unpaid' },
+  amountPaid: { type: Number, default: 0 },
+  commissionRate: { type: Number, default: 0.10 },
+  commissionAmount: { type: Number, default: 0 },
+  expertPayout: { type: Number, default: 0 }
 }, { timestamps: true });
 
 appointmentSchema.statics.create = async function(appointmentData) {

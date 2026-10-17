@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 const transactionSchema = new mongoose.Schema({
-  type: { type: String, enum: ['deposit', 'payment', 'earning'], required: true },
+  type: { type: String, enum: ['deposit', 'payment', 'earning', 'refund', 'refund_deduction'], required: true },
   amount: { type: Number, required: true },
   description: { type: String, default: '' },
   reference_id: { type: String, default: '' },
@@ -21,7 +21,7 @@ const userSchema = new mongoose.Schema({
   department: { type: String, default: 'Cosmetology & Campus Styling' },
   rating: { type: Number, default: 4.9 },
   isVerified: { type: Boolean, default: true },
-  walletBalance: { type: Number, default: 50000 },
+  walletBalance: { type: Number, default: 0 },
   resetOtp: { type: String, default: null },
   resetOtpExpires: { type: Date, default: null },
   workingDays: { 

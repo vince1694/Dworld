@@ -164,6 +164,9 @@ const Admin = () => {
   const pendingApps = appointments.filter(a => a.status === 'pending').length;
   const approvedApps = appointments.filter(a => a.status === 'approved').length;
   const totalVolume = appointments.reduce((sum, a) => sum + (a.service_id?.price || 0), 0);
+  const platformCommissions = appointments
+    .filter(a => a.paymentStatus === 'paid')
+    .reduce((sum, a) => sum + (a.commissionAmount || Math.round((a.service_id?.price || 0) * 0.10)), 0);
 
   // Filtered Appointments List
   const filteredAppointments = appointments.filter(app => {
@@ -211,7 +214,7 @@ const Admin = () => {
       </div>
 
       {/* KPI Stats Grid */}
-      <div className="grid-layout grid-cols-1 md:grid-cols-4" style={{ gap: '1.25rem' }}>
+      <div className="grid-layout grid-cols-1 md:grid-cols-5" style={{ gap: '1.25rem' }}>
         <div className="app-card" style={{ padding: '1.5rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
           <div style={{ padding: '0.75rem', background: 'rgba(239, 68, 68, 0.1)', borderRadius: '12px', color: '#ef4444' }}>
             <Globe size={24} />
@@ -237,6 +240,15 @@ const Admin = () => {
           <div>
             <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'block', fontWeight: 600 }}>PLATFORM VOLUME</span>
             <strong style={{ fontSize: '1.4rem', color: 'var(--success)', fontFamily: 'Outfit' }}>₦{totalVolume.toLocaleString()}</strong>
+          </div>
+        </div>
+        <div className="app-card" style={{ padding: '1.5rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <div style={{ padding: '0.75rem', background: 'rgba(139, 92, 246, 0.1)', borderRadius: '12px', color: '#a78bfa' }}>
+            <Activity size={24} />
+          </div>
+          <div>
+            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'block', fontWeight: 600 }}>10% COMMISSIONS</span>
+            <strong style={{ fontSize: '1.4rem', color: '#a78bfa', fontFamily: 'Outfit' }}>₦{platformCommissions.toLocaleString()}</strong>
           </div>
         </div>
         <div className="app-card" style={{ padding: '1.5rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
@@ -353,8 +365,23 @@ const Admin = () => {
                             <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                               <Clock size={14} color="var(--primary)" /> {app.date} at {app.time}
                             </span>
-                            <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                            <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
                               Fee: <strong>₦{(app.service_id?.price || 0).toLocaleString()}</strong>
+                              {app.paymentStatus === 'paid' && (
+                                <span style={{ fontSize: '0.7rem', padding: '0.15rem 0.45rem', borderRadius: '6px', background: 'rgba(16, 185, 129, 0.15)', color: '#34d399', fontWeight: 600 }}>
+                                  Paid (10% fee: ₦{(app.commissionAmount || Math.round((app.service_id?.price || 0) * 0.1)).toLocaleString()})
+                                </span>
+                              )}
+                              {app.paymentStatus === 'refunded' && (
+                                <span style={{ fontSize: '0.7rem', padding: '0.15rem 0.45rem', borderRadius: '6px', background: 'rgba(239, 68, 68, 0.15)', color: '#f87171', fontWeight: 600 }}>
+                                  100% Refunded
+                                </span>
+                              )}
+                              {(!app.paymentStatus || app.paymentStatus === 'unpaid') && (
+                                <span style={{ fontSize: '0.7rem', padding: '0.15rem 0.45rem', borderRadius: '6px', background: 'rgba(255, 255, 255, 0.05)', color: '#9ca3af', fontWeight: 600 }}>
+                                  Unpaid
+                                </span>
+                              )}
                             </span>
                           </div>
 

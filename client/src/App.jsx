@@ -3,8 +3,10 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Navbar from './components/Navbar';
 import AppLayout from './components/AppLayout';
+import AdminLayout from './components/AdminLayout';
 import Home from './pages/Home';
 import Login from './pages/Login';
+import AdminLogin from './pages/AdminLogin';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import Admin from './pages/Admin';
@@ -14,12 +16,17 @@ import ExpertsDirectory from './pages/ExpertsDirectory';
 import Contact from './pages/Contact';
 import ForgotPassword from './pages/ForgotPassword';
 
-const ProtectedRoute = ({ children, allowedRoles }) => {
+const ProtectedRoute = ({ children, allowedRoles, redirectTo = '/login' }) => {
   const { user, loading } = useAuth();
   
   if (loading) return <div>Loading...</div>;
-  if (!user) return <Navigate to="/login" />;
-  if (allowedRoles && !allowedRoles.includes(user.role)) return <Navigate to="/" />;
+  if (!user) return <Navigate to={redirectTo} />;
+  if (allowedRoles && !allowedRoles.includes(user.role)) {
+    if (allowedRoles.includes('admin')) {
+      return <Navigate to="/admin/login" />;
+    }
+    return <Navigate to="/" />;
+  }
   
   return children;
 };
@@ -32,6 +39,7 @@ function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/admin/login" element={<AdminLogin />} />
           <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/services" element={
@@ -55,10 +63,10 @@ function App() {
           } />
           
           <Route path="/admin" element={
-            <ProtectedRoute allowedRoles={['admin']}>
-              <AppLayout>
+            <ProtectedRoute allowedRoles={['admin']} redirectTo="/admin/login">
+              <AdminLayout>
                 <Admin />
-              </AppLayout>
+              </AdminLayout>
             </ProtectedRoute>
           } />
 

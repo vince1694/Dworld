@@ -58,41 +58,6 @@ const Login = () => {
             </div>
           )}
 
-          <div style={{
-            background: 'rgba(79, 70, 229, 0.05)',
-            border: '1px solid rgba(79, 70, 229, 0.15)',
-            borderRadius: '12px',
-            padding: '0.75rem 1rem',
-            marginBottom: '1.25rem',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center'
-          }}>
-            <div style={{ fontSize: '0.8rem' }}>
-              <strong style={{ display: 'block', color: 'var(--text-main)' }}>🛡️ Master Admin Access</strong>
-              <span style={{ color: 'var(--text-muted)' }}>admin@dworld.com / admin123</span>
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                setEmail('admin@dworld.com');
-                setPassword('admin123');
-              }}
-              style={{
-                padding: '0.35rem 0.65rem',
-                borderRadius: '8px',
-                border: '1px solid var(--primary)',
-                background: 'var(--primary)',
-                color: 'white',
-                fontSize: '0.75rem',
-                fontWeight: 700,
-                cursor: 'pointer'
-              }}
-            >
-              Autofill
-            </button>
-          </div>
-
           <form onSubmit={handleSubmit}>
             <div className="input-group">
               <label htmlFor="email">Email address</label>
