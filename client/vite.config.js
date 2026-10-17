@@ -8,16 +8,20 @@ export default defineConfig({
     chunkSizeWarningLimit: 1000,
     rollupOptions: {
       output: {
-        manualChunks: {
-          // Core React runtime — cached separately
-          'vendor-react': ['react', 'react-dom'],
-          // Router
-          'vendor-router': ['react-router-dom'],
-          // Date utilities
-          'vendor-date': ['date-fns'],
+        manualChunks(id) {
+          if (id.includes('node_modules/react-dom') || id.includes('node_modules/react/')) {
+            return 'vendor-react';
+          }
+          if (id.includes('node_modules/react-router-dom') || id.includes('node_modules/react-router/')) {
+            return 'vendor-router';
+          }
+          if (id.includes('node_modules/date-fns')) {
+            return 'vendor-date';
+          }
         },
       },
     },
   },
 })
+
 
