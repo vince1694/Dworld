@@ -1,13 +1,58 @@
 /**
- * Brevo (Sendinblue) Transactional Email Utility
- * Uses native Node fetch to call Brevo's v3 REST API.
+ * Multi-Provider Transactional Email Utility (Gmail SMTP + Brevo Fallback)
  * 
- * Required Environment Variables in .env:
- * - BREVO_API_KEY: Your Brevo API key (from Brevo Dashboard > SMTP & API > API Keys)
- * - BREVO_SENDER_EMAIL: A verified sender email in your Brevo account
- * - BREVO_SENDER_NAME: (Optional) Sender display name (defaults to "D.WORLD Scheduling")
+ * Supports:
+ * 1. Gmail SMTP (via Nodemailer with 16-character Google App Password)
+ *    - GMAIL_USER: Your Gmail address (e.g. ifeanyichukwubethel1@gmail.com)
+ *    - GMAIL_APP_PASSWORD: 16-character App Password from Google Account
+ * 
+ * 2. Brevo (Sendinblue) REST API v3
+ *    - BREVO_API_KEY: Brevo API key
+ *    - BREVO_SENDER_EMAIL: Sender email
  */
 
+const nodemailer = require('nodemailer');
+
+/**
+ * Send email via Gmail SMTP using Nodemailer
+ */
+const sendGmailEmail = async ({ toEmail, toName, subject, htmlContent }) => {
+    const user = process.env.GMAIL_USER || process.env.EMAIL_USER;
+    const pass = process.env.GMAIL_APP_PASSWORD || process.env.GMAIL_PASS || process.env.EMAIL_PASS;
+
+    if (!user || !pass) {
+        return null; // Not configured
+    }
+
+    try {
+        const cleanPass = pass.replace(/\s+/g, ''); // strip any spaces from 16-char app password
+        const transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+                user: user.trim(),
+                pass: cleanPass
+            }
+        });
+
+        const senderName = process.env.EMAIL_SENDER_NAME || process.env.BREVO_SENDER_NAME || 'D.WORLD Scheduling';
+        const info = await transporter.sendMail({
+            from: `"${senderName}" <${user.trim()}>`,
+            to: toName ? `"${toName}" <${toEmail}>` : toEmail,
+            subject,
+            html: htmlContent
+        });
+
+        console.log(`[GMAIL SUCCESS] Email sent to ${toEmail}. MessageId: ${info.messageId}`);
+        return { success: true, provider: 'gmail', messageId: info.messageId };
+    } catch (err) {
+        console.error('[GMAIL EXCEPTION]:', err.message);
+        throw err;
+    }
+};
+
+/**
+ * Send email via Brevo REST API v3
+ */
 const sendBrevoEmail = async ({ toEmail, toName, subject, htmlContent }) => {
     const apiKey = process.env.BREVO_API_KEY;
     const senderEmail = process.env.BREVO_SENDER_EMAIL || process.env.EMAIL_FROM || 'noreply@dworld.com';
@@ -52,11 +97,31 @@ const sendBrevoEmail = async ({ toEmail, toName, subject, htmlContent }) => {
         }
 
         console.log(`[BREVO SUCCESS] Email sent to ${toEmail}. MessageId: ${data.messageId}`);
-        return { success: true, messageId: data.messageId };
+        return { success: true, provider: 'brevo', messageId: data.messageId };
     } catch (error) {
         console.error('[BREVO EXCEPTION]:', error.message);
         throw error;
     }
+};
+
+/**
+ * Multi-Provider Dispatcher
+ * Priority: 1. Gmail App Password -> 2. Brevo REST API
+ */
+const sendTransactionalEmail = async ({ toEmail, toName, subject, htmlContent }) => {
+    // 1. Try Gmail if configured
+    const hasGmail = Boolean(process.env.GMAIL_USER && (process.env.GMAIL_APP_PASSWORD || process.env.GMAIL_PASS || process.env.EMAIL_PASS));
+    if (hasGmail) {
+        try {
+            const res = await sendGmailEmail({ toEmail, toName, subject, htmlContent });
+            if (res && res.success) return res;
+        } catch (gmailErr) {
+            console.warn('[GMAIL ERROR] Falling back to Brevo:', gmailErr.message);
+        }
+    }
+
+    // 2. Try Brevo
+    return await sendBrevoEmail({ toEmail, toName, subject, htmlContent });
 };
 
 /**
@@ -99,14 +164,14 @@ const sendPasswordResetEmail = async (email, name, otp) => {
     `;
 
     try {
-        return await sendBrevoEmail({
+        return await sendTransactionalEmail({
             toEmail: email,
             toName: name,
             subject: `${otp} is your D.WORLD Password Reset Code`,
             htmlContent
         });
     } catch (err) {
-        console.warn(`[DEV/FALLBACK OTP] If Brevo is pending account activation, use this OTP code for ${email}: ${otp}`);
+        console.warn(`[DEV/FALLBACK OTP] Password reset OTP for ${email}: ${otp}`);
         throw err;
     }
 };
@@ -153,7 +218,7 @@ const sendRegistrationOtpEmail = async (email, name, otp) => {
     `;
 
     try {
-        return await sendBrevoEmail({
+        return await sendTransactionalEmail({
             toEmail: email,
             toName: name,
             subject: `${otp} — Verify your D.WORLD account`,
@@ -166,7 +231,9 @@ const sendRegistrationOtpEmail = async (email, name, otp) => {
 };
 
 module.exports = {
+    sendTransactionalEmail,
     sendBrevoEmail,
+    sendGmailEmail,
     sendPasswordResetEmail,
     sendRegistrationOtpEmail
 };
