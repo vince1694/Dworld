@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useNotify } from '../context/NotificationContext';
 import { useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import { 
@@ -55,15 +56,12 @@ const Dashboard = () => {
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [chatAppointment, setChatAppointment] = useState(null);
 
-  // Toast System
-  const [toasts, setToasts] = useState([]);
-
+  const { notify } = useNotify();
   const addToast = (message, type = 'success') => {
-    const id = Date.now();
-    setToasts(prev => [...prev, { id, message, type }]);
-    setTimeout(() => {
-      setToasts(prev => prev.filter(t => t.id !== id));
-    }, 4000);
+    if (type === 'error') notify.error(message);
+    else if (type === 'info') notify.info(message);
+    else if (type === 'warning') notify.warning(message);
+    else notify.success(message);
   };
 
   const [profileForm, setProfileForm] = useState({ name: user?.name || '', phone: user?.phone || '' });
@@ -140,7 +138,7 @@ const Dashboard = () => {
       await new Promise((res) => { script.onload = res; script.onerror = res; });
     }
 
-    let publicKey = 'pk_live_060e4958254697673bb978c4a4df3694fae9099b';
+    let publicKey = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY || '';
     try {
       const configRes = await axios.get(`${API_URL}/payments/config`);
       if (configRes.data.success && configRes.data.publicKey) {

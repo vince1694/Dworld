@@ -13,6 +13,14 @@
 
 const nodemailer = require('nodemailer');
 
+const withTimeout = (promise, ms = 6000) => {
+    let timeoutId;
+    const timeoutPromise = new Promise((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error(`Email operation timed out after ${ms}ms`)), ms);
+    });
+    return Promise.race([promise, timeoutPromise]).finally(() => clearTimeout(timeoutId));
+};
+
 /**
  * Send email via Gmail SMTP using Nodemailer
  */
@@ -31,7 +39,10 @@ const sendGmailEmail = async ({ toEmail, toName, subject, htmlContent }) => {
             auth: {
                 user: user.trim(),
                 pass: cleanPass
-            }
+            },
+            connectionTimeout: 5000,
+            greetingTimeout: 5000,
+            socketTimeout: 5000
         });
 
         const senderName = process.env.EMAIL_SENDER_NAME || process.env.BREVO_SENDER_NAME || 'D.WORLD Scheduling';
@@ -68,6 +79,7 @@ const sendBrevoEmail = async ({ toEmail, toName, subject, htmlContent }) => {
     try {
         const response = await fetch('https://api.brevo.com/v3/smtp/email', {
             method: 'POST',
+            signal: AbortSignal.timeout(5000),
             headers: {
                 'accept': 'application/json',
                 'api-key': apiKey,
@@ -107,21 +119,24 @@ const sendBrevoEmail = async ({ toEmail, toName, subject, htmlContent }) => {
 /**
  * Multi-Provider Dispatcher
  * Priority: 1. Gmail App Password -> 2. Brevo REST API
+ * Guaranteed to never hang requests: max 6 seconds total timeout
  */
 const sendTransactionalEmail = async ({ toEmail, toName, subject, htmlContent }) => {
-    // 1. Try Gmail if configured
-    const hasGmail = Boolean(process.env.GMAIL_USER && (process.env.GMAIL_APP_PASSWORD || process.env.GMAIL_PASS || process.env.EMAIL_PASS));
-    if (hasGmail) {
-        try {
-            const res = await sendGmailEmail({ toEmail, toName, subject, htmlContent });
-            if (res && res.success) return res;
-        } catch (gmailErr) {
-            console.warn('[GMAIL ERROR] Falling back to Brevo:', gmailErr.message);
+    return await withTimeout((async () => {
+        // 1. Try Gmail if configured
+        const hasGmail = Boolean(process.env.GMAIL_USER && (process.env.GMAIL_APP_PASSWORD || process.env.GMAIL_PASS || process.env.EMAIL_PASS));
+        if (hasGmail) {
+            try {
+                const res = await sendGmailEmail({ toEmail, toName, subject, htmlContent });
+                if (res && res.success) return res;
+            } catch (gmailErr) {
+                console.warn('[GMAIL ERROR] Falling back to Brevo:', gmailErr.message);
+            }
         }
-    }
 
-    // 2. Try Brevo
-    return await sendBrevoEmail({ toEmail, toName, subject, htmlContent });
+        // 2. Try Brevo
+        return await sendBrevoEmail({ toEmail, toName, subject, htmlContent });
+    })(), 6000);
 };
 
 /**

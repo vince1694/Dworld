@@ -22,6 +22,13 @@ const createService = async (req, res, next) => {
     try {
         const payload = { ...req.body };
         if (req.user && req.user.role !== 'admin') {
+            const existingServices = await Service.find({ stylist_id: req.user.id });
+            if (existingServices.length >= 1) {
+                return res.status(403).json({ 
+                    success: false, 
+                    message: 'Each expert specializes in exactly 1 single service on D.world. You cannot add additional services.' 
+                });
+            }
             payload.stylist_id = req.user.id;
         }
         const result = await Service.create(payload);

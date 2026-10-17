@@ -19,7 +19,7 @@ const connectDB = async () => {
         password: hashedPassword,
         role: 'admin',
         bio: 'Master System Administrator',
-        walletBalance: 100000
+        walletBalance: 0
       });
       console.log('Master Admin created: admin@dworld.com / admin123');
     }

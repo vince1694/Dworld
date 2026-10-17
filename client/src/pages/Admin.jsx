@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useNotify } from '../context/NotificationContext';
 import { useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import { 
@@ -47,15 +48,12 @@ const Admin = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
 
-  // Toasts
-  const [toasts, setToasts] = useState([]);
-
+  const { notify } = useNotify();
   const addToast = (message, type = 'success') => {
-    const id = Date.now();
-    setToasts(prev => [...prev, { id, message, type }]);
-    setTimeout(() => {
-      setToasts(prev => prev.filter(t => t.id !== id));
-    }, 4000);
+    if (type === 'error') notify.error(message);
+    else if (type === 'info') notify.info(message);
+    else if (type === 'warning') notify.warning(message);
+    else notify.success(message);
   };
 
   const [profileForm, setProfileForm] = useState({ name: user?.name || '', phone: user?.phone || '' });
@@ -180,9 +178,29 @@ const Admin = () => {
   });
 
   return (
-    <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+    <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
       
       <ToastContainer toasts={toasts} removeToast={(id) => setToasts(t => t.filter(x => x.id !== id))} />
+
+      <style>{`
+        .admin-kpi-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.85rem; }
+        .admin-appt-row { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.25rem; border-bottom: 1px solid var(--border-light); flex-wrap: wrap; gap: 0.75rem; }
+        .admin-appt-meta { display: flex; flex-direction: column; gap: 0.2rem; font-size: 0.8rem; color: var(--text-muted); }
+        .admin-appt-actions { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+        .admin-chips { display: flex; gap: 0.4rem; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; padding-bottom: 2px; flex-shrink: 0; }
+        .admin-chips::-webkit-scrollbar { display: none; }
+        .admin-filter-row { display: flex; align-items: center; gap: 0.65rem; flex-wrap: wrap; width: 100%; }
+        @media (max-width: 900px) { .admin-kpi-grid { grid-template-columns: repeat(3, 1fr) !important; } }
+        @media (max-width: 600px) {
+          .admin-kpi-grid { grid-template-columns: repeat(2, 1fr) !important; }
+          .admin-kpi-card { padding: 0.9rem !important; }
+          .admin-appt-row { padding: 0.85rem 1rem; }
+          .admin-appt-actions { width: 100%; justify-content: flex-end; }
+          .admin-appt-meta { min-width: 0; }
+          .admin-filter-row { flex-direction: column; align-items: stretch !important; }
+          .admin-chips { width: 100%; }
+        }
+      `}</style>
 
       {/* Header Banner */}
       <div 
@@ -213,51 +231,40 @@ const Admin = () => {
         </div>
       </div>
 
-      {/* KPI Stats Grid */}
-      <div className="grid-layout admin-kpi-grid grid-cols-1 md:grid-cols-5" style={{ gap: '1rem' }}>
-        <div className="app-card admin-kpi-card" style={{ padding: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
-          <div style={{ padding: '0.65rem', background: 'rgba(239, 68, 68, 0.1)', borderRadius: '12px', color: '#ef4444', flexShrink: 0 }}>
-            <Globe size={22} />
-          </div>
+      <div className="admin-kpi-grid">
+        <div className="app-card admin-kpi-card" style={{ padding: '1.1rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <div style={{ padding: '0.55rem', background: 'rgba(239,68,68,0.1)', borderRadius: '10px', color: '#ef4444', flexShrink: 0 }}><Globe size={20} /></div>
           <div style={{ minWidth: 0 }}>
-            <span style={{ fontSize: '0.725rem', color: 'var(--text-muted)', display: 'block', fontWeight: 600 }}>SYSTEM BOOKINGS</span>
-            <strong style={{ fontSize: '1.3rem', color: 'var(--text-main)', fontFamily: 'Outfit' }}>{appointments.length}</strong>
+            <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', display: 'block', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>BOOKINGS</span>
+            <strong style={{ fontSize: '1.2rem', color: 'var(--text-main)', fontFamily: 'Outfit' }}>{appointments.length}</strong>
           </div>
         </div>
-        <div className="app-card admin-kpi-card" style={{ padding: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
-          <div style={{ padding: '0.65rem', background: 'rgba(245, 158, 11, 0.1)', borderRadius: '12px', color: 'var(--warning)', flexShrink: 0 }}>
-            <Clock size={22} />
-          </div>
+        <div className="app-card admin-kpi-card" style={{ padding: '1.1rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <div style={{ padding: '0.55rem', background: 'rgba(245,158,11,0.1)', borderRadius: '10px', color: '#d97706', flexShrink: 0 }}><Clock size={20} /></div>
           <div style={{ minWidth: 0 }}>
-            <span style={{ fontSize: '0.725rem', color: 'var(--text-muted)', display: 'block', fontWeight: 600 }}>PENDING REVIEWS</span>
-            <strong style={{ fontSize: '1.3rem', color: 'var(--warning)', fontFamily: 'Outfit' }}>{pendingApps}</strong>
+            <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', display: 'block', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>PENDING</span>
+            <strong style={{ fontSize: '1.2rem', color: '#d97706', fontFamily: 'Outfit' }}>{pendingApps}</strong>
           </div>
         </div>
-        <div className="app-card admin-kpi-card" style={{ padding: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
-          <div style={{ padding: '0.65rem', background: 'rgba(16, 185, 129, 0.1)', borderRadius: '12px', color: 'var(--success)', flexShrink: 0 }}>
-            <DollarSign size={22} />
-          </div>
+        <div className="app-card admin-kpi-card" style={{ padding: '1.1rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <div style={{ padding: '0.55rem', background: 'rgba(16,185,129,0.1)', borderRadius: '10px', color: '#059669', flexShrink: 0 }}><DollarSign size={20} /></div>
           <div style={{ minWidth: 0 }}>
-            <span style={{ fontSize: '0.725rem', color: 'var(--text-muted)', display: 'block', fontWeight: 600 }}>PLATFORM VOLUME</span>
-            <strong style={{ fontSize: '1.3rem', color: 'var(--success)', fontFamily: 'Outfit' }}>₦{totalVolume.toLocaleString()}</strong>
+            <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', display: 'block', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>VOLUME</span>
+            <strong style={{ fontSize: '1.1rem', color: '#059669', fontFamily: 'Outfit' }}>₦{totalVolume.toLocaleString()}</strong>
           </div>
         </div>
-        <div className="app-card admin-kpi-card" style={{ padding: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
-          <div style={{ padding: '0.65rem', background: 'rgba(139, 92, 246, 0.1)', borderRadius: '12px', color: '#a78bfa', flexShrink: 0 }}>
-            <Activity size={22} />
-          </div>
+        <div className="app-card admin-kpi-card" style={{ padding: '1.1rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <div style={{ padding: '0.55rem', background: 'rgba(139,92,246,0.1)', borderRadius: '10px', color: '#a78bfa', flexShrink: 0 }}><Activity size={20} /></div>
           <div style={{ minWidth: 0 }}>
-            <span style={{ fontSize: '0.725rem', color: 'var(--text-muted)', display: 'block', fontWeight: 600 }}>10% COMMISSIONS</span>
-            <strong style={{ fontSize: '1.3rem', color: '#a78bfa', fontFamily: 'Outfit' }}>₦{platformCommissions.toLocaleString()}</strong>
+            <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', display: 'block', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>10% CUT</span>
+            <strong style={{ fontSize: '1.1rem', color: '#a78bfa', fontFamily: 'Outfit' }}>₦{platformCommissions.toLocaleString()}</strong>
           </div>
         </div>
-        <div className="app-card admin-kpi-card" style={{ padding: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
-          <div style={{ padding: '0.65rem', background: 'rgba(99, 102, 241, 0.1)', borderRadius: '12px', color: 'var(--primary)', flexShrink: 0 }}>
-            <Briefcase size={22} />
-          </div>
+        <div className="app-card admin-kpi-card" style={{ padding: '1.1rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <div style={{ padding: '0.55rem', background: 'rgba(99,102,241,0.1)', borderRadius: '10px', color: 'var(--primary)', flexShrink: 0 }}><Briefcase size={20} /></div>
           <div style={{ minWidth: 0 }}>
-            <span style={{ fontSize: '0.725rem', color: 'var(--text-muted)', display: 'block', fontWeight: 600 }}>ACTIVE SERVICES</span>
-            <strong style={{ fontSize: '1.3rem', color: 'var(--primary)', fontFamily: 'Outfit' }}>{services.length}</strong>
+            <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', display: 'block', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>SERVICES</span>
+            <strong style={{ fontSize: '1.2rem', color: 'var(--primary)', fontFamily: 'Outfit' }}>{services.length}</strong>
           </div>
         </div>
       </div>
@@ -278,44 +285,20 @@ const Admin = () => {
                     <h3 style={{ margin: 0, fontSize: '1.1rem' }}>Global Appointment Master Log</h3>
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap', width: '100%' }}>
-                    <div style={{ position: 'relative', flex: '1 1 200px', minWidth: '160px' }}>
+                  <div className="admin-filter-row">
+                    <div style={{ position: 'relative', flex: '1 1 180px', minWidth: '140px' }}>
                       <input 
                         type="text" 
-                        placeholder="Filter client, date..."
+                        placeholder="Filter client, service, date..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        style={{
-                          width: '100%',
-                          padding: '0.45rem 0.85rem 0.45rem 2.2rem',
-                          borderRadius: '10px',
-                          border: '1px solid var(--border-light)',
-                          background: 'rgba(255, 255, 255, 0.03)',
-                          color: 'var(--text-main)',
-                          fontSize: '0.85rem'
-                        }}
+                        style={{ width: '100%', padding: '0.45rem 0.85rem 0.45rem 2.2rem', borderRadius: '10px', border: '1px solid var(--border-light)', background: 'rgba(255,255,255,0.03)', color: 'var(--text-main)', fontSize: '0.85rem' }}
                       />
                       <Search size={14} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-subtle)' }} />
                     </div>
-
-                    <div className="chips-scroller" style={{ flexShrink: 0 }}>
-                      {['all', 'pending', 'approved', 'completed', 'cancelled'].map(st => (
-                        <button
-                          key={st}
-                          onClick={() => setStatusFilter(st)}
-                          style={{
-                            padding: '0.4rem 0.75rem',
-                            borderRadius: '8px',
-                            border: '1px solid var(--border-light)',
-                            background: statusFilter === st ? 'var(--primary)' : 'transparent',
-                            color: statusFilter === st ? 'white' : 'var(--text-muted)',
-                            fontSize: '0.75rem',
-                            fontWeight: 600,
-                            cursor: 'pointer',
-                            textTransform: 'capitalize',
-                            whiteSpace: 'nowrap'
-                          }}
-                        >
+                    <div className="admin-chips">
+                      {['all','pending','approved','completed','cancelled'].map(st => (
+                        <button key={st} onClick={() => setStatusFilter(st)} style={{ padding: '0.4rem 0.7rem', borderRadius: '8px', border: '1px solid var(--border-light)', background: statusFilter === st ? 'var(--primary)' : 'transparent', color: statusFilter === st ? 'white' : 'var(--text-muted)', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', textTransform: 'capitalize', whiteSpace: 'nowrap', flexShrink: 0 }}>
                           {st}
                         </button>
                       ))}
@@ -327,94 +310,48 @@ const Admin = () => {
                   {filteredAppointments.length > 0 ? (
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                       {filteredAppointments.map((app) => (
-                        <div 
-                          key={app.id || app._id}
-                          className="admin-appt-card"
-                          style={{ 
-                            display: 'flex', 
-                            justifyContent: 'space-between', 
-                            alignItems: 'center',
-                            padding: '1.25rem 1.5rem',
-                            borderBottom: '1px solid var(--border-light)',
-                            flexWrap: 'wrap',
-                            gap: '1rem'
-                          }}
-                        >
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', minWidth: '250px' }}>
-                            <div style={{ 
-                              width: '42px', 
-                              height: '42px', 
-                              borderRadius: '50%', 
-                              background: 'rgba(99, 102, 241, 0.1)', 
-                              display: 'flex', 
-                              alignItems: 'center', 
-                              justifyContent: 'center',
-                              border: '1px solid rgba(99, 102, 241, 0.2)',
-                              color: 'var(--primary)'
-                            }}>
+                        <div key={app.id || app._id} className="admin-appt-row">
+                          {/* Client info */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', flex: '1 1 200px', minWidth: 0 }}>
+                            <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'rgba(99,102,241,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(99,102,241,0.2)', color: 'var(--primary)', flexShrink: 0 }}>
                               <User size={18} />
                             </div>
-                            <div>
-                              <span style={{ fontWeight: 700, color: 'var(--text-main)', fontSize: '0.975rem', display: 'block', fontFamily: 'Outfit' }}>
-                                {app.user_id?.name || app.client_name || 'Client User'}
+                            <div style={{ minWidth: 0 }}>
+                              <span style={{ fontWeight: 700, color: 'var(--text-main)', fontSize: '0.9rem', display: 'block', fontFamily: 'Outfit', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {app.user_id?.name || app.client_name || 'Client'}
                               </span>
-                              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                                Service: <strong>{app.service_id?.name || 'Standard'}</strong>
+                              <span style={{ fontSize: '0.775rem', color: 'var(--text-muted)' }}>
+                                {app.service_id?.name || 'Standard'}
                               </span>
                             </div>
                           </div>
 
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', fontSize: '0.825rem', color: 'var(--text-muted)' }}>
-                            <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                              <Clock size={14} color="var(--primary)" /> {app.date} at {app.time}
+                          {/* Date + fee */}
+                          <div className="admin-appt-meta">
+                            <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                              <Clock size={13} color="var(--primary)" /> {app.date} · {app.time}
                             </span>
-                            <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
-                              Fee: <strong>₦{(app.service_id?.price || 0).toLocaleString()}</strong>
-                              {app.paymentStatus === 'paid' && (
-                                <span style={{ fontSize: '0.7rem', padding: '0.15rem 0.45rem', borderRadius: '6px', background: 'rgba(16, 185, 129, 0.15)', color: '#34d399', fontWeight: 600 }}>
-                                  Paid (10% fee: ₦{(app.commissionAmount || Math.round((app.service_id?.price || 0) * 0.1)).toLocaleString()})
-                                </span>
-                              )}
-                              {app.paymentStatus === 'refunded' && (
-                                <span style={{ fontSize: '0.7rem', padding: '0.15rem 0.45rem', borderRadius: '6px', background: 'rgba(239, 68, 68, 0.15)', color: '#f87171', fontWeight: 600 }}>
-                                  100% Refunded
-                                </span>
-                              )}
-                              {(!app.paymentStatus || app.paymentStatus === 'unpaid') && (
-                                <span style={{ fontSize: '0.7rem', padding: '0.15rem 0.45rem', borderRadius: '6px', background: 'rgba(255, 255, 255, 0.05)', color: '#9ca3af', fontWeight: 600 }}>
-                                  Unpaid
-                                </span>
-                              )}
+                            <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap' }}>
+                              ₦{(app.service_id?.price || 0).toLocaleString()}
+                              {app.paymentStatus === 'paid' && <span style={{ fontSize: '0.68rem', padding: '0.12rem 0.4rem', borderRadius: '6px', background: 'rgba(16,185,129,0.15)', color: '#34d399', fontWeight: 700 }}>PAID · 10%: ₦{(app.commissionAmount || Math.round((app.service_id?.price || 0) * 0.1)).toLocaleString()}</span>}
+                              {app.paymentStatus === 'refunded' && <span style={{ fontSize: '0.68rem', padding: '0.12rem 0.4rem', borderRadius: '6px', background: 'rgba(239,68,68,0.12)', color: '#f87171', fontWeight: 700 }}>REFUNDED</span>}
+                              {(!app.paymentStatus || app.paymentStatus === 'unpaid') && <span style={{ fontSize: '0.68rem', padding: '0.12rem 0.4rem', borderRadius: '6px', background: 'rgba(255,255,255,0.05)', color: '#9ca3af', fontWeight: 700 }}>UNPAID</span>}
                             </span>
                           </div>
 
-                          <div className="admin-appt-actions" style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-                            <span className={`status-badge status-${app.status}`}>
-                              {app.status}
-                            </span>
-
-                            <div style={{ display: 'flex', gap: '0.4rem', flex: 1 }}>
-                              {app.status !== 'approved' && (
-                                <button 
-                                  onClick={() => handleUpdateStatus(app.id || app._id, 'approved')}
-                                  title="Approve Booking"
-                                  className="btn btn-secondary"
-                                  style={{ padding: '0.45rem 0.75rem', fontSize: '0.75rem', color: 'var(--success)' }}
-                                >
-                                  <CheckCircle size={14} /> Approve
-                                </button>
-                              )}
-                              {app.status !== 'cancelled' && (
-                                <button 
-                                  onClick={() => handleUpdateStatus(app.id || app._id, 'cancelled')}
-                                  title="Cancel Booking"
-                                  className="btn btn-secondary"
-                                  style={{ padding: '0.45rem 0.75rem', fontSize: '0.75rem', color: '#ef4444' }}
-                                >
-                                  <XCircle size={14} /> Cancel
-                                </button>
-                              )}
-                            </div>
+                          {/* Actions */}
+                          <div className="admin-appt-actions">
+                            <span className={`status-badge status-${app.status}`}>{app.status}</span>
+                            {app.status !== 'approved' && (
+                              <button onClick={() => handleUpdateStatus(app.id || app._id, 'approved')} className="btn btn-secondary" style={{ padding: '0.4rem 0.65rem', fontSize: '0.75rem', color: 'var(--success)', whiteSpace: 'nowrap' }}>
+                                <CheckCircle size={13} /> Approve
+                              </button>
+                            )}
+                            {app.status !== 'cancelled' && (
+                              <button onClick={() => handleUpdateStatus(app.id || app._id, 'cancelled')} className="btn btn-secondary" style={{ padding: '0.4rem 0.65rem', fontSize: '0.75rem', color: '#ef4444', whiteSpace: 'nowrap' }}>
+                                <XCircle size={13} /> Cancel
+                              </button>
+                            )}
                           </div>
                         </div>
                       ))}

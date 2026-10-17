@@ -36,7 +36,7 @@ const DEFAULT_SLOTS = [
   '01:00 PM', '02:30 PM', '04:00 PM', '05:30 PM'
 ];
 
-const PAYSTACK_FALLBACK_KEY = 'pk_live_060e4958254697673bb978c4a4df3694fae9099b';
+const PAYSTACK_FALLBACK_KEY = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY || '';
 
 const loadPaystackScript = () => new Promise((resolve, reject) => {
   if (typeof window.PaystackPop !== 'undefined') return resolve();

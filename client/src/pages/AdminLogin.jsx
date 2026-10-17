@@ -32,10 +32,6 @@ const AdminLogin = () => {
     }
   };
 
-  const handleAutofill = () => {
-    setEmail('admin@dworld.com');
-    setPassword('admin123');
-  };
 
   return (
     <div style={{
@@ -79,7 +75,7 @@ const AdminLogin = () => {
           borderBottom: '1px solid rgba(255, 255, 255, 0.07)',
           background: 'linear-gradient(180deg, rgba(239, 68, 68, 0.12) 0%, transparent 100%)'
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', marginBottom: '1rem' }}>
             <div style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -96,25 +92,6 @@ const AdminLogin = () => {
             }}>
               <Terminal size={14} /> Restricted Gateway
             </div>
-
-            <button
-              type="button"
-              onClick={handleAutofill}
-              style={{
-                background: 'rgba(255, 255, 255, 0.05)',
-                border: '1px solid rgba(255, 255, 255, 0.15)',
-                color: '#9ca3af',
-                fontSize: '0.725rem',
-                fontWeight: 600,
-                padding: '0.3rem 0.65rem',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                transition: 'all 0.2s'
-              }}
-              title="Autofill standard admin testing credentials"
-            >
-              Fill Credentials
-            </button>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>

@@ -5,7 +5,7 @@ import axios from 'axios';
 
 import { API_URL } from '../config/api';
 
-const PAYSTACK_FALLBACK_KEY = 'pk_live_060e4958254697673bb978c4a4df3694fae9099b';
+const PAYSTACK_FALLBACK_KEY = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY || '';
 
 /** Dynamically ensure Paystack inline script is loaded */
 const loadPaystackScript = () => new Promise((resolve, reject) => {
@@ -185,7 +185,7 @@ const WalletModal = ({ isOpen, onClose, onWalletUpdated }) => {
 
         {/* Balance Card */}
         <div style={{
-          background: 'linear-gradient(135deg, var(--primary), var(--secondary))',
+          background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)',
           borderRadius: '18px',
           padding: '1.75rem',
           color: 'white',
@@ -196,67 +196,111 @@ const WalletModal = ({ isOpen, onClose, onWalletUpdated }) => {
           alignItems: 'center'
         }}>
           <div>
-            <span style={{ fontSize: '0.825rem', opacity: 0.85, textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>AVAILABLE BALANCE</span>
-            <h2 style={{ fontSize: '2.4rem', margin: '0.2rem 0 0', fontWeight: 900, color: 'white', fontFamily: 'Outfit' }}>
-              ₦{walletBalance.toLocaleString()}
+            <span style={{ fontSize: '0.8rem', opacity: 0.85, textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700 }}>AVAILABLE BALANCE</span>
+            <h2 style={{ fontSize: '2.5rem', margin: '0.2rem 0 0', fontWeight: 900, color: 'white', fontFamily: 'Outfit' }}>
+              ₦{Number(walletBalance || 0).toLocaleString()}
             </h2>
           </div>
-          <div style={{ background: 'rgba(255, 255, 255, 0.2)', padding: '0.5rem 0.8rem', borderRadius: '10px', backdropFilter: 'blur(4px)', fontSize: '0.8rem', fontWeight: 700 }}>
-            TEST WALLET
+          <div style={{ background: 'rgba(255, 255, 255, 0.2)', padding: '0.45rem 0.85rem', borderRadius: '10px', backdropFilter: 'blur(4px)', fontSize: '0.78rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+            <ShieldCheck size={14} /> PAYSTACK SECURE
           </div>
         </div>
 
         {/* Top-up Form */}
-        <div style={{ background: '#f8fafc', border: '1px solid var(--border-light)', borderRadius: '16px', padding: '1.25rem', marginBottom: '1.5rem' }}>
-          <h4 style={{ margin: '0 0 0.75rem', fontSize: '0.95rem', fontFamily: 'Outfit', color: 'var(--text-main)' }}>
-            Instant Wallet Deposit (Test Funds)
-          </h4>
+        <div style={{ background: '#f8fafc', border: '1px solid var(--border-light)', borderRadius: '16px', padding: '1.35rem', marginBottom: '1.5rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+            <h4 style={{ margin: 0, fontSize: '0.98rem', fontFamily: 'Outfit', fontWeight: 800, color: 'var(--text-main)' }}>
+              Top Up Wallet via Paystack
+            </h4>
+            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Cards · Bank · USSD · Apple Pay</span>
+          </div>
+          <p style={{ margin: '0 0 1rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+            Funds are credited instantly and can be used for bookings or specialist payouts.
+          </p>
 
           {message && (
             <div style={{
               background: message.type === 'success' ? '#dcfce7' : '#fee2e2',
               color: message.type === 'success' ? '#15803d' : '#b91c1c',
-              padding: '0.65rem 0.85rem',
-              borderRadius: '8px',
+              padding: '0.75rem 1rem',
+              borderRadius: '10px',
               fontSize: '0.85rem',
-              marginBottom: '0.85rem',
-              fontWeight: 500
+              marginBottom: '1rem',
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem'
             }}>
+              {message.type === 'success' ? <ShieldCheck size={16} /> : <X size={16} />}
               {message.text}
             </div>
           )}
 
-          <form onSubmit={handleTopup} style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-            <div style={{ display: 'flex', gap: '0.4rem', flex: 1 }}>
-              {['5000', '10000', '25000', '50000'].map(amt => (
+          <form onSubmit={handleTopup}>
+            {/* Quick Amount Chips */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '0.4rem', marginBottom: '0.85rem' }}>
+              {['1000', '2000', '3000', '5000', '10000'].map(amt => (
                 <button
                   key={amt}
                   type="button"
                   onClick={() => setTopupAmount(amt)}
                   style={{
-                    flex: 1,
-                    padding: '0.5rem 0.25rem',
-                    borderRadius: '8px',
+                    padding: '0.55rem 0.2rem',
+                    borderRadius: '10px',
                     border: topupAmount === amt ? '2px solid var(--primary)' : '1px solid var(--border-light)',
-                    background: topupAmount === amt ? '#eef2ff' : 'white',
+                    background: topupAmount === amt ? 'rgba(79, 70, 229, 0.1)' : 'white',
                     color: topupAmount === amt ? 'var(--primary)' : 'var(--text-main)',
-                    fontWeight: 700,
-                    fontSize: '0.75rem',
-                    cursor: 'pointer'
+                    fontWeight: 800,
+                    fontSize: '0.78rem',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease'
                   }}
                 >
-                  +₦{parseInt(amt).toLocaleString()}
+                  ₦{parseInt(amt).toLocaleString()}
                 </button>
               ))}
             </div>
-            <button 
-              type="submit" 
-              disabled={submitting}
-              className="btn btn-primary" 
-              style={{ padding: '0.55rem 1.15rem', fontSize: '0.85rem' }}
-            >
-              {submitting ? 'Depositing...' : 'Deposit'}
-            </button>
+
+            {/* Custom Amount input + Submit */}
+            <div style={{ display: 'flex', gap: '0.65rem' }}>
+              <div style={{ position: 'relative', flex: 1 }}>
+                <span style={{ position: 'absolute', left: '0.9rem', top: '50%', transform: 'translateY(-50%)', fontWeight: 800, color: 'var(--text-muted)' }}>₦</span>
+                <input
+                  type="number"
+                  min="100"
+                  placeholder="Enter amount"
+                  value={topupAmount}
+                  onChange={(e) => setTopupAmount(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem 0.75rem 0.75rem 2.25rem',
+                    borderRadius: '12px',
+                    border: '1px solid var(--border-light)',
+                    fontSize: '0.95rem',
+                    fontWeight: 700,
+                    outline: 'none'
+                  }}
+                />
+              </div>
+
+              <button 
+                type="submit" 
+                disabled={submitting || !topupAmount || Number(topupAmount) <= 0}
+                className="btn btn-primary" 
+                style={{
+                  padding: '0.75rem 1.35rem',
+                  fontSize: '0.88rem',
+                  fontWeight: 800,
+                  whiteSpace: 'nowrap',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.45rem',
+                  borderRadius: '12px'
+                }}
+              >
+                {submitting ? 'Connecting...' : <><ShieldCheck size={16} /> Pay with Paystack</>}
+              </button>
+            </div>
           </form>
         </div>
 

@@ -35,7 +35,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const login = async (email, password) => {
-    const res = await axios.post(`${API_URL}/auth/login`, { email, password });
+    const res = await axios.post(`${API_URL}/auth/login`, { email, password }, { timeout: 12000 });
     const { token, user } = res.data;
     localStorage.setItem('token', token);
     setToken(token);
@@ -45,13 +45,13 @@ export const AuthProvider = ({ children }) => {
 
   // Step 1: submit form data → triggers OTP email
   const initiateRegister = async (userData) => {
-    const res = await axios.post(`${API_URL}/auth/register`, userData);
+    const res = await axios.post(`${API_URL}/auth/register`, userData, { timeout: 12000 });
     return res.data; // { success, message, email }
   };
 
   // Step 2: submit OTP → creates account and logs in
   const verifyRegistration = async (email, otp) => {
-    const res = await axios.post(`${API_URL}/auth/register/verify`, { email, otp });
+    const res = await axios.post(`${API_URL}/auth/register/verify`, { email, otp }, { timeout: 12000 });
     const { token, user } = res.data;
     localStorage.setItem('token', token);
     setToken(token);

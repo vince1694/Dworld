@@ -1,9 +1,11 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { NotificationProvider } from './context/NotificationContext';
 import Navbar from './components/Navbar';
 import AppLayout from './components/AppLayout';
 import AdminLayout from './components/AdminLayout';
+import PWAInstallBanner from './components/PWAInstallBanner';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import AdminLogin from './pages/AdminLogin';
@@ -35,59 +37,60 @@ const ProtectedRoute = ({ children, allowedRoles, redirectTo = '/login' }) => {
 function App() {
   return (
     <AuthProvider>
-      <Router>
-        <Navbar />
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/admin/login" element={<AdminLogin />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="/services" element={
-            <ProtectedRoute>
-              <Services />
-            </ProtectedRoute>
-          } />
-          <Route path="/experts" element={<Navigate to="/services?tab=experts" replace />} />
-          <Route path="/contact" element={
-            <ProtectedRoute>
-              <Contact />
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/book" element={
-            <ProtectedRoute>
-              <AppLayout>
-                <BookAppointment />
-              </AppLayout>
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/dashboard" element={
-            <ProtectedRoute>
-              <AppLayout>
-                <Dashboard />
-              </AppLayout>
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/admin" element={
-            <ProtectedRoute allowedRoles={['admin']} redirectTo="/admin/login">
-              <AdminLayout>
-                <Admin />
-              </AdminLayout>
-            </ProtectedRoute>
-          } />
+      <NotificationProvider>
+        <Router>
+          <Navbar />
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/admin/login" element={<AdminLogin />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/services" element={
+              <ProtectedRoute>
+                <Services />
+              </ProtectedRoute>
+            } />
+            <Route path="/experts" element={<Navigate to="/services?tab=experts" replace />} />
+            <Route path="/contact" element={
+              <ProtectedRoute>
+                <Contact />
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/book" element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <BookAppointment />
+                </AppLayout>
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/dashboard" element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <Dashboard />
+                </AppLayout>
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/admin" element={
+              <ProtectedRoute allowedRoles={['admin']} redirectTo="/admin/login">
+                <AdminLayout>
+                  <Admin />
+                </AdminLayout>
+              </ProtectedRoute>
+            } />
 
-          <Route path="/expert" element={
-            <ProtectedRoute allowedRoles={['expert', 'stylist']}>
-              <AppLayout>
+            <Route path="/expert" element={
+              <ProtectedRoute allowedRoles={['expert', 'stylist']}>
                 <ExpertDashboard />
-              </AppLayout>
-            </ProtectedRoute>
-          } />
-        </Routes>
-      </Router>
+              </ProtectedRoute>
+            } />
+          </Routes>
+          <PWAInstallBanner />
+        </Router>
+      </NotificationProvider>
     </AuthProvider>
   );
 }

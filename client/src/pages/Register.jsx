@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useNotify } from '../context/NotificationContext';
 import { Mail, Lock, User, AlertCircle, Phone, ShieldCheck, CheckCircle, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -233,6 +234,7 @@ const Register = () => {
   const [loading, setLoading] = useState(false);
 
   const { initiateRegister, verifyRegistration } = useAuth();
+  const { notify } = useNotify();
   const navigate = useNavigate();
 
   const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -241,23 +243,44 @@ const Register = () => {
     e.preventDefault();
     setError('');
 
+    // Pre-validate LCU matriculation format before sending
+    const matricRegex = /^lcu\/ug\/\d{2}\/\d{4,5}$/i;
+    if (!formData.matricNo || !matricRegex.test(formData.matricNo.trim())) {
+      const msg = 'Invalid Matric Number. Expected format: LCU/UG/00/00000 (e.g. LCU/UG/22/04192)';
+      setError(msg);
+      notify.warning(msg);
+      return;
+    }
+
     if ((formData.role === 'expert' || formData.role === 'stylist') &&
       (!formData.newServices || formData.newServices.length === 0)) {
-      setError('Please select your single service specialty.');
+      const msg = 'Please select your single service specialty.';
+      setError(msg);
+      notify.warning(msg);
       return;
     }
 
     setLoading(true);
     try {
       const res = await initiateRegister(formData);
-      if (res.success) {
+      if (res && res.success) {
         setPendingEmail(res.email || formData.email.trim().toLowerCase());
         setPendingFormData(formData);
         if (res.devOtp) setDevOtp(res.devOtp);
         setStep('otp');
+        notify.success(res.message || 'Verification code sent! Please check your email.');
+      } else {
+        const msg = res?.message || 'Failed to send verification code. Please try again.';
+        setError(msg);
+        notify.error(msg);
       }
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to send verification code.');
+      const msg = err.response?.data?.message || 
+                  (err.response?.data?.errors?.map(e => e.msg).join(' • ')) || 
+                  err.message || 
+                  'Failed to send verification code.';
+      setError(msg);
+      notify.error(msg);
     } finally {
       setLoading(false);
     }
@@ -268,11 +291,14 @@ const Register = () => {
     setLoading(true);
     try {
       const user = await verifyRegistration(pendingEmail, otp);
+      notify.success('Welcome to D.World! Account created 🎉');
       if (user.role === 'admin') navigate('/admin');
       else if (user.role === 'expert' || user.role === 'stylist') navigate('/expert');
       else navigate('/dashboard');
     } catch (err) {
-      setError(err.response?.data?.message || 'Invalid verification code.');
+      const msg = err.response?.data?.message || 'Invalid verification code. Please try again.';
+      setError(msg);
+      notify.error(msg);
     } finally {
       setLoading(false);
     }
@@ -282,8 +308,11 @@ const Register = () => {
     try {
       const res = await initiateRegister(pendingFormData);
       if (res?.devOtp) setDevOtp(res.devOtp);
+      notify.info('New verification code sent to your email.');
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to resend code.');
+      const msg = err.response?.data?.message || 'Failed to resend code.';
+      setError(msg);
+      notify.error(msg);
     }
   };
 

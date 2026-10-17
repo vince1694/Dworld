@@ -4,7 +4,7 @@ import { ShieldCheck, Lock, CheckCircle2, CreditCard, Sparkles, AlertCircle, Arr
 import axios from 'axios';
 import { API_URL } from '../config/api';
 
-const PAYSTACK_FALLBACK_KEY = 'pk_live_060e4958254697673bb978c4a4df3694fae9099b';
+const PAYSTACK_FALLBACK_KEY = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY || '';
 
 /** Dynamically load Paystack inline.js if not already present */
 const loadPaystackScript = () => new Promise((resolve, reject) => {

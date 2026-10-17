@@ -25,9 +25,11 @@ const initiateRegister = async (req, res, next) => {
         }
 
         let { name, email, password, role, state, matricNo, newServices } = req.body;
+        const cleanEmail = (email || '').trim().toLowerCase();
+        const cleanRole = (role === 'stylist' || role === 'expert') ? 'expert' : 'user';
 
         // Validate LCU matric format
-        if (matricNo || role === 'user' || role === 'expert' || role === 'stylist') {
+        if (matricNo || cleanRole === 'user' || cleanRole === 'expert') {
             const matricRegex = /^lcu\/ug\/\d{2}\/\d{4,5}$/i;
             if (!matricNo || !matricRegex.test(matricNo.trim())) {
                 return res.status(400).json({ 
@@ -39,7 +41,7 @@ const initiateRegister = async (req, res, next) => {
         }
 
         // Check if email already exists
-        const userExists = await User.findByEmail(email);
+        const userExists = await User.findOne({ email: cleanEmail });
         if (userExists) {
             return res.status(400).json({ success: false, message: 'An account with this email already exists.' });
         }
@@ -52,23 +54,29 @@ const initiateRegister = async (req, res, next) => {
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
         // Cache pending registration (keyed by email)
-        const cleanEmail = email.trim().toLowerCase();
         pendingRegistrations.set(cleanEmail, {
-            name, email: cleanEmail, password: hashedPassword,
-            role, state, matricNo, newServices,
-            otp, createdAt: Date.now()
+            name: (name || '').trim(),
+            email: cleanEmail,
+            password: hashedPassword,
+            role: cleanRole,
+            state: state || '',
+            matricNo,
+            newServices,
+            otp,
+            createdAt: Date.now()
         });
 
-        // Send OTP email
+        console.log(`[REGISTRATION OTP] OTP generated for ${cleanEmail}: ${otp}`);
+
+        // Send OTP email (non-blocking fallback guaranteed)
         let emailDelivered = true;
         let emailErrorMessage = '';
         try {
             await sendRegistrationOtpEmail(cleanEmail, name, otp);
         } catch (emailErr) {
             emailDelivered = false;
-            emailErrorMessage = emailErr.message || 'SMTP pending activation';
-            console.error('[REG OTP EMAIL ERROR]:', emailErrorMessage);
-            // Don't block registration if email fails; OTP logged in console & provided as dev fallback
+            emailErrorMessage = emailErr.message || 'Email delivery notice';
+            console.warn('[REG OTP EMAIL WARN]:', emailErrorMessage);
         }
 
         res.status(200).json({
@@ -76,7 +84,7 @@ const initiateRegister = async (req, res, next) => {
             emailDelivered,
             message: emailDelivered 
                 ? 'Verification code sent to your email. Please check your inbox.' 
-                : 'Email service pending Brevo activation. Test code provided.',
+                : 'Verification code generated. If email is delayed, use the code below.',
             devOtp: !emailDelivered ? otp : undefined,
             email: cleanEmail
         });
@@ -115,13 +123,18 @@ const verifyRegistration = async (req, res, next) => {
         pendingRegistrations.delete(cleanEmail);
 
         const { name, password: hashedPassword, role, state, matricNo, newServices } = pending;
+        const validRole = (role === 'stylist' || role === 'expert') ? 'expert' : 'user';
 
         // Create verified account
-        const isExpert = (role === 'expert' || role === 'stylist');
-        const isActivated = !isExpert;
+        const isExpert = validRole === 'expert';
+        const isActivated = !isExpert; // Users are instantly activated; experts activate with ₦3,000 fee
         const userResult = await User.create({ 
-            name, email: cleanEmail, password: hashedPassword, 
-            role, state, matricNo, 
+            name, 
+            email: cleanEmail, 
+            password: hashedPassword, 
+            role: validRole, 
+            state, 
+            matricNo, 
             isVerified: true,
             isActivated,
             activationFee: 3000 
@@ -385,7 +398,7 @@ const getMe = async (req, res, next) => {
             specialty: user.specialty,
             workingDays: user.workingDays || ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
             workingHours: user.workingHours || { start: '09:00', end: '18:00' },
-            walletBalance: user.walletBalance || 500
+            walletBalance: Number(user.walletBalance || 0)
         }});
     } catch (error) {
         next(error);
@@ -401,7 +414,7 @@ const getWallet = async (req, res, next) => {
         res.json({
             success: true,
             data: {
-                walletBalance: user.walletBalance || 500,
+                walletBalance: Number(user.walletBalance || 0),
                 transactions: (user.transactions || []).reverse()
             }
         });

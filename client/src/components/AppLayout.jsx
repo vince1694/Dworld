@@ -29,7 +29,7 @@ const AppLayout = ({ children }) => {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [isWalletOpen, setIsWalletOpen] = useState(false);
-  const [walletBalance, setWalletBalance] = useState(user?.walletBalance || 500);
+  const [walletBalance, setWalletBalance] = useState(user?.walletBalance || 0);
 
   // Notification States
   const [notifications, setNotifications] = useState([]);

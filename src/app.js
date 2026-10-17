@@ -43,17 +43,20 @@ app.use('/api/notifications', require('./routes/notificationRoutes'));
 app.use('/api/contact', require('./routes/contactRoutes'));
 app.use('/api/payments', require('./routes/paymentRoutes'));
 
-// Serve frontend
-if (process.env.NODE_ENV === 'production') {
-    app.use(express.static(path.join(__dirname, '../client/dist')));
+// Serve frontend static build
+const distPath = path.join(__dirname, '../client/dist');
+const fs = require('fs');
+if (fs.existsSync(distPath)) {
+    app.use(express.static(distPath));
 
-    app.get('*path', (req, res) =>
-        res.sendFile(
-            path.resolve(__dirname, '../', 'client', 'dist', 'index.html')
-        )
-    );
+    app.get('*path', (req, res) => {
+        if (req.path.startsWith('/api')) {
+            return res.status(404).json({ success: false, message: 'API route not found' });
+        }
+        res.sendFile(path.resolve(distPath, 'index.html'));
+    });
 } else {
-    app.get('/', (req, res) => res.send('Please set to production'));
+    app.get('/', (req, res) => res.send('D.WORLD Backend API Running. Please build the client using npm run build.'));
 }
 
 // Error Handling Middleware

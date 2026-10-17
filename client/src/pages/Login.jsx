@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useNotify } from '../context/NotificationContext';
 import { Mail, Lock, LogIn, AlertCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -10,6 +11,7 @@ const Login = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
+  const { notify } = useNotify();
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
@@ -18,6 +20,7 @@ const Login = () => {
     setLoading(true);
     try {
       const user = await login(email, password);
+      notify.success(`Welcome back, ${user.name || 'there'}! 👋`);
       if (user.role === 'admin') {
         navigate('/admin');
       } else if (user.role === 'expert' || user.role === 'stylist') {
@@ -26,7 +29,9 @@ const Login = () => {
         navigate('/dashboard');
       }
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to login. Please check your credentials.');
+      const msg = err.response?.data?.message || 'Failed to login. Please check your credentials.';
+      setError(msg);
+      notify.error(msg);
     } finally {
       setLoading(false);
     }
