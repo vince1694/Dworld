@@ -60,16 +60,24 @@ const initiateRegister = async (req, res, next) => {
         });
 
         // Send OTP email
+        let emailDelivered = true;
+        let emailErrorMessage = '';
         try {
             await sendRegistrationOtpEmail(cleanEmail, name, otp);
         } catch (emailErr) {
-            console.error('[REG OTP EMAIL ERROR]:', emailErr.message);
-            // Don't block registration if email fails; OTP logged in console
+            emailDelivered = false;
+            emailErrorMessage = emailErr.message || 'SMTP pending activation';
+            console.error('[REG OTP EMAIL ERROR]:', emailErrorMessage);
+            // Don't block registration if email fails; OTP logged in console & provided as dev fallback
         }
 
         res.status(200).json({
             success: true,
-            message: 'Verification code sent to your email. Please check your inbox.',
+            emailDelivered,
+            message: emailDelivered 
+                ? 'Verification code sent to your email. Please check your inbox.' 
+                : 'Email service pending Brevo activation. Test code provided.',
+            devOtp: !emailDelivered ? otp : undefined,
             email: cleanEmail
         });
     } catch (error) {
@@ -239,14 +247,23 @@ const forgotPassword = async (req, res, next) => {
         await user.save();
 
         // Send email via Brevo
+        let emailDelivered = true;
         try {
             await sendPasswordResetEmail(user.email, user.name, otp);
         } catch (emailErr) {
+            emailDelivered = false;
             console.error('Email sending failed:', emailErr.message);
             // Even if Brevo fails, keep OTP saved for dev fallback
         }
 
-        res.json({ success: true, message: 'Verification code sent to your email.' });
+        res.json({ 
+            success: true, 
+            emailDelivered,
+            message: emailDelivered 
+                ? 'Verification code sent to your email.' 
+                : 'Email service pending Brevo activation. Test code provided.',
+            devOtp: !emailDelivered ? otp : undefined
+        });
     } catch (error) {
         next(error);
     }

@@ -186,78 +186,78 @@ const Admin = () => {
 
       {/* Header Banner */}
       <div 
-        className="app-card" 
+        className="app-card hero-banner-compact" 
         style={{ 
-          padding: '2rem', 
+          padding: '1.5rem', 
           background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(99, 102, 241, 0.15))',
           borderColor: 'rgba(239, 68, 68, 0.2)',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
           flexWrap: 'wrap',
-          gap: '1.5rem'
+          gap: '1rem'
         }}
       >
         <div>
-          <h1 style={{ fontSize: '1.85rem', marginBottom: '0.25rem', fontFamily: 'Outfit' }}>
+          <h1 style={{ fontSize: 'clamp(1.2rem, 3.2vw, 1.85rem)', marginBottom: '0.25rem', fontFamily: 'Outfit' }}>
             Admin System Operations Console
           </h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.925rem' }}>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: 0 }}>
             Full system governance, appointment status overrides, and platform service definitions.
           </p>
         </div>
-        <div style={{ background: 'rgba(239, 68, 68, 0.1)', padding: '0.4rem 0.8rem', borderRadius: '8px', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
-          <span style={{ color: '#ef4444', fontWeight: 700, fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-             <ShieldAlert size={16} /> SYSTEM ADMIN
+        <div style={{ background: 'rgba(239, 68, 68, 0.1)', padding: '0.35rem 0.75rem', borderRadius: '8px', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
+          <span style={{ color: '#ef4444', fontWeight: 700, fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+             <ShieldAlert size={15} /> SYSTEM ADMIN
           </span>
         </div>
       </div>
 
       {/* KPI Stats Grid */}
-      <div className="grid-layout grid-cols-1 md:grid-cols-5" style={{ gap: '1.25rem' }}>
-        <div className="app-card" style={{ padding: '1.5rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <div style={{ padding: '0.75rem', background: 'rgba(239, 68, 68, 0.1)', borderRadius: '12px', color: '#ef4444' }}>
-            <Globe size={24} />
+      <div className="grid-layout admin-kpi-grid grid-cols-1 md:grid-cols-5" style={{ gap: '1rem' }}>
+        <div className="app-card admin-kpi-card" style={{ padding: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+          <div style={{ padding: '0.65rem', background: 'rgba(239, 68, 68, 0.1)', borderRadius: '12px', color: '#ef4444', flexShrink: 0 }}>
+            <Globe size={22} />
           </div>
-          <div>
-            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'block', fontWeight: 600 }}>SYSTEM BOOKINGS</span>
-            <strong style={{ fontSize: '1.4rem', color: 'var(--text-main)', fontFamily: 'Outfit' }}>{appointments.length}</strong>
-          </div>
-        </div>
-        <div className="app-card" style={{ padding: '1.5rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <div style={{ padding: '0.75rem', background: 'rgba(245, 158, 11, 0.1)', borderRadius: '12px', color: 'var(--warning)' }}>
-            <Clock size={24} />
-          </div>
-          <div>
-            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'block', fontWeight: 600 }}>PENDING REVIEWS</span>
-            <strong style={{ fontSize: '1.4rem', color: 'var(--warning)', fontFamily: 'Outfit' }}>{pendingApps}</strong>
+          <div style={{ minWidth: 0 }}>
+            <span style={{ fontSize: '0.725rem', color: 'var(--text-muted)', display: 'block', fontWeight: 600 }}>SYSTEM BOOKINGS</span>
+            <strong style={{ fontSize: '1.3rem', color: 'var(--text-main)', fontFamily: 'Outfit' }}>{appointments.length}</strong>
           </div>
         </div>
-        <div className="app-card" style={{ padding: '1.5rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <div style={{ padding: '0.75rem', background: 'rgba(16, 185, 129, 0.1)', borderRadius: '12px', color: 'var(--success)' }}>
-            <DollarSign size={24} />
+        <div className="app-card admin-kpi-card" style={{ padding: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+          <div style={{ padding: '0.65rem', background: 'rgba(245, 158, 11, 0.1)', borderRadius: '12px', color: 'var(--warning)', flexShrink: 0 }}>
+            <Clock size={22} />
           </div>
-          <div>
-            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'block', fontWeight: 600 }}>PLATFORM VOLUME</span>
-            <strong style={{ fontSize: '1.4rem', color: 'var(--success)', fontFamily: 'Outfit' }}>₦{totalVolume.toLocaleString()}</strong>
-          </div>
-        </div>
-        <div className="app-card" style={{ padding: '1.5rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <div style={{ padding: '0.75rem', background: 'rgba(139, 92, 246, 0.1)', borderRadius: '12px', color: '#a78bfa' }}>
-            <Activity size={24} />
-          </div>
-          <div>
-            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'block', fontWeight: 600 }}>10% COMMISSIONS</span>
-            <strong style={{ fontSize: '1.4rem', color: '#a78bfa', fontFamily: 'Outfit' }}>₦{platformCommissions.toLocaleString()}</strong>
+          <div style={{ minWidth: 0 }}>
+            <span style={{ fontSize: '0.725rem', color: 'var(--text-muted)', display: 'block', fontWeight: 600 }}>PENDING REVIEWS</span>
+            <strong style={{ fontSize: '1.3rem', color: 'var(--warning)', fontFamily: 'Outfit' }}>{pendingApps}</strong>
           </div>
         </div>
-        <div className="app-card" style={{ padding: '1.5rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <div style={{ padding: '0.75rem', background: 'rgba(99, 102, 241, 0.1)', borderRadius: '12px', color: 'var(--primary)' }}>
-            <Briefcase size={24} />
+        <div className="app-card admin-kpi-card" style={{ padding: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+          <div style={{ padding: '0.65rem', background: 'rgba(16, 185, 129, 0.1)', borderRadius: '12px', color: 'var(--success)', flexShrink: 0 }}>
+            <DollarSign size={22} />
           </div>
-          <div>
-            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'block', fontWeight: 600 }}>ACTIVE SERVICES</span>
-            <strong style={{ fontSize: '1.4rem', color: 'var(--primary)', fontFamily: 'Outfit' }}>{services.length}</strong>
+          <div style={{ minWidth: 0 }}>
+            <span style={{ fontSize: '0.725rem', color: 'var(--text-muted)', display: 'block', fontWeight: 600 }}>PLATFORM VOLUME</span>
+            <strong style={{ fontSize: '1.3rem', color: 'var(--success)', fontFamily: 'Outfit' }}>₦{totalVolume.toLocaleString()}</strong>
+          </div>
+        </div>
+        <div className="app-card admin-kpi-card" style={{ padding: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+          <div style={{ padding: '0.65rem', background: 'rgba(139, 92, 246, 0.1)', borderRadius: '12px', color: '#a78bfa', flexShrink: 0 }}>
+            <Activity size={22} />
+          </div>
+          <div style={{ minWidth: 0 }}>
+            <span style={{ fontSize: '0.725rem', color: 'var(--text-muted)', display: 'block', fontWeight: 600 }}>10% COMMISSIONS</span>
+            <strong style={{ fontSize: '1.3rem', color: '#a78bfa', fontFamily: 'Outfit' }}>₦{platformCommissions.toLocaleString()}</strong>
+          </div>
+        </div>
+        <div className="app-card admin-kpi-card" style={{ padding: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+          <div style={{ padding: '0.65rem', background: 'rgba(99, 102, 241, 0.1)', borderRadius: '12px', color: 'var(--primary)', flexShrink: 0 }}>
+            <Briefcase size={22} />
+          </div>
+          <div style={{ minWidth: 0 }}>
+            <span style={{ fontSize: '0.725rem', color: 'var(--text-muted)', display: 'block', fontWeight: 600 }}>ACTIVE SERVICES</span>
+            <strong style={{ fontSize: '1.3rem', color: 'var(--primary)', fontFamily: 'Outfit' }}>{services.length}</strong>
           </div>
         </div>
       </div>
@@ -272,20 +272,21 @@ const Admin = () => {
             {/* APPOINTMENTS OVERVIEW TAB */}
             {activeTab === 'appointments' && (
               <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="app-card">
-                <div className="card-header" style={{ flexWrap: 'wrap', gap: '1rem' }}>
+                <div className="card-header" style={{ flexWrap: 'wrap', gap: '0.85rem' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                     <CalendarRange size={20} color="var(--primary)" />
-                    <h3 style={{ margin: 0, fontSize: '1.15rem' }}>Global Appointment Master Log</h3>
+                    <h3 style={{ margin: 0, fontSize: '1.1rem' }}>Global Appointment Master Log</h3>
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-                    <div style={{ position: 'relative', minWidth: '220px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap', width: '100%' }}>
+                    <div style={{ position: 'relative', flex: '1 1 200px', minWidth: '160px' }}>
                       <input 
                         type="text" 
                         placeholder="Filter client, date..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         style={{
+                          width: '100%',
                           padding: '0.45rem 0.85rem 0.45rem 2.2rem',
                           borderRadius: '10px',
                           border: '1px solid var(--border-light)',
@@ -297,13 +298,13 @@ const Admin = () => {
                       <Search size={14} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-subtle)' }} />
                     </div>
 
-                    <div style={{ display: 'flex', gap: '0.3rem' }}>
+                    <div className="chips-scroller" style={{ flexShrink: 0 }}>
                       {['all', 'pending', 'approved', 'completed', 'cancelled'].map(st => (
                         <button
                           key={st}
                           onClick={() => setStatusFilter(st)}
                           style={{
-                            padding: '0.35rem 0.65rem',
+                            padding: '0.4rem 0.75rem',
                             borderRadius: '8px',
                             border: '1px solid var(--border-light)',
                             background: statusFilter === st ? 'var(--primary)' : 'transparent',
@@ -311,7 +312,8 @@ const Admin = () => {
                             fontSize: '0.75rem',
                             fontWeight: 600,
                             cursor: 'pointer',
-                            textTransform: 'capitalize'
+                            textTransform: 'capitalize',
+                            whiteSpace: 'nowrap'
                           }}
                         >
                           {st}
@@ -327,6 +329,7 @@ const Admin = () => {
                       {filteredAppointments.map((app) => (
                         <div 
                           key={app.id || app._id}
+                          className="admin-appt-card"
                           style={{ 
                             display: 'flex', 
                             justifyContent: 'space-between', 
@@ -385,18 +388,18 @@ const Admin = () => {
                             </span>
                           </div>
 
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                          <div className="admin-appt-actions" style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
                             <span className={`status-badge status-${app.status}`}>
                               {app.status}
                             </span>
 
-                            <div style={{ display: 'flex', gap: '0.4rem' }}>
+                            <div style={{ display: 'flex', gap: '0.4rem', flex: 1 }}>
                               {app.status !== 'approved' && (
                                 <button 
                                   onClick={() => handleUpdateStatus(app.id || app._id, 'approved')}
                                   title="Approve Booking"
                                   className="btn btn-secondary"
-                                  style={{ padding: '0.35rem 0.6rem', fontSize: '0.75rem', color: 'var(--success)' }}
+                                  style={{ padding: '0.45rem 0.75rem', fontSize: '0.75rem', color: 'var(--success)' }}
                                 >
                                   <CheckCircle size={14} /> Approve
                                 </button>
@@ -406,7 +409,7 @@ const Admin = () => {
                                   onClick={() => handleUpdateStatus(app.id || app._id, 'cancelled')}
                                   title="Cancel Booking"
                                   className="btn btn-secondary"
-                                  style={{ padding: '0.35rem 0.6rem', fontSize: '0.75rem', color: '#ef4444' }}
+                                  style={{ padding: '0.45rem 0.75rem', fontSize: '0.75rem', color: '#ef4444' }}
                                 >
                                   <XCircle size={14} /> Cancel
                                 </button>
@@ -586,7 +589,7 @@ const Admin = () => {
               exit={{ opacity: 0, scale: 0.95 }}
               onClick={(e) => e.stopPropagation()}
               className="modal-card"
-              style={{ padding: '2rem' }}
+              style={{ maxWidth: '520px', width: '100%' }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                 <h3 style={{ margin: 0, fontSize: '1.25rem', fontFamily: 'Outfit' }}>

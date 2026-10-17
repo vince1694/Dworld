@@ -5,7 +5,7 @@ import { Mail, Lock, User, AlertCircle, Phone, ShieldCheck, CheckCircle, Refresh
 import { motion, AnimatePresence } from 'framer-motion';
 
 // ── OTP Step ────────────────────────────────────────────────────────────────
-const OtpStep = ({ email, onVerify, onResend, error, loading }) => {
+const OtpStep = ({ email, onVerify, onResend, error, loading, devOtp }) => {
   const [digits, setDigits] = useState(['', '', '', '', '', '']);
   const [countdown, setCountdown] = useState(600); // 10 min
   const [resending, setResending] = useState(false);
@@ -102,6 +102,51 @@ const OtpStep = ({ email, onVerify, onResend, error, loading }) => {
           </div>
         )}
 
+        {devOtp && (
+          <div style={{
+            background: 'rgba(245, 158, 11, 0.12)',
+            border: '1px solid rgba(245, 158, 11, 0.35)',
+            borderRadius: '12px',
+            padding: '0.85rem 1rem',
+            marginBottom: '1.25rem',
+            fontSize: '0.825rem',
+            color: '#fbbf24'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700, marginBottom: '0.35rem' }}>
+              <AlertCircle size={15} /> Brevo SMTP Activation Notice
+            </div>
+            <div style={{ color: '#d1d5db', fontSize: '0.78rem', marginBottom: '0.65rem', lineHeight: 1.4 }}>
+              Brevo SMTP account is awaiting verification. Outbound email is mocked. Use your temporary verification code:
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                const arr = String(devOtp).split('').slice(0, 6);
+                setDigits(arr);
+                refs.current[5]?.focus();
+              }}
+              style={{
+                width: '100%',
+                padding: '0.55rem 0.85rem',
+                background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+                color: '#000',
+                fontWeight: 800,
+                fontSize: '0.85rem',
+                borderRadius: '8px',
+                border: 'none',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '0.5rem',
+                boxShadow: '0 4px 12px rgba(245, 158, 11, 0.25)'
+              }}
+            >
+              <span>⚡ Fill Test Code ({devOtp})</span>
+            </button>
+          </div>
+        )}
+
         <form onSubmit={handleSubmit}>
           {/* 6 digit boxes */}
           <div style={{ display: 'flex', gap: '0.6rem', justifyContent: 'center', marginBottom: '1.5rem' }}>
@@ -180,6 +225,7 @@ const Register = () => {
   const [step, setStep] = useState('form'); // 'form' | 'otp'
   const [pendingEmail, setPendingEmail] = useState('');
   const [pendingFormData, setPendingFormData] = useState(null);
+  const [devOtp, setDevOtp] = useState('');
   const [formData, setFormData] = useState({
     name: '', email: '', phone: '', password: '', role: 'user', matricNo: ''
   });
@@ -207,6 +253,7 @@ const Register = () => {
       if (res.success) {
         setPendingEmail(res.email || formData.email.trim().toLowerCase());
         setPendingFormData(formData);
+        if (res.devOtp) setDevOtp(res.devOtp);
         setStep('otp');
       }
     } catch (err) {
@@ -233,7 +280,8 @@ const Register = () => {
 
   const handleResend = async () => {
     try {
-      await initiateRegister(pendingFormData);
+      const res = await initiateRegister(pendingFormData);
+      if (res?.devOtp) setDevOtp(res.devOtp);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to resend code.');
     }
@@ -250,6 +298,7 @@ const Register = () => {
             onResend={handleResend}
             error={error}
             loading={loading}
+            devOtp={devOtp}
           />
         ) : (
           <motion.div
