@@ -111,7 +111,62 @@ const sendPasswordResetEmail = async (email, name, otp) => {
     }
 };
 
+/**
+ * Send 6-Digit Registration / Email Verification OTP
+ */
+const sendRegistrationOtpEmail = async (email, name, otp) => {
+    const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <style>
+            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #0b0f19; color: #f3f4f6; margin: 0; padding: 24px; }
+            .container { max-width: 520px; margin: 0 auto; background: #111827; border: 1px solid #1f2937; border-radius: 16px; overflow: hidden; padding: 32px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+            .brand { color: #10b981; font-size: 20px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 24px; text-align: center; }
+            .title { font-size: 22px; font-weight: 700; color: #ffffff; margin-bottom: 12px; text-align: center; }
+            .text { font-size: 15px; color: #9ca3af; line-height: 1.6; margin-bottom: 24px; text-align: center; }
+            .otp-box { background: linear-gradient(135deg, rgba(16,185,129,0.1) 0%, rgba(5,150,105,0.2) 100%); border: 2px dashed #10b981; border-radius: 12px; padding: 20px; text-align: center; margin: 24px 0; }
+            .otp-code { font-size: 40px; font-weight: 900; color: #34d399; letter-spacing: 10px; margin: 0; font-variant-numeric: tabular-nums; }
+            .warning { font-size: 13px; color: #6b7280; text-align: center; margin-top: 24px; }
+            .footer { border-top: 1px solid #1f2937; margin-top: 32px; padding-top: 16px; font-size: 12px; color: #4b5563; text-align: center; }
+            .badge { display: inline-block; background: rgba(16,185,129,0.15); color: #10b981; font-size: 12px; font-weight: 700; padding: 4px 12px; border-radius: 99px; margin-bottom: 16px; }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="brand">D.WORLD SCHEDULING</div>
+            <div class="badge">Email Verification</div>
+            <div class="title">Verify Your Account</div>
+            <p class="text">Hi ${name || 'there'} 👋<br>Welcome to D.World! Enter the code below to verify your email address and activate your account.</p>
+            <div class="otp-box">
+                <p class="otp-code">${otp}</p>
+            </div>
+            <p class="text">This code expires in <strong>10 minutes</strong>. If you didn't create a D.World account, simply ignore this email.</p>
+            <p class="warning">⚠️ Never share this code with anyone. Our staff will never ask for your verification code.</p>
+            <div class="footer">
+                &copy; ${new Date().getFullYear()} D.WORLD Campus Scheduling Platform. All rights reserved.
+            </div>
+        </div>
+    </body>
+    </html>
+    `;
+
+    try {
+        return await sendBrevoEmail({
+            toEmail: email,
+            toName: name,
+            subject: `${otp} — Verify your D.WORLD account`,
+            htmlContent
+        });
+    } catch (err) {
+        console.warn(`[DEV/FALLBACK OTP] Registration OTP for ${email}: ${otp}`);
+        throw err;
+    }
+};
+
 module.exports = {
     sendBrevoEmail,
-    sendPasswordResetEmail
+    sendPasswordResetEmail,
+    sendRegistrationOtpEmail
 };

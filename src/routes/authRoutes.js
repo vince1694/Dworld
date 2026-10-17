@@ -1,6 +1,7 @@
 const express = require('express');
 const { 
-  register, 
+  initiateRegister,
+  verifyRegistration,
   login, 
   updateProfile, 
   updateAvailability,
@@ -16,17 +17,22 @@ const { body } = require('express-validator');
 const { protect } = require('../middleware/authMiddleware');
 const router = express.Router();
 
+// Step 1: Submit form → sends OTP
 router.post('/register', [
     body('email').isEmail(),
     body('password').isLength({ min: 6 }),
     body('name').notEmpty()
-], register);
+], initiateRegister);
 
+// Step 2: Verify OTP → creates account
+router.post('/register/verify', verifyRegistration);
+
+// Expert registration alias (same two-step flow)
 router.post('/register-stylist', [
     body('email').isEmail(),
     body('password').isLength({ min: 6 }),
     body('name').notEmpty()
-], register);
+], initiateRegister);
 
 router.post('/login', login);
 router.get('/me', protect, getMe);

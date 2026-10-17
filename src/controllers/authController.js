@@ -4,9 +4,20 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
 const { validationResult } = require('express-validator');
-const { sendPasswordResetEmail } = require('../utils/sendEmail');
+const { sendPasswordResetEmail, sendRegistrationOtpEmail } = require('../utils/sendEmail');
 
-const register = async (req, res, next) => {
+// ── In-memory pending registrations store (TTL: 10 min) ──────────────────────
+const pendingRegistrations = new Map();
+const PENDING_TTL_MS = 10 * 60 * 1000; // 10 minutes
+setInterval(() => {
+    const now = Date.now();
+    for (const [key, val] of pendingRegistrations.entries()) {
+        if (now - val.createdAt > PENDING_TTL_MS) pendingRegistrations.delete(key);
+    }
+}, 60 * 1000);
+
+// ── Step 1: Collect registration data, send email OTP ────────────────────────
+const initiateRegister = async (req, res, next) => {
     try {
         const errors = validationResult(req);
         if (!errors.isEmpty()) {
@@ -15,7 +26,7 @@ const register = async (req, res, next) => {
 
         let { name, email, password, role, state, matricNo, newServices } = req.body;
 
-        // Strict LCU Matriculation Number validation for all accounts & experts
+        // Validate LCU matric format
         if (matricNo || role === 'user' || role === 'expert' || role === 'stylist') {
             const matricRegex = /^lcu\/ug\/\d{2}\/\d{4,5}$/i;
             if (!matricNo || !matricRegex.test(matricNo.trim())) {
@@ -27,34 +38,90 @@ const register = async (req, res, next) => {
             matricNo = matricNo.trim().toUpperCase();
         }
 
-        // Check if user exists
+        // Check if email already exists
         const userExists = await User.findByEmail(email);
         if (userExists) {
-            return res.status(400).json({ success: false, message: 'User already exists' });
+            return res.status(400).json({ success: false, message: 'An account with this email already exists.' });
         }
 
-        // Hash password
+        // Hash password now so we don't store plaintext
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
 
-        // Create user with verified status for specialists and activation gate
+        // Generate 6-digit OTP
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+        // Cache pending registration (keyed by email)
+        const cleanEmail = email.trim().toLowerCase();
+        pendingRegistrations.set(cleanEmail, {
+            name, email: cleanEmail, password: hashedPassword,
+            role, state, matricNo, newServices,
+            otp, createdAt: Date.now()
+        });
+
+        // Send OTP email
+        try {
+            await sendRegistrationOtpEmail(cleanEmail, name, otp);
+        } catch (emailErr) {
+            console.error('[REG OTP EMAIL ERROR]:', emailErr.message);
+            // Don't block registration if email fails; OTP logged in console
+        }
+
+        res.status(200).json({
+            success: true,
+            message: 'Verification code sent to your email. Please check your inbox.',
+            email: cleanEmail
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+// ── Step 2: Verify OTP and create account ────────────────────────────────────
+const verifyRegistration = async (req, res, next) => {
+    try {
+        const { email, otp } = req.body;
+        if (!email || !otp) {
+            return res.status(400).json({ success: false, message: 'Email and verification code are required.' });
+        }
+
+        const cleanEmail = email.trim().toLowerCase();
+        const pending = pendingRegistrations.get(cleanEmail);
+
+        if (!pending) {
+            return res.status(400).json({ success: false, message: 'No pending registration found. Please start over.' });
+        }
+
+        // Check TTL
+        if (Date.now() - pending.createdAt > PENDING_TTL_MS) {
+            pendingRegistrations.delete(cleanEmail);
+            return res.status(400).json({ success: false, message: 'Verification code expired. Please register again.' });
+        }
+
+        // Check OTP
+        if (pending.otp !== otp.trim()) {
+            return res.status(400).json({ success: false, message: 'Incorrect verification code. Please try again.' });
+        }
+
+        // Remove from pending store
+        pendingRegistrations.delete(cleanEmail);
+
+        const { name, password: hashedPassword, role, state, matricNo, newServices } = pending;
+
+        // Create verified account
         const isExpert = (role === 'expert' || role === 'stylist');
-        const isActivated = !isExpert; // Experts must complete ₦3,000 activation
+        const isActivated = !isExpert;
         const userResult = await User.create({ 
-            name, 
-            email, 
-            password: hashedPassword, 
-            role, 
-            state, 
-            matricNo, 
+            name, email: cleanEmail, password: hashedPassword, 
+            role, state, matricNo, 
             isVerified: true,
             isActivated,
             activationFee: 3000 
         });
         const stylist_id = userResult._id;
 
-        // Enforce 1 Expert = 1 Single Service
-        if ((role === 'expert' || role === 'stylist') && newServices) {
+        // Create single service for experts
+        if (isExpert && newServices) {
             const svc = Array.isArray(newServices) ? newServices[0] : newServices;
             if (svc && svc.name) {
                 await Service.create({
@@ -65,10 +132,8 @@ const register = async (req, res, next) => {
                     type: 'single',
                     category: svc.category || 'Single Services',
                     location: svc.location || 'Campus Studio / Main Salon',
-                    stylist_id: stylist_id
+                    stylist_id
                 });
-
-                // Update expert's specialty to match their single service
                 await User.findByIdAndUpdate(stylist_id, {
                     specialty: svc.name,
                     bio: `Specialized ${svc.name} expert at Lead City University.`
@@ -84,7 +149,7 @@ const register = async (req, res, next) => {
 
         res.status(201).json({ 
             success: true, 
-            message: 'Registration successful',
+            message: 'Account verified and created successfully! Welcome to D.World 🎉',
             token,
             user: {
                 id: userResult.id || userResult._id,
@@ -99,6 +164,7 @@ const register = async (req, res, next) => {
         next(error);
     }
 };
+
 
 const login = async (req, res, next) => {
     try {
@@ -416,7 +482,8 @@ const getExperts = async (req, res, next) => {
 };
 
 module.exports = { 
-    register, 
+    initiateRegister,
+    verifyRegistration,
     login, 
     updateProfile, 
     updateAvailability,
