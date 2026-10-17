@@ -75,6 +75,7 @@ const htmlWrap = (topBar, body) => `<!DOCTYPE html>
 // ── Core send via Gmail SMTP ───────────────────────────────────────────────────
 const sendEmail = async ({ to, subject, html }) => {
     const transporter = getTransporter();
+    console.log(`[EMAIL ATTEMPT] Sending "${subject}" → ${to} via Gmail SMTP (smtp.gmail.com:465)...`);
     const info = await transporter.sendMail({ from: FROM, to, subject, html });
     console.log(`[EMAIL SENT] ✔ "${subject}" → ${to} | MsgId: ${info.messageId}`);
     return { success: true, messageId: info.messageId };

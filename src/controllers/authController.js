@@ -70,7 +70,7 @@ const initiateRegister = async (req, res, next) => {
         try {
             await sendRegistrationOtpEmail(cleanEmail, name, otp);
         } catch (emailErr) {
-            console.error('[REGISTRATION EMAIL FAILED]:', emailErr.message);
+            console.error('[REGISTRATION EMAIL FAILED]:', `Code: ${emailErr.code || 'N/A'} | Error: ${emailErr.message}`);
             return res.status(500).json({
                 success: false,
                 message: 'Failed to deliver verification code to your email. Please ensure your email is correct and try again.'
