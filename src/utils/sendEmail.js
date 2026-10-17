@@ -189,9 +189,94 @@ const sendExpertActivationEmail = async (email, name) => {
     return sendEmail({ to: email, subject: `🌟 Your D.WORLD Expert account is now active!`, html: htmlWrap(topBar, body) });
 };
 
+// ── 5. Welcome Email (Guide & Platform Tips) ──────────────────────────────────
+const sendWelcomeEmail = async (email, name, role = 'user') => {
+    const isExpert = (role === 'expert' || role === 'stylist');
+    const firstName = name ? name.split(' ')[0] : (isExpert ? 'Expert' : 'Student');
+    const topBar = `<div class="logo">D·WORLD</div><div class="logo-sub">${isExpert ? 'Expert Network' : 'Lead City University'}</div>`;
+
+    let stepsHtml = '';
+    if (isExpert) {
+        stepsHtml = `
+          <div style="background:#0d1117;border:1px solid #1e293b;border-radius:14px;padding:20px;margin-bottom:20px;">
+            <p style="margin:0 0 16px;font-size:15px;font-weight:700;color:#f8fafc;">🚀 5 Steps to Grow Your Campus Business:</p>
+            <div style="display:flex;margin-bottom:14px;">
+              <span style="display:inline-block;width:24px;height:24px;background:#4f46e5;color:#fff;border-radius:50%;text-align:center;line-height:24px;font-weight:700;font-size:12px;margin-right:12px;flex-shrink:0;">1</span>
+              <div><strong style="color:#e2e8f0;font-size:14px;">Activate Your Profile</strong><br/><span style="color:#94a3b8;font-size:13px;">Pay the one-time ₦3,000 activation fee on your dashboard to appear in student searches.</span></div>
+            </div>
+            <div style="display:flex;margin-bottom:14px;">
+              <span style="display:inline-block;width:24px;height:24px;background:#4f46e5;color:#fff;border-radius:50%;text-align:center;line-height:24px;font-weight:700;font-size:12px;margin-right:12px;flex-shrink:0;">2</span>
+              <div><strong style="color:#e2e8f0;font-size:14px;">Review Your Specialty Service</strong><br/><span style="color:#94a3b8;font-size:13px;">Adjust your price, duration, and styling description from your Expert Dashboard.</span></div>
+            </div>
+            <div style="display:flex;margin-bottom:14px;">
+              <span style="display:inline-block;width:24px;height:24px;background:#4f46e5;color:#fff;border-radius:50%;text-align:center;line-height:24px;font-weight:700;font-size:12px;margin-right:12px;flex-shrink:0;">3</span>
+              <div><strong style="color:#e2e8f0;font-size:14px;">Set Availability Around Lectures</strong><br/><span style="color:#94a3b8;font-size:13px;">Define which days and lecture-free hours students can book you.</span></div>
+            </div>
+            <div style="display:flex;margin-bottom:14px;">
+              <span style="display:inline-block;width:24px;height:24px;background:#4f46e5;color:#fff;border-radius:50%;text-align:center;line-height:24px;font-weight:700;font-size:12px;margin-right:12px;flex-shrink:0;">4</span>
+              <div><strong style="color:#e2e8f0;font-size:14px;">Receive Bookings & Direct Chat</strong><br/><span style="color:#94a3b8;font-size:13px;">Communicate with students right on D.WORLD for special styling requests.</span></div>
+            </div>
+            <div style="display:flex;">
+              <span style="display:inline-block;width:24px;height:24px;background:#4f46e5;color:#fff;border-radius:50%;text-align:center;line-height:24px;font-weight:700;font-size:12px;margin-right:12px;flex-shrink:0;">5</span>
+              <div><strong style="color:#e2e8f0;font-size:14px;">Earn Securely into Your Wallet</strong><br/><span style="color:#94a3b8;font-size:13px;">Payments are held securely and released instantly upon appointment completion.</span></div>
+            </div>
+          </div>
+        `;
+    } else {
+        stepsHtml = `
+          <div style="background:#0d1117;border:1px solid #1e293b;border-radius:14px;padding:20px;margin-bottom:20px;">
+            <p style="margin:0 0 16px;font-size:15px;font-weight:700;color:#f8fafc;">💡 How to Use D.WORLD in 5 Easy Steps:</p>
+            <div style="display:flex;margin-bottom:14px;">
+              <span style="display:inline-block;width:24px;height:24px;background:#10b981;color:#fff;border-radius:50%;text-align:center;line-height:24px;font-weight:700;font-size:12px;margin-right:12px;flex-shrink:0;">1</span>
+              <div><strong style="color:#e2e8f0;font-size:14px;">Browse Campus Experts</strong><br/><span style="color:#94a3b8;font-size:13px;">Discover student barbers, hair braiders, lash techs, and nail artists right inside LCU.</span></div>
+            </div>
+            <div style="display:flex;margin-bottom:14px;">
+              <span style="display:inline-block;width:24px;height:24px;background:#10b981;color:#fff;border-radius:50%;text-align:center;line-height:24px;font-weight:700;font-size:12px;margin-right:12px;flex-shrink:0;">2</span>
+              <div><strong style="color:#e2e8f0;font-size:14px;">Book in 30 Seconds</strong><br/><span style="color:#94a3b8;font-size:13px;">Select your service, choose a date & time between your classes, and tap Book.</span></div>
+            </div>
+            <div style="display:flex;margin-bottom:14px;">
+              <span style="display:inline-block;width:24px;height:24px;background:#10b981;color:#fff;border-radius:50%;text-align:center;line-height:24px;font-weight:700;font-size:12px;margin-right:12px;flex-shrink:0;">3</span>
+              <div><strong style="color:#e2e8f0;font-size:14px;">Cashless Student Wallet</strong><br/><span style="color:#94a3b8;font-size:13px;">Top up securely with Paystack. No cash needed, no change issues, with auto-refund protection.</span></div>
+            </div>
+            <div style="display:flex;margin-bottom:14px;">
+              <span style="display:inline-block;width:24px;height:24px;background:#10b981;color:#fff;border-radius:50%;text-align:center;line-height:24px;font-weight:700;font-size:12px;margin-right:12px;flex-shrink:0;">4</span>
+              <div><strong style="color:#e2e8f0;font-size:14px;">Live In-App Chat</strong><br/><span style="color:#94a3b8;font-size:13px;">Send inspiration pictures or get directions directly from your stylist.</span></div>
+            </div>
+            <div style="display:flex;">
+              <span style="display:inline-block;width:24px;height:24px;background:#10b981;color:#fff;border-radius:50%;text-align:center;line-height:24px;font-weight:700;font-size:12px;margin-right:12px;flex-shrink:0;">5</span>
+              <div><strong style="color:#e2e8f0;font-size:14px;">Rate & Review</strong><br/><span style="color:#94a3b8;font-size:13px;">Leave honest reviews to help your fellow Lead City students find top-tier talent.</span></div>
+            </div>
+          </div>
+        `;
+    }
+
+    const body = `
+      <div class="success-card">
+        <div class="success-icon">🎉</div>
+        <p style="margin:0;font-size:20px;font-weight:800;color:#34d399;">Welcome to D.WORLD!</p>
+      </div>
+      <p class="title">Hey ${firstName}! 👋</p>
+      <p class="txt">Your D.WORLD account is officially verified and ready. D.WORLD is built exclusively for Lead City University students to make campus appointments fast, reliable, and 100% cashless.</p>
+      
+      ${stepsHtml}
+
+      <div class="notice">
+        🔒 <strong>Safety Tip:</strong> Always keep appointments within D.WORLD for secure payments, auto-refunds, and campus support.
+      </div>
+      <p class="txt" style="margin:0;font-size:13px;text-align:center;">Need help? Reply to this email or visit your D.WORLD dashboard support anytime.</p>
+    `;
+
+    return sendEmail({
+        to: email,
+        subject: `🎉 Welcome to D.WORLD, ${firstName}! Here is how to get started`,
+        html: htmlWrap(topBar, body)
+    });
+};
+
 module.exports = {
     sendRegistrationOtpEmail,
     sendPasswordResetEmail,
     sendBookingConfirmationEmail,
-    sendExpertActivationEmail
+    sendExpertActivationEmail,
+    sendWelcomeEmail
 };

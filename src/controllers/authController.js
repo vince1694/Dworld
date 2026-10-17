@@ -4,7 +4,8 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
 const { validationResult } = require('express-validator');
-const { sendPasswordResetEmail, sendRegistrationOtpEmail } = require('../utils/sendEmail');
+const Notification = require('../models/Notification');
+const { sendPasswordResetEmail, sendRegistrationOtpEmail, sendWelcomeEmail } = require('../utils/sendEmail');
 
 // ── In-memory pending registrations store (TTL: 10 min) ──────────────────────
 const pendingRegistrations = new Map();
@@ -156,6 +157,20 @@ const verifyRegistration = async (req, res, next) => {
                 });
             }
         }
+
+        // Send Welcome Email & in-app onboarding notification
+        sendWelcomeEmail(cleanEmail, userResult.name, validRole).catch(emailErr => {
+            console.warn('[WELCOME EMAIL NOTICE]:', emailErr.message);
+        });
+
+        Notification.create({
+            user_id: userResult._id,
+            title: isExpert ? 'Welcome to the D.WORLD Expert Network!' : 'Welcome to D.WORLD!',
+            message: isExpert
+                ? 'Welcome aboard! Activate your expert profile for ₦3,000 to start receiving student bookings.'
+                : 'Welcome to D.WORLD LCU! Browse top campus stylists, fund your student wallet, and book appointments in seconds.',
+            type: 'system'
+        }).catch(notifErr => console.warn('[WELCOME NOTIFICATION NOTICE]:', notifErr.message));
 
         const token = jwt.sign(
             { id: userResult.id || userResult._id, role: userResult.role },
