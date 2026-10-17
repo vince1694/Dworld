@@ -12,7 +12,7 @@ const serviceSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 serviceSchema.statics.getAll = function() {
-  return this.find().populate('stylist_id', 'name email role');
+  return this.find().populate('stylist_id', 'name email role phone specialty bio rating portfolio workingDays workingHours');
 };
 
 serviceSchema.statics.getById = function(id) {

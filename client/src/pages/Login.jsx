@@ -48,6 +48,15 @@ const Login = () => {
         style={{ width: '100%', maxWidth: '440px' }}
       >
         <div className="auth-header">
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.25rem' }}>
+            <Link to="/">
+              <img 
+                src="/logo.png" 
+                alt="D.WORLD Official Logo" 
+                style={{ width: 68, height: 68, borderRadius: 18, objectFit: 'cover', boxShadow: '0 8px 24px rgba(79, 70, 229, 0.25)' }} 
+              />
+            </Link>
+          </div>
           <div style={{
             display: 'inline-flex',
             alignItems: 'center',

@@ -36,7 +36,7 @@ const DEFAULT_SLOTS = [
   '01:00 PM', '02:30 PM', '04:00 PM', '05:30 PM'
 ];
 
-const PAYSTACK_FALLBACK_KEY = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY || '';
+const PAYSTACK_FALLBACK_KEY = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY || 'pk_live_060e4958254697673bb978c4a4df3694fae9099b';
 
 const loadPaystackScript = () => new Promise((resolve, reject) => {
   if (typeof window.PaystackPop !== 'undefined') return resolve();
@@ -229,51 +229,91 @@ const BookAppointment = () => {
 
       // 2. Handle Payment Method
       if (paymentMethod === 'wallet') {
+        const price = selectedService.price || 0;
+        if (walletBalance < price) {
+          throw new Error(`Insufficient wallet balance (₦${walletBalance.toLocaleString()}). Please choose Paystack Direct Checkout or top up your wallet.`);
+        }
         // Attempt instant wallet payment
-        const payRes = await axios.post(`${API_URL}/appointments/${aptId}/pay-wallet`);
+        const payRes = await axios.post(`${API_URL}/appointments/${aptId}/pay`);
         if (payRes.data.success) {
           bookedApt.paymentStatus = 'paid';
-          setWalletBalance(payRes.data.clientWalletBalance);
+          setWalletBalance(payRes.data.clientWalletBalance || (walletBalance - price));
         }
       } else if (paymentMethod === 'paystack') {
-        // Paystack inline popup or redirect
         const userEmail = (user?.email && user.email.trim()) || '';
         const price = selectedService.price || 0;
 
-        await loadPaystackScript();
-
-        let popupSucceeded = false;
-        if (typeof window.PaystackPop !== 'undefined' && userEmail) {
-          await new Promise((resolve) => {
-            const handler = window.PaystackPop.setup({
-              key: PAYSTACK_FALLBACK_KEY,
-              email: userEmail,
-              amount: price * 100,
-              currency: 'NGN',
-              ref: 'APT-' + aptId + '-' + Date.now(),
-              metadata: {
-                appointment_id: aptId,
-                purpose: 'appointment_pay',
-                client_name: user?.name
-              },
-              callback: async (resp) => {
-                try {
-                  await axios.post(`${API_URL}/payments/verify`, { reference: resp.reference });
-                  bookedApt.paymentStatus = 'paid';
-                  popupSucceeded = true;
-                } catch (e) {
-                  console.error('Paystack verify error:', e);
-                } finally {
-                  resolve();
-                }
-              },
-              onClose: () => resolve()
-            });
-            handler.openIframe();
-          });
+        // Fetch dynamic public key from backend
+        let publicKey = PAYSTACK_FALLBACK_KEY;
+        try {
+          const configRes = await axios.get(`${API_URL}/payments/config`);
+          if (configRes.data?.success && configRes.data?.publicKey) {
+            publicKey = configRes.data.publicKey;
+          }
+        } catch (e) {
+          console.warn('Using fallback Paystack key', e);
         }
 
-        // If popup was closed without pay, user can still settle from dashboard
+        // On mobile or if script is missing, use clean server-side Paystack checkout redirect
+        const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+        let popupDone = false;
+        if (!isMobileDevice) {
+          try {
+            await loadPaystackScript();
+            if (typeof window.PaystackPop !== 'undefined' && userEmail && publicKey) {
+              await new Promise((resolve) => {
+                const handler = window.PaystackPop.setup({
+                  key: publicKey,
+                  email: userEmail,
+                  amount: Math.round(price * 100),
+                  currency: 'NGN',
+                  ref: 'APT-' + aptId + '-' + Date.now(),
+                  metadata: {
+                    appointment_id: aptId,
+                    purpose: 'appointment_pay',
+                    client_name: user?.name
+                  },
+                  callback: function(resp) {
+                    axios.post(`${API_URL}/payments/verify`, { reference: resp.reference })
+                      .then(() => {
+                        bookedApt.paymentStatus = 'paid';
+                        popupDone = true;
+                      })
+                      .catch((e) => {
+                        console.error('Paystack verify error:', e);
+                      })
+                      .finally(() => resolve());
+                  },
+                  onClose: function() {
+                    resolve();
+                  }
+                });
+                handler.openIframe();
+              });
+            }
+          } catch (inlineErr) {
+            console.warn('Paystack inline popup warning, falling back to redirect:', inlineErr);
+          }
+        }
+
+        // If on mobile or popup was bypassed/closed without instant inline completion, initialize via server
+        if (!popupDone) {
+          try {
+            const initRes = await axios.post(`${API_URL}/payments/initialize`, {
+              amount: price,
+              appointment_id: aptId,
+              purpose: 'appointment_pay',
+              email: userEmail
+            });
+            if (initRes.data?.success && initRes.data?.data?.authorization_url) {
+              window.location.href = initRes.data.data.authorization_url;
+              return;
+            }
+          } catch (initErr) {
+            console.warn('Server initialize notice:', initErr);
+          }
+        }
       }
 
       setConfirmedBooking({

@@ -62,7 +62,11 @@ const Navbar = () => {
           alignItems: 'center',
           gap: '0.5rem'
         }}>
-          <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--primary)' }}></span>
+          <img 
+            src="/logo.png" 
+            alt="D.WORLD Logo" 
+            style={{ width: 32, height: 32, borderRadius: 8, objectFit: 'cover', flexShrink: 0, boxShadow: '0 2px 8px rgba(79, 70, 229, 0.25)' }} 
+          />
           D.WORLD
         </div>
       </Link>

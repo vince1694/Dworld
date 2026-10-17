@@ -64,8 +64,41 @@ const matchRequestWithAI = async (req, res, next) => {
         }
 
         const User = require('../models/User');
-        const experts = await User.find({ role: { $in: ['expert', 'stylist'] }, isVerified: { $ne: false } }).select('-password');
-        const services = await Service.find();
+        // ONLY find verified campus experts who have successfully created an account AND made payment 3000 completely (isActivated: true)
+        const experts = await User.find({ 
+            role: { $in: ['expert', 'stylist'] }, 
+            isVerified: true, 
+            isActivated: true 
+        }).select('-password');
+
+        if (!experts || experts.length === 0) {
+            return res.status(200).json({
+                success: true,
+                prompt,
+                matches: [],
+                message: 'No verified campus experts with complete ₦3,000 activation are currently online. Please check back shortly.'
+            });
+        }
+
+        const expertIds = experts.map(exp => exp._id);
+        const expertIdStrings = experts.map(exp => String(exp._id));
+
+        // Only fetch services belonging to these active verified experts
+        const services = await Service.find({
+            $or: [
+                { stylist_id: { $in: expertIds } },
+                { stylist_id: { $in: expertIdStrings } }
+            ]
+        });
+
+        if (!services || services.length === 0) {
+            return res.status(200).json({
+                success: true,
+                prompt,
+                matches: [],
+                message: 'No active services found for verified campus experts.'
+            });
+        }
 
         const pLower = prompt.toLowerCase();
         const queryTerms = pLower.split(/\s+/).filter(t => t.length > 2);
@@ -77,10 +110,14 @@ const matchRequestWithAI = async (req, res, next) => {
         else if (pLower.match(/triple|three|3|trio/i)) targetTier = 'triple';
         else if (pLower.match(/premium|full glam|bridal|complete|special occasion|quad/i)) targetTier = 'premium';
 
-        // Score Services & Match Verified Experts
-        const scoredServices = services.map(srv => {
+        // Score Services & Match ONLY Verified Activated Experts
+        const scoredServices = [];
+        for (const srv of services) {
+            const assignedExpert = experts.find(exp => String(exp._id) === String(srv.stylist_id));
+            if (!assignedExpert) continue; // Skip any service not owned by an activated verified expert
+
             let score = 0;
-            const text = `${srv.name} ${srv.description} ${srv.category || ''} ${srv.location || ''}`.toLowerCase();
+            const text = `${srv.name} ${srv.description} ${srv.category || ''} ${srv.location || ''} ${assignedExpert.specialty || ''}`.toLowerCase();
             
             queryTerms.forEach(term => {
                 if (text.includes(term)) score += 30;
@@ -100,22 +137,13 @@ const matchRequestWithAI = async (req, res, next) => {
 
             const matchPercentage = Math.min(99, Math.max(72, Math.floor(score + 45)));
 
-            // Find matching verified expert
-            const assignedExpert = experts.find(exp => String(exp._id) === String(srv.stylist_id)) || experts[0] || {
-                name: 'Ifeanyi Chukwu Bethel',
-                matricNo: 'LCU/UG/22/04192',
-                phone: '+234 803 555 0199',
-                email: 'ifeanyi@lcu.edu.ng',
-                department: 'Cosmetology & Campus Styling'
-            };
-
             const tierLabel = srv.type === 'single' ? '🟢 Single Service' :
                               srv.type === 'double' ? '🔵 Double Service' :
                               srv.type === 'triple' ? '🟣 Triple Package' : '👑 Premium Package';
 
-            const reason = `AI detected a ${tierLabel} request matching verified specialist ${assignedExpert.name} for "${srv.name}" (${matchPercentage}% relevance).`;
+            const reason = `AI matched verified & activated specialist ${assignedExpert.name} (₦3,000 Verified) for "${srv.name}" (${matchPercentage}% relevance).`;
 
-            return {
+            scoredServices.push({
                 service: {
                     ...srv.toObject(),
                     tierLabel,
@@ -123,8 +151,8 @@ const matchRequestWithAI = async (req, res, next) => {
                 },
                 score: matchPercentage,
                 reason
-            };
-        });
+            });
+        }
 
         // Filter top unique matches
         const matches = scoredServices

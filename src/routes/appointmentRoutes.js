@@ -25,6 +25,7 @@ router.post('/:id/messages', protect, sendAppointmentMessage);
 router.post('/book', protect, bookAppointment);
 router.get('/my-appointments', protect, getUserAppointments);
 router.post('/:id/pay', protect, payAppointment);
+router.post('/:id/pay-wallet', protect, payAppointment);
 router.delete('/clear-history', protect, clearBookingHistory);
 router.delete('/:id', protect, deleteAppointment);
 router.get('/slots', getAvailableSlots);

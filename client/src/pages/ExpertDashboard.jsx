@@ -329,10 +329,12 @@ const ExpertDashboard = () => {
         <aside className="expert-sidebar">
           {/* Logo */}
           <div className="expert-sidebar-logo">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-              <div style={{ width: 34, height: 34, borderRadius: '10px', background: 'linear-gradient(135deg, var(--primary), var(--secondary))', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Sparkles size={17} color="#fff" />
-              </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+              <img 
+                src="/logo.png" 
+                alt="D.WORLD Logo" 
+                style={{ width: 34, height: 34, borderRadius: 10, objectFit: 'cover', flexShrink: 0, boxShadow: '0 4px 12px rgba(99, 102, 241, 0.25)' }} 
+              />
               <div>
                 <div style={{ fontFamily: 'Outfit', fontWeight: 800, fontSize: '1rem', color: 'var(--text-main)', letterSpacing: '0.03em' }}>D.WORLD</div>
                 <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Expert Portal</div>

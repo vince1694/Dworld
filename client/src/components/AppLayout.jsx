@@ -167,7 +167,11 @@ const AppLayout = ({ children }) => {
       <aside className={`app-sidebar ${collapsed ? 'collapsed' : ''}`}>
         <div className="sidebar-brand-wrapper">
           <Link to="/" className="sidebar-brand-link">
-            <span className="brand-dot"></span>
+            <img 
+              src="/logo.png" 
+              alt="D.WORLD Logo" 
+              style={{ width: 34, height: 34, borderRadius: 10, objectFit: 'cover', flexShrink: 0, boxShadow: '0 4px 12px rgba(79, 70, 229, 0.25)' }} 
+            />
             {!collapsed && (
               <div>
                 <span className="brand-text">D.WORLD</span>
@@ -448,7 +452,11 @@ const AppLayout = ({ children }) => {
           <aside className="mobile-sidebar" onClick={(e) => e.stopPropagation()}>
             <div className="mobile-brand-wrapper">
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-                <span className="brand-dot"></span>
+                <img 
+                  src="/logo.png" 
+                  alt="D.WORLD Logo" 
+                  style={{ width: 34, height: 34, borderRadius: 10, objectFit: 'cover', flexShrink: 0, boxShadow: '0 4px 12px rgba(79, 70, 229, 0.25)' }} 
+                />
                 <div>
                   <span className="brand-text">D.WORLD</span>
                   <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block' }}>LCU Campus</span>

@@ -409,6 +409,7 @@ const getMe = async (req, res, next) => {
             specialty: user.specialty || '',
             workingDays: user.workingDays || ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
             workingHours: user.workingHours || { start: '09:00', end: '18:00' },
+            portfolio: user.portfolio || [],
             walletBalance: Number(user.walletBalance || 0)
         }});
     } catch (error) {
@@ -470,7 +471,11 @@ const topupWallet = async (req, res, next) => {
 
 const getExperts = async (req, res, next) => {
     try {
-        const experts = await User.find({ role: { $in: ['expert', 'stylist'] }, isVerified: { $ne: false } }).select('-password');
+        const experts = await User.find({ 
+            role: { $in: ['expert', 'stylist'] }, 
+            isVerified: true, 
+            isActivated: true 
+        }).select('-password');
         const Service = require('../models/Service');
 
         // Populate services for each verified expert (auto-seeding default services if none exist)
@@ -504,20 +509,76 @@ const getExperts = async (req, res, next) => {
                 name: exp.name,
                 email: exp.email,
                 role: exp.role,
-                phone: exp.phone || '+234 803 555 0199',
-                matricNo: exp.matricNo || 'LCU/UG/22/04192',
-                department: exp.department || 'Cosmetology & Campus Styling',
+                phone: exp.phone || '',
+                matricNo: exp.matricNo || '',
+                department: exp.department || 'Campus Styling Specialist',
                 bio: exp.bio || 'Professional Verified Specialist',
                 specialty: exp.specialty || 'General Specialist',
                 workingDays: exp.workingDays || ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
                 workingHours: exp.workingHours || { start: '09:00', end: '18:00' },
                 rating: exp.rating || 4.9,
+                portfolio: exp.portfolio || [],
                 isVerified: true,
                 services
             };
         }));
 
         res.json({ success: true, data: expertsWithServices });
+    } catch (error) {
+        next(error);
+    }
+};
+
+const addPortfolioItem = async (req, res, next) => {
+    try {
+        const { title, description, imageUrl, category } = req.body;
+        if (!imageUrl) {
+            return res.status(400).json({ success: false, message: 'Image is required for lookbook item.' });
+        }
+
+        const user = await User.findById(req.user.id);
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'Expert account not found.' });
+        }
+
+        const newItem = {
+            title: (title || '').trim(),
+            description: (description || '').trim(),
+            imageUrl: imageUrl.trim(),
+            category: (category || user.specialty || 'Hair Styling').trim(),
+            createdAt: new Date()
+        };
+
+        if (!user.portfolio) user.portfolio = [];
+        user.portfolio.unshift(newItem);
+        await user.save();
+
+        res.status(201).json({
+            success: true,
+            message: 'Lookbook style added successfully!',
+            data: user.portfolio
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+const deletePortfolioItem = async (req, res, next) => {
+    try {
+        const { itemId } = req.params;
+        const user = await User.findById(req.user.id);
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'Expert account not found.' });
+        }
+
+        user.portfolio = (user.portfolio || []).filter(item => String(item._id) !== String(itemId));
+        await user.save();
+
+        res.status(200).json({
+            success: true,
+            message: 'Lookbook item removed.',
+            data: user.portfolio
+        });
     } catch (error) {
         next(error);
     }
@@ -535,5 +596,7 @@ module.exports = {
     getMe, 
     getWallet, 
     topupWallet, 
-    getExperts 
+    getExperts,
+    addPortfolioItem,
+    deletePortfolioItem
 };

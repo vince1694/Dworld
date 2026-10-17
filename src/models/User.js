@@ -36,6 +36,13 @@ const userSchema = new mongoose.Schema({
   activationFee: { type: Number, default: 3000 },
   activatedAt: { type: Date, default: null },
   activationReference: { type: String, default: null },
+  portfolio: [{
+    title: { type: String, default: '' },
+    description: { type: String, default: '' },
+    imageUrl: { type: String, required: true },
+    category: { type: String, default: 'General' },
+    createdAt: { type: Date, default: Date.now }
+  }],
   transactions: [transactionSchema]
 }, { timestamps: true });
 

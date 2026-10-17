@@ -11,7 +11,9 @@ const {
   getMe,
   getWallet,
   topupWallet,
-  getExperts 
+  getExperts,
+  addPortfolioItem,
+  deletePortfolioItem
 } = require('../controllers/authController');
 const { body } = require('express-validator');
 const { protect } = require('../middleware/authMiddleware');
@@ -45,5 +47,7 @@ router.post('/verify', verifyOtp);
 router.post('/reset-password', resetPassword);
 router.put('/profile', protect, updateProfile);
 router.put('/availability', protect, updateAvailability);
+router.post('/portfolio', protect, addPortfolioItem);
+router.delete('/portfolio/:itemId', protect, deletePortfolioItem);
 
 module.exports = router;
