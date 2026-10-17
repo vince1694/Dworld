@@ -2,10 +2,47 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useNotify } from '../context/NotificationContext';
-import { Mail, Lock, User, AlertCircle, Phone, ShieldCheck, CheckCircle, RefreshCw } from 'lucide-react';
+import {
+  Mail,
+  Lock,
+  User,
+  AlertCircle,
+  Phone,
+  ShieldCheck,
+  CheckCircle,
+  RefreshCw,
+  Eye,
+  EyeOff,
+  Sparkles,
+  ArrowRight,
+  Briefcase,
+  ChevronDown
+} from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-// ── OTP Step ────────────────────────────────────────────────────────────────
+// Available single specialty services for experts
+const EXPERT_SPECIALTIES = [
+  { name: 'Nails', price: 2500, duration: 30, category: 'Nails', description: 'Classic nail care, shaping, and polish.' },
+  { name: 'Lash Extensions', price: 4000, duration: 45, category: 'Lashes', description: 'Classic full set lash extensions.' },
+  { name: 'Hair Braiding', price: 5000, duration: 90, category: 'Hair', description: 'Neat campus hair braiding and styling.' },
+  { name: 'Wig Installation', price: 6000, duration: 60, category: 'Hair', description: 'Professional wig install and melt.' },
+  { name: 'Frontal Installation', price: 7500, duration: 75, category: 'Hair', description: 'Custom frontal wig placement and styling.' },
+  { name: 'Wig Revamping', price: 4500, duration: 60, category: 'Hair', description: 'Wig wash, deep conditioning, and restyling.' },
+  { name: 'Hair Tinting', price: 4000, duration: 45, category: 'Hair', description: 'Vibrant hair color tinting and treatment.' },
+  { name: 'Makeup', price: 5000, duration: 50, category: 'Makeup', description: 'Professional full face glam makeup.' },
+  { name: 'Male Haircut / Barbering', price: 3000, duration: 30, category: 'Barbering', description: 'Precision male haircut and line-up.' },
+  { name: 'Male Hair Braiding', price: 4500, duration: 60, category: 'Hair', description: 'Neat male cornrows and braided styles.' },
+  { name: 'Hair Styling', price: 3500, duration: 45, category: 'Hair', description: 'Blowout, press, curling, and updos.' },
+  { name: 'Hair Treatment', price: 3500, duration: 40, category: 'Hair', description: 'Deep scalp conditioning and moisture therapy.' },
+  { name: 'Manicure', price: 2500, duration: 30, category: 'Nails', description: 'Nail trim, cuticle care, and hand massage.' },
+  { name: 'Pedicure', price: 3500, duration: 45, category: 'Nails', description: 'Exfoliating foot soak, nail trim, and massage.' },
+  { name: 'Facial', price: 5000, duration: 45, category: 'Skincare', description: 'Deep cleansing facial treatment and glow mask.' },
+  { name: 'Eyebrow Grooming', price: 1500, duration: 20, category: 'Grooming', description: 'Precision eyebrow shaping, threading, or waxing.' },
+  { name: 'Waxing', price: 3500, duration: 30, category: 'Skincare', description: 'Smooth body or facial hair removal waxing.' },
+  { name: 'Massage', price: 6000, duration: 45, category: 'Wellness', description: 'Relaxing full body or neck & shoulder massage.' }
+];
+
+// ── OTP Step Component ────────────────────────────────────────────────────────
 const OtpStep = ({ email, onVerify, onResend, error, loading, devOtp }) => {
   const [digits, setDigits] = useState(['', '', '', '', '', '']);
   const [countdown, setCountdown] = useState(600); // 10 min
@@ -25,7 +62,6 @@ const OtpStep = ({ email, onVerify, onResend, error, loading, devOtp }) => {
   const fmt = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
 
   const handleChange = (idx, val) => {
-    // Handle paste
     if (val.length > 1) {
       const pasted = val.replace(/\D/g, '').slice(0, 6);
       const next = [...digits];
@@ -66,59 +102,70 @@ const OtpStep = ({ email, onVerify, onResend, error, loading, devOtp }) => {
   return (
     <motion.div
       key="otp"
-      initial={{ opacity: 0, x: 40 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: -40 }}
-      transition={{ duration: 0.3 }}
+      initial={{ opacity: 0, scale: 0.96 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.96 }}
+      transition={{ duration: 0.25 }}
       className="auth-card"
-      style={{ width: '100%', maxWidth: '420px' }}
+      style={{ width: '100%', maxWidth: '440px' }}
     >
-      <div className="card-header" style={{ flexDirection: 'column', alignItems: 'center', padding: '2rem 2rem 1.25rem' }}>
+      <div className="auth-header" style={{ textAlign: 'center', paddingBottom: '0.75rem' }}>
         <div style={{
-          width: 56, height: 56, borderRadius: '50%', marginBottom: '1rem',
+          width: 58,
+          height: 58,
+          borderRadius: '50%',
+          margin: '0 auto 1.25rem',
           background: 'linear-gradient(135deg, #10b981, #059669)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          boxShadow: '0 0 24px rgba(16,185,129,0.35)'
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          boxShadow: '0 8px 24px rgba(16, 185, 129, 0.3)'
         }}>
-          <Mail size={24} color="#fff" />
+          <Mail size={26} color="#ffffff" />
         </div>
-        <h1 style={{ fontSize: '1.4rem', marginBottom: '0.35rem', textAlign: 'center', color: 'var(--text-main)' }}>
-          Check your email
-        </h1>
-        <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--text-muted)', textAlign: 'center' }}>
-          We sent a 6-digit code to<br />
-          <strong style={{ color: 'var(--text-main)' }}>{email}</strong>
+        <h1>Verify your email</h1>
+        <p style={{ marginTop: '0.4rem', lineHeight: 1.5 }}>
+          We've sent a 6-digit confirmation code to<br />
+          <strong style={{ color: 'var(--text-main)', fontWeight: 700 }}>{email}</strong>
         </p>
       </div>
 
-      <div className="card-body" style={{ padding: '1.5rem 2rem 2rem' }}>
+      <div className="auth-body">
         {error && (
           <div style={{
-            background: 'rgba(239, 68, 68, 0.1)', color: '#f87171',
-            border: '1px solid rgba(239, 68, 68, 0.2)',
-            padding: '0.85rem 1.25rem', borderRadius: '9999px', marginBottom: '1.5rem',
-            display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.85rem', fontWeight: 500
+            background: 'rgba(239, 68, 68, 0.08)',
+            color: '#dc2626',
+            border: '1px solid rgba(239, 68, 68, 0.25)',
+            padding: '0.85rem 1rem',
+            borderRadius: '12px',
+            marginBottom: '1.25rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.65rem',
+            fontSize: '0.85rem',
+            fontWeight: 500
           }}>
-            <AlertCircle size={16} /> {error}
+            <AlertCircle size={16} style={{ flexShrink: 0 }} />
+            <span>{error}</span>
           </div>
         )}
 
         {devOtp && (
           <div style={{
-            background: 'rgba(245, 158, 11, 0.12)',
-            border: '1px solid rgba(245, 158, 11, 0.35)',
+            background: 'rgba(245, 158, 11, 0.1)',
+            border: '1px solid rgba(245, 158, 11, 0.3)',
             borderRadius: '12px',
             padding: '0.85rem 1rem',
             marginBottom: '1.25rem',
             fontSize: '0.825rem',
-            color: '#fbbf24'
+            color: '#b45309'
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700, marginBottom: '0.35rem' }}>
-              <AlertCircle size={15} /> Brevo SMTP Activation Notice
+            <div style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.45rem', marginBottom: '0.35rem' }}>
+              <Sparkles size={15} /> Instant Verification Code
             </div>
-            <div style={{ color: '#d1d5db', fontSize: '0.78rem', marginBottom: '0.65rem', lineHeight: 1.4 }}>
-              Brevo SMTP account is awaiting verification. Outbound email is mocked. Use your temporary verification code:
-            </div>
+            <p style={{ margin: '0 0 0.5rem', fontSize: '0.78rem', color: '#4b5563' }}>
+              SMTP verification sandbox active. Use this one-click auto-fill:
+            </p>
             <button
               type="button"
               onClick={() => {
@@ -128,29 +175,28 @@ const OtpStep = ({ email, onVerify, onResend, error, loading, devOtp }) => {
               }}
               style={{
                 width: '100%',
-                padding: '0.55rem 0.85rem',
-                background: 'linear-gradient(135deg, #f59e0b, #d97706)',
-                color: '#000',
-                fontWeight: 800,
+                padding: '0.55rem',
+                background: '#fef3c7',
+                border: '1px solid #fde68a',
+                color: '#92400e',
+                fontWeight: 700,
                 fontSize: '0.85rem',
                 borderRadius: '8px',
-                border: 'none',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: '0.5rem',
-                boxShadow: '0 4px 12px rgba(245, 158, 11, 0.25)'
+                gap: '0.4rem'
               }}
             >
-              <span>⚡ Fill Test Code ({devOtp})</span>
+              <span>⚡ Auto-fill code: <strong>{devOtp}</strong></span>
             </button>
           </div>
         )}
 
         <form onSubmit={handleSubmit}>
-          {/* 6 digit boxes */}
-          <div style={{ display: 'flex', gap: '0.6rem', justifyContent: 'center', marginBottom: '1.5rem' }}>
+          {/* 6 Digit Inputs */}
+          <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center', marginBottom: '1.25rem' }}>
             {digits.map((d, i) => (
               <input
                 key={i}
@@ -162,42 +208,46 @@ const OtpStep = ({ email, onVerify, onResend, error, loading, devOtp }) => {
                 onChange={e => handleChange(i, e.target.value)}
                 onKeyDown={e => handleKeyDown(i, e)}
                 style={{
-                  width: 48, height: 56,
+                  width: 48,
+                  height: 54,
                   textAlign: 'center',
-                  fontSize: '1.5rem',
+                  fontSize: '1.45rem',
                   fontWeight: 800,
                   borderRadius: '12px',
-                  border: d ? '2px solid #10b981' : '2px solid var(--border-light)',
-                  background: d ? 'rgba(16,185,129,0.07)' : 'var(--surface)',
+                  border: d ? '2px solid #10b981' : '1.5px solid var(--border-light)',
+                  background: d ? 'rgba(16, 185, 129, 0.05)' : '#f8fafc',
                   color: 'var(--text-main)',
                   outline: 'none',
-                  transition: 'all 0.15s ease',
-                  caretColor: '#10b981'
+                  transition: 'all 0.15s ease'
                 }}
               />
             ))}
           </div>
 
-          {/* Countdown */}
-          <p style={{ textAlign: 'center', fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '1.25rem' }}>
+          <div style={{ textAlign: 'center', fontSize: '0.825rem', color: 'var(--text-muted)', marginBottom: '1.25rem' }}>
             {countdown > 0 ? (
-              <>Code expires in <strong style={{ color: countdown < 60 ? '#f87171' : '#10b981' }}>{fmt(countdown)}</strong></>
+              <span>Code expires in <strong style={{ color: countdown < 60 ? '#dc2626' : '#10b981' }}>{fmt(countdown)}</strong></span>
             ) : (
-              <span style={{ color: '#f87171' }}>Code expired. Please resend.</span>
+              <span style={{ color: '#dc2626', fontWeight: 600 }}>Code expired. Please request a new one.</span>
             )}
-          </p>
+          </div>
 
           <button
             type="submit"
             className="btn btn-primary"
             disabled={!isComplete || loading || countdown <= 0}
             style={{
-              width: '100%', padding: '0.8rem', fontSize: '0.95rem', marginBottom: '0.75rem',
+              width: '100%',
+              padding: '0.85rem',
+              fontSize: '0.95rem',
+              borderRadius: '14px',
+              justifyContent: 'center',
+              marginBottom: '0.85rem',
               background: isComplete ? 'linear-gradient(135deg, #10b981, #059669)' : undefined,
               borderColor: isComplete ? '#10b981' : undefined
             }}
           >
-            {loading ? 'Verifying…' : 'Verify & Create Account'}
+            {loading ? 'Verifying...' : 'Verify & Continue'}
           </button>
 
           <button
@@ -205,15 +255,24 @@ const OtpStep = ({ email, onVerify, onResend, error, loading, devOtp }) => {
             onClick={handleResend}
             disabled={resending || countdown > 540}
             style={{
-              width: '100%', padding: '0.7rem', fontSize: '0.875rem', fontWeight: 600,
-              background: 'transparent', border: '1px solid var(--border-light)',
-              borderRadius: '9999px', color: 'var(--text-muted)', cursor: countdown > 540 ? 'not-allowed' : 'pointer',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem',
-              transition: 'all 0.2s ease', opacity: countdown > 540 ? 0.5 : 1
+              width: '100%',
+              padding: '0.65rem',
+              fontSize: '0.85rem',
+              fontWeight: 600,
+              background: 'transparent',
+              border: '1px solid var(--border-light)',
+              borderRadius: '12px',
+              color: 'var(--text-muted)',
+              cursor: countdown > 540 ? 'not-allowed' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '0.4rem',
+              opacity: countdown > 540 ? 0.6 : 1
             }}
           >
-            <RefreshCw size={14} />
-            {resending ? 'Sending…' : `Resend code${countdown > 540 ? ` (wait ${fmt(countdown - 540)})` : ''}`}
+            <RefreshCw size={14} className={resending ? 'spin' : ''} />
+            {resending ? 'Sending...' : `Resend code${countdown > 540 ? ` (${fmt(countdown - 540)})` : ''}`}
           </button>
         </form>
       </div>
@@ -221,14 +280,22 @@ const OtpStep = ({ email, onVerify, onResend, error, loading, devOtp }) => {
   );
 };
 
-// ── Main Register Page ────────────────────────────────────────────────────────
+// ── Main Register Component ───────────────────────────────────────────────────
 const Register = () => {
   const [step, setStep] = useState('form'); // 'form' | 'otp'
   const [pendingEmail, setPendingEmail] = useState('');
   const [pendingFormData, setPendingFormData] = useState(null);
   const [devOtp, setDevOtp] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+
   const [formData, setFormData] = useState({
-    name: '', email: '', phone: '', password: '', role: 'user', matricNo: ''
+    name: '',
+    email: '',
+    phone: '',
+    password: '',
+    role: 'user',
+    matricNo: '',
+    newServices: []
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -238,6 +305,27 @@ const Register = () => {
   const navigate = useNavigate();
 
   const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
+
+  const handleRoleChange = (role) => {
+    setError('');
+    if (role === 'user') {
+      setFormData(prev => ({ ...prev, role: 'user', newServices: [] }));
+    } else {
+      // Default to first service specialty if none picked yet
+      const defaultService = formData.newServices?.[0] || { ...EXPERT_SPECIALTIES[0], type: 'single' };
+      setFormData(prev => ({ ...prev, role: 'expert', newServices: [defaultService] }));
+    }
+  };
+
+  const handleServiceSelect = (serviceName) => {
+    const found = EXPERT_SPECIALTIES.find(s => s.name === serviceName);
+    if (found) {
+      setFormData(prev => ({
+        ...prev,
+        newServices: [{ ...found, type: 'single' }]
+      }));
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -254,7 +342,7 @@ const Register = () => {
 
     if ((formData.role === 'expert' || formData.role === 'stylist') &&
       (!formData.newServices || formData.newServices.length === 0)) {
-      const msg = 'Please select your single service specialty.';
+      const msg = 'Please choose your single service specialty.';
       setError(msg);
       notify.warning(msg);
       return;
@@ -268,16 +356,16 @@ const Register = () => {
         setPendingFormData(formData);
         if (res.devOtp) setDevOtp(res.devOtp);
         setStep('otp');
-        notify.success(res.message || 'Verification code sent! Please check your email.');
+        notify.success(res.message || 'Verification code sent to your email.');
       } else {
         const msg = res?.message || 'Failed to send verification code. Please try again.';
         setError(msg);
         notify.error(msg);
       }
     } catch (err) {
-      const msg = err.response?.data?.message || 
-                  (err.response?.data?.errors?.map(e => e.msg).join(' • ')) || 
-                  err.message || 
+      const msg = err.response?.data?.message ||
+                  (err.response?.data?.errors?.map(e => e.msg).join(' • ')) ||
+                  err.message ||
                   'Failed to send verification code.';
       setError(msg);
       notify.error(msg);
@@ -316,8 +404,10 @@ const Register = () => {
     }
   };
 
+  const selectedExpertService = formData.newServices?.[0] || null;
+
   return (
-    <div className="page-wrapper flex-center animate-fade-in" style={{ padding: '2rem 1rem' }}>
+    <div className="page-wrapper flex-center animate-fade-in" style={{ padding: '2.5rem 1rem' }}>
       <AnimatePresence mode="wait">
         {step === 'otp' ? (
           <OtpStep
@@ -332,191 +422,376 @@ const Register = () => {
         ) : (
           <motion.div
             key="form"
-            initial={{ opacity: 0, scale: 0.98, y: 10 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.98, y: -10 }}
-            transition={{ duration: 0.3 }}
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -12 }}
+            transition={{ duration: 0.25 }}
             className="auth-card"
-            style={{ width: '100%', maxWidth: '450px' }}
+            style={{ width: '100%', maxWidth: '580px' }}
           >
-            <div className="card-header" style={{ flexDirection: 'column', alignItems: 'flex-start', padding: '1.75rem 2rem 1.25rem 2rem' }}>
-              <h1 style={{ fontSize: '1.5rem', marginBottom: '0.35rem', letterSpacing: '-0.02em', color: 'var(--text-main)' }}>
-                Create an account
-              </h1>
-              <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--text-muted)' }}>
-                Join D.world to book or provide services
-              </p>
+            {/* Header */}
+            <div className="auth-header">
+              <div style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+                padding: '0.25rem 0.75rem',
+                background: 'rgba(79, 70, 229, 0.08)',
+                color: 'var(--primary)',
+                borderRadius: '9999px',
+                fontSize: '0.75rem',
+                fontWeight: 700,
+                letterSpacing: '0.04em',
+                textTransform: 'uppercase',
+                marginBottom: '0.75rem'
+              }}>
+                <Sparkles size={12} /> Lead City University Portal
+              </div>
+              <h1>Create an account</h1>
+              <p>Book campus styling & services or register as a student expert</p>
             </div>
 
-            <div className="card-body" style={{ padding: '2rem' }}>
+            <div className="auth-body">
               {error && (
                 <div style={{
-                  background: 'rgba(239, 68, 68, 0.1)', color: '#f87171',
-                  border: '1px solid rgba(239, 68, 68, 0.2)',
-                  padding: '0.85rem 1.25rem', borderRadius: '9999px', marginBottom: '1.5rem',
-                  display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.85rem', fontWeight: 500
+                  background: 'rgba(239, 68, 68, 0.08)',
+                  color: '#dc2626',
+                  border: '1px solid rgba(239, 68, 68, 0.25)',
+                  padding: '0.85rem 1rem',
+                  borderRadius: '12px',
+                  marginBottom: '1.25rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.65rem',
+                  fontSize: '0.85rem',
+                  fontWeight: 500
                 }}>
-                  <AlertCircle size={16} /> {error}
+                  <AlertCircle size={16} style={{ flexShrink: 0 }} />
+                  <span>{error}</span>
                 </div>
               )}
 
+              {/* Segmented Account Type Selector */}
+              <div style={{ marginBottom: '1.35rem' }}>
+                <label style={{
+                  display: 'block',
+                  fontSize: '0.825rem',
+                  fontWeight: 600,
+                  color: '#334155',
+                  marginBottom: '0.45rem'
+                }}>
+                  I want to join as:
+                </label>
+                <div className="role-segment-track">
+                  <button
+                    type="button"
+                    onClick={() => handleRoleChange('user')}
+                    className={`role-segment-btn ${formData.role === 'user' ? 'active' : ''}`}
+                  >
+                    <User size={16} />
+                    <span>Client / Student</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleRoleChange('expert')}
+                    className={`role-segment-btn ${(formData.role === 'expert' || formData.role === 'stylist') ? 'active' : ''}`}
+                  >
+                    <Briefcase size={16} />
+                    <span>Service Expert</span>
+                  </button>
+                </div>
+              </div>
+
               <form onSubmit={handleSubmit}>
-                <div className="input-group">
-                  <label htmlFor="name">Full Name</label>
-                  <div style={{ position: 'relative' }}>
-                    <User size={16} style={{ position: 'absolute', left: '1.25rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-subtle)' }} />
-                    <input id="name" name="name" type="text" placeholder="John Doe"
-                      value={formData.name} onChange={handleChange} required style={{ paddingLeft: '3rem' }} />
-                  </div>
-                </div>
-
-                <div className="input-group">
-                  <label htmlFor="email">Email Address</label>
-                  <div style={{ position: 'relative' }}>
-                    <Mail size={16} style={{ position: 'absolute', left: '1.25rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-subtle)' }} />
-                    <input id="email" name="email" type="email" placeholder="name@example.com"
-                      value={formData.email} onChange={handleChange} required style={{ paddingLeft: '3rem' }} />
-                  </div>
-                </div>
-
-                <div className="input-group">
-                  <label htmlFor="phone">Phone Number (Optional)</label>
-                  <div style={{ position: 'relative' }}>
-                    <Phone size={16} style={{ position: 'absolute', left: '1.25rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-subtle)' }} />
-                    <input id="phone" name="phone" type="text" placeholder="+234 803 555 0199"
-                      value={formData.phone} onChange={handleChange} style={{ paddingLeft: '3rem' }} />
-                  </div>
-                </div>
-
-                <div className="input-group">
-                  <label htmlFor="matricNo">LCU Matriculation Number</label>
-                  <div style={{ position: 'relative' }}>
-                    <ShieldCheck size={16} style={{ position: 'absolute', left: '1.25rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--primary)' }} />
-                    <input id="matricNo" name="matricNo" type="text" placeholder="LCU/UG/22/04521"
-                      value={formData.matricNo || ''} onChange={handleChange}
-                      required style={{ paddingLeft: '3rem', textTransform: 'uppercase' }} />
-                  </div>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', marginTop: '0.35rem' }}>
-                    Accepted format: LCU/UG/00/00000
-                  </span>
-                </div>
-
-                <div className="input-group">
-                  <label htmlFor="password">Password</label>
-                  <div style={{ position: 'relative' }}>
-                    <Lock size={16} style={{ position: 'absolute', left: '1.25rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-subtle)' }} />
-                    <input id="password" name="password" type="password" placeholder="••••••••"
-                      value={formData.password} onChange={handleChange} required minLength="6" style={{ paddingLeft: '3rem' }} />
-                  </div>
-                </div>
-
-                {/* Account type selector */}
-                <div className="input-group">
-                  <label style={{ marginBottom: '0.75rem', display: 'block' }}>Select Account Type</label>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem' }}>
-                    <div onClick={() => setFormData({ ...formData, role: 'user' })} style={{
-                      padding: '0.85rem 0.75rem', borderRadius: '14px', cursor: 'pointer', textAlign: 'center', transition: 'all 0.2s ease',
-                      border: formData.role === 'user' ? '2px solid var(--primary)' : '1px solid var(--border-light)',
-                      background: formData.role === 'user' ? 'rgba(79, 70, 229, 0.08)' : '#f8fafc'
-                    }}>
-                      <span style={{ fontSize: '1.4rem', display: 'block', marginBottom: '0.2rem' }}>👤</span>
-                      <strong style={{ fontSize: '0.875rem', display: 'block', color: 'var(--text-main)', fontFamily: 'Outfit' }}>Client Account</strong>
-                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Book appointments & services</span>
+                {/* 2-Column Responsive Layout: Name & Phone */}
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))',
+                  gap: '1rem',
+                  marginBottom: '1.15rem'
+                }}>
+                  {/* Full Name */}
+                  <div className="input-group" style={{ margin: 0 }}>
+                    <label htmlFor="name">
+                      <span>Full Name</span>
+                      <span style={{ fontSize: '0.72rem', color: 'var(--text-subtle)', fontWeight: 500 }}>Required</span>
+                    </label>
+                    <div className="auth-input-wrapper">
+                      <span className="auth-input-icon">
+                        <User size={18} />
+                      </span>
+                      <input
+                        id="name"
+                        name="name"
+                        type="text"
+                        placeholder="e.g. Adebayo Daniel"
+                        value={formData.name}
+                        onChange={handleChange}
+                        required
+                        className="auth-input-field"
+                      />
                     </div>
+                  </div>
 
-                    <div onClick={() => setFormData({ ...formData, role: 'expert' })} style={{
-                      padding: '0.85rem 0.75rem', borderRadius: '14px', cursor: 'pointer', textAlign: 'center', transition: 'all 0.2s ease',
-                      border: (formData.role === 'expert' || formData.role === 'stylist') ? '2px solid var(--secondary)' : '1px solid var(--border-light)',
-                      background: (formData.role === 'expert' || formData.role === 'stylist') ? 'rgba(124, 58, 237, 0.08)' : '#f8fafc'
-                    }}>
-                      <span style={{ fontSize: '1.4rem', display: 'block', marginBottom: '0.2rem' }}>⚡</span>
-                      <strong style={{ fontSize: '0.875rem', display: 'block', color: 'var(--text-main)', fontFamily: 'Outfit' }}>Service Expert</strong>
-                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Provide & manage services</span>
+                  {/* Phone Number */}
+                  <div className="input-group" style={{ margin: 0 }}>
+                    <label htmlFor="phone">
+                      <span>Phone Number</span>
+                      <span style={{ fontSize: '0.72rem', color: 'var(--text-subtle)', fontWeight: 500 }}>Optional</span>
+                    </label>
+                    <div className="auth-input-wrapper">
+                      <span className="auth-input-icon">
+                        <Phone size={18} />
+                      </span>
+                      <input
+                        id="phone"
+                        name="phone"
+                        type="tel"
+                        placeholder="0803 555 0199"
+                        value={formData.phone}
+                        onChange={handleChange}
+                        className="auth-input-field"
+                      />
                     </div>
                   </div>
                 </div>
 
-                {/* Expert single service picker */}
-                {(formData.role === 'expert' || formData.role === 'stylist') && (
-                  <div className="input-group" style={{ background: '#f8fafc', padding: '1.25rem', borderRadius: '16px', border: '1px solid var(--border-light)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
-                      <label style={{ margin: 0, color: 'var(--secondary)', fontWeight: 800, fontSize: '0.9rem' }}>
-                        ⚡ Your Single Service Specialty
-                      </label>
+                {/* 2-Column Responsive Layout: Email & LCU Matric No */}
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))',
+                  gap: '1rem',
+                  marginBottom: '1.15rem'
+                }}>
+                  {/* Email */}
+                  <div className="input-group" style={{ margin: 0 }}>
+                    <label htmlFor="email">
+                      <span>Email Address</span>
+                      <span style={{ fontSize: '0.72rem', color: 'var(--text-subtle)', fontWeight: 500 }}>Active email</span>
+                    </label>
+                    <div className="auth-input-wrapper">
+                      <span className="auth-input-icon">
+                        <Mail size={18} />
+                      </span>
+                      <input
+                        id="email"
+                        name="email"
+                        type="email"
+                        placeholder="you@example.com"
+                        value={formData.email}
+                        onChange={handleChange}
+                        required
+                        className="auth-input-field"
+                      />
+                    </div>
+                  </div>
+
+                  {/* LCU Matriculation Number */}
+                  <div className="input-group" style={{ margin: 0 }}>
+                    <label htmlFor="matricNo">
+                      <span>LCU Matric No</span>
                       <span style={{
-                        fontSize: '0.72rem', fontWeight: 800, padding: '0.2rem 0.55rem', borderRadius: '6px',
-                        background: (formData.newServices?.length === 1) ? '#dcfce7' : '#fee2e2',
-                        color: (formData.newServices?.length === 1) ? '#15803d' : '#b91c1c'
+                        fontSize: '0.7rem',
+                        fontWeight: 700,
+                        color: 'var(--primary)',
+                        background: 'rgba(79, 70, 229, 0.08)',
+                        padding: '0.1rem 0.45rem',
+                        borderRadius: '6px'
                       }}>
-                        {(formData.newServices?.length === 1) ? '✓ 1 Selected' : 'Required'}
+                        LCU/UG/00/00000
+                      </span>
+                    </label>
+                    <div className="auth-input-wrapper">
+                      <span className="auth-input-icon">
+                        <ShieldCheck size={18} style={{ color: 'var(--primary)' }} />
+                      </span>
+                      <input
+                        id="matricNo"
+                        name="matricNo"
+                        type="text"
+                        placeholder="LCU/UG/22/04521"
+                        value={formData.matricNo || ''}
+                        onChange={handleChange}
+                        required
+                        className="auth-input-field"
+                        style={{ textTransform: 'uppercase', letterSpacing: '0.04em' }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Password Field with Show/Hide Toggle */}
+                <div className="input-group" style={{ marginBottom: '1.25rem' }}>
+                  <label htmlFor="password">
+                    <span>Password</span>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-subtle)', fontWeight: 500 }}>Min 6 characters</span>
+                  </label>
+                  <div className="auth-input-wrapper">
+                    <span className="auth-input-icon">
+                      <Lock size={18} />
+                    </span>
+                    <input
+                      id="password"
+                      name="password"
+                      type={showPassword ? 'text' : 'password'}
+                      placeholder="••••••••••••"
+                      value={formData.password}
+                      onChange={handleChange}
+                      required
+                      minLength="6"
+                      className="auth-input-field"
+                      style={{ paddingRight: '2.85rem !important' }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="auth-input-toggle-btn"
+                      aria-label={showPassword ? 'Hide password' : 'Show password'}
+                      tabIndex={-1}
+                    >
+                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Expert Specialty Service Selection (Sleek Compact Picker) */}
+                {(formData.role === 'expert' || formData.role === 'stylist') && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    style={{
+                      background: 'linear-gradient(135deg, rgba(124, 58, 237, 0.04), rgba(79, 70, 229, 0.06))',
+                      border: '1.5px solid rgba(124, 58, 237, 0.25)',
+                      borderRadius: '16px',
+                      padding: '1.1rem 1.25rem',
+                      marginBottom: '1.35rem'
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                      <span style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--secondary)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                        ⚡ Single Specialty Service
+                      </span>
+                      <span style={{
+                        fontSize: '0.72rem',
+                        fontWeight: 700,
+                        background: '#dcfce7',
+                        color: '#15803d',
+                        padding: '0.2rem 0.55rem',
+                        borderRadius: '6px'
+                      }}>
+                        1 Service Enforced
                       </span>
                     </div>
-                    <p style={{ margin: '0 0 0.85rem', fontSize: '0.775rem', color: 'var(--text-muted)' }}>
-                      Each expert specializes in exactly 1 single service on D.world. Choose yours:
+
+                    <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: '0 0 0.85rem', lineHeight: 1.4 }}>
+                      D.World assigns each expert exactly 1 primary service. Select your specialty:
                     </p>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', maxHeight: '220px', overflowY: 'auto', paddingRight: '0.25rem' }}>
-                      {[
-                        { name: 'Nails', price: 2500, duration: 30, category: 'Nails', description: 'Classic nail care, shaping, and polish.' },
-                        { name: 'Lash Extensions', price: 4000, duration: 45, category: 'Lashes', description: 'Classic full set lash extensions.' },
-                        { name: 'Hair Braiding', price: 5000, duration: 90, category: 'Hair', description: 'Neat campus hair braiding and styling.' },
-                        { name: 'Wig Installation', price: 6000, duration: 60, category: 'Hair', description: 'Professional wig install and melt.' },
-                        { name: 'Frontal Installation', price: 7500, duration: 75, category: 'Hair', description: 'Custom frontal wig placement and styling.' },
-                        { name: 'Wig Revamping', price: 4500, duration: 60, category: 'Hair', description: 'Wig wash, deep conditioning, and restyling.' },
-                        { name: 'Hair Tinting', price: 4000, duration: 45, category: 'Hair', description: 'Vibrant hair color tinting and treatment.' },
-                        { name: 'Makeup', price: 5000, duration: 50, category: 'Makeup', description: 'Professional full face glam makeup.' },
-                        { name: 'Male Haircut / Barbering', price: 3000, duration: 30, category: 'Barbering', description: 'Precision male haircut and line-up.' },
-                        { name: 'Male Hair Braiding', price: 4500, duration: 60, category: 'Hair', description: 'Neat male cornrows and braided styles.' },
-                        { name: 'Hair Styling', price: 3500, duration: 45, category: 'Hair', description: 'Blowout, press, curling, and updos.' },
-                        { name: 'Hair Treatment', price: 3500, duration: 40, category: 'Hair', description: 'Deep scalp conditioning and moisture therapy.' },
-                        { name: 'Manicure', price: 2500, duration: 30, category: 'Nails', description: 'Nail trim, cuticle care, and hand massage.' },
-                        { name: 'Pedicure', price: 3500, duration: 45, category: 'Nails', description: 'Exfoliating foot soak, nail trim, and massage.' },
-                        { name: 'Facial', price: 5000, duration: 45, category: 'Skincare', description: 'Deep cleansing facial treatment and glow mask.' },
-                        { name: 'Eyebrow Grooming', price: 1500, duration: 20, category: 'Grooming', description: 'Precision eyebrow shaping, threading, or waxing.' },
-                        { name: 'Waxing', price: 3500, duration: 30, category: 'Skincare', description: 'Smooth body or facial hair removal waxing.' },
-                        { name: 'Massage', price: 6000, duration: 45, category: 'Wellness', description: 'Relaxing full body or neck & shoulder massage.' }
-                      ].map(svc => {
-                        const isSelected = (formData.newServices || []).some(s => s.name === svc.name);
-                        return (
-                          <label key={svc.name} style={{
-                            display: 'flex', alignItems: 'center', gap: '0.65rem',
-                            padding: '0.55rem 0.75rem', borderRadius: '10px', cursor: 'pointer',
-                            background: isSelected ? 'rgba(124, 58, 237, 0.08)' : '#ffffff',
-                            border: isSelected ? '2px solid var(--secondary)' : '1px solid var(--border-light)',
-                            fontSize: '0.825rem', transition: 'all 0.15s ease'
-                          }}>
-                            <input type="radio" name="expertServiceRadio" checked={isSelected}
-                              onChange={() => { setError(''); setFormData({ ...formData, newServices: [{ ...svc, type: 'single' }] }); }} />
-                            <span style={{ fontWeight: isSelected ? 700 : 500, color: 'var(--text-main)', flex: 1 }}>{svc.name}</span>
-                            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{svc.duration}m</span>
-                            <strong style={{ color: 'var(--secondary)' }}>₦{svc.price.toLocaleString()}</strong>
-                          </label>
-                        );
-                      })}
+
+                    {/* Custom Dropdown Selector */}
+                    <div className="auth-input-wrapper" style={{ marginBottom: '0.75rem' }}>
+                      <span className="auth-input-icon">
+                        <Briefcase size={18} style={{ color: 'var(--secondary)' }} />
+                      </span>
+                      <select
+                        value={selectedExpertService?.name || ''}
+                        onChange={(e) => handleServiceSelect(e.target.value)}
+                        className="auth-input-field"
+                        style={{
+                          cursor: 'pointer',
+                          fontWeight: 600,
+                          color: 'var(--text-main)',
+                          appearance: 'none',
+                          WebkitAppearance: 'none'
+                        }}
+                      >
+                        {EXPERT_SPECIALTIES.map(s => (
+                          <option key={s.name} value={s.name}>
+                            {s.name} — ₦{s.price.toLocaleString()} ({s.duration} mins)
+                          </option>
+                        ))}
+                      </select>
+                      <span style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: '#94a3b8' }}>
+                        <ChevronDown size={18} />
+                      </span>
                     </div>
-                  </div>
+
+                    {/* Selected Service Quick Summary Pill */}
+                    {selectedExpertService && (
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        background: '#ffffff',
+                        padding: '0.65rem 0.95rem',
+                        borderRadius: '12px',
+                        border: '1px solid rgba(124, 58, 237, 0.15)',
+                        fontSize: '0.8rem'
+                      }}>
+                        <div>
+                          <strong style={{ color: 'var(--text-main)', display: 'block' }}>{selectedExpertService.name}</strong>
+                          <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>{selectedExpertService.description}</span>
+                        </div>
+                        <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: '0.75rem' }}>
+                          <strong style={{ color: 'var(--secondary)', fontSize: '0.95rem', display: 'block' }}>
+                            ₦{selectedExpertService.price.toLocaleString()}
+                          </strong>
+                          <span style={{ fontSize: '0.72rem', color: 'var(--text-subtle)' }}>{selectedExpertService.duration} mins</span>
+                        </div>
+                      </div>
+                    )}
+                  </motion.div>
                 )}
 
-                {/* Step indicator */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem', marginTop: '0.5rem' }}>
-                  <div style={{ flex: 1, height: 3, borderRadius: 99, background: 'var(--primary)' }} />
-                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>Step 1 of 2</span>
-                  <div style={{ flex: 1, height: 3, borderRadius: 99, background: 'var(--border-light)' }} />
-                </div>
-
-                <button type="submit" className="btn btn-primary"
-                  style={{ width: '100%', padding: '0.75rem 1.5rem', fontSize: '0.95rem' }} disabled={loading}>
-                  {loading ? 'Sending verification code…' : 'Continue →'}
+                {/* Submit Action */}
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={loading}
+                  style={{
+                    width: '100%',
+                    height: '50px',
+                    fontSize: '0.95rem',
+                    fontWeight: 700,
+                    borderRadius: '14px',
+                    justifyContent: 'center',
+                    boxShadow: '0 8px 20px rgba(79, 70, 229, 0.25)',
+                    marginTop: '0.35rem'
+                  }}
+                >
+                  {loading ? (
+                    'Preparing verification code...'
+                  ) : (
+                    <>
+                      <span>Continue to Verification</span>
+                      <ArrowRight size={18} />
+                    </>
+                  )}
                 </button>
               </form>
-            </div>
 
-            <div className="card-footer" style={{ justifyContent: 'center', padding: '1.25rem 2rem' }}>
-              <span style={{ color: 'var(--text-subtle)', fontSize: '0.9rem' }}>
+              {/* Footer Links */}
+              <div style={{
+                marginTop: '1.5rem',
+                paddingTop: '1.25rem',
+                borderTop: '1px solid var(--border-light)',
+                textAlign: 'center',
+                fontSize: '0.875rem',
+                color: 'var(--text-muted)'
+              }}>
                 Already have an account?{' '}
-                <Link to="/login" style={{ color: 'var(--primary)', fontWeight: 600, textDecoration: 'none', marginLeft: '0.25rem' }}>
+                <Link
+                  to="/login"
+                  style={{
+                    color: 'var(--primary)',
+                    fontWeight: 700,
+                    textDecoration: 'none',
+                    marginLeft: '0.25rem'
+                  }}
+                >
                   Sign in
                 </Link>
-              </span>
+              </div>
             </div>
           </motion.div>
         )}
