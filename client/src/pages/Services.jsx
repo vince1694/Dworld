@@ -123,9 +123,12 @@ const Services = () => {
 
   // Filtered Experts
   const filteredExperts = experts.filter(exp => {
-    return exp.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-           (exp.specialty && exp.specialty.toLowerCase().includes(searchQuery.toLowerCase())) ||
-           (exp.bio && exp.bio.toLowerCase().includes(searchQuery.toLowerCase()));
+    const q = searchQuery.toLowerCase();
+    return exp.name?.toLowerCase().includes(q) ||
+           (exp.specialty && exp.specialty.toLowerCase().includes(q)) ||
+           (exp.bio && exp.bio.toLowerCase().includes(q)) ||
+           (exp.address && exp.address.toLowerCase().includes(q)) ||
+           (exp.location && exp.location.toLowerCase().includes(q));
   });
 
   return (
@@ -337,6 +340,23 @@ const Services = () => {
                           <span style={{ fontSize: '0.8rem', color: 'var(--primary)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
                             <Award size={13} /> {exp.specialty || 'General Specialist'}
                           </span>
+                          {(exp.address || exp.location) && (
+                            <span style={{ 
+                              fontSize: '0.72rem', 
+                              color: '#059669', 
+                              fontWeight: 600, 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              gap: '0.25rem',
+                              marginTop: '0.2rem',
+                              background: '#ecfdf5',
+                              padding: '0.15rem 0.45rem',
+                              borderRadius: '6px',
+                              width: 'fit-content'
+                            }}>
+                              <MapPin size={11} /> {exp.address || exp.location}
+                            </span>
+                          )}
                         </div>
                       </div>
 

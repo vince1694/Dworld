@@ -25,9 +25,18 @@ const initiateRegister = async (req, res, next) => {
             return res.status(400).json({ success: false, errors: errors.array() });
         }
 
-        let { name, email, password, role, state, matricNo, newServices } = req.body;
+        let { name, email, password, role, state, matricNo, newServices, address, location } = req.body;
         const cleanEmail = (email || '').trim().toLowerCase();
         const cleanRole = (role === 'stylist' || role === 'expert') ? 'expert' : 'user';
+
+        // Experts must provide their location address so customers can find nearby experts
+        const expertAddress = (address || location || '').trim();
+        if (cleanRole === 'expert' && !expertAddress) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Please provide your campus/hostel location address so students can find you nearby.' 
+            });
+        }
 
         // Validate LCU matric format
         if (matricNo || cleanRole === 'user' || cleanRole === 'expert') {
@@ -61,6 +70,8 @@ const initiateRegister = async (req, res, next) => {
             password: hashedPassword,
             role: cleanRole,
             state: state || '',
+            address: expertAddress,
+            location: expertAddress || 'Lead City University Campus',
             matricNo,
             newServices,
             otp,
@@ -118,7 +129,7 @@ const verifyRegistration = async (req, res, next) => {
         // Remove from pending store
         pendingRegistrations.delete(cleanEmail);
 
-        const { name, password: hashedPassword, role, state, matricNo, newServices } = pending;
+        const { name, password: hashedPassword, role, state, matricNo, newServices, address, location } = pending;
         const validRole = (role === 'stylist' || role === 'expert') ? 'expert' : 'user';
 
         // Create verified account
@@ -130,6 +141,8 @@ const verifyRegistration = async (req, res, next) => {
             password: hashedPassword, 
             role: validRole, 
             state, 
+            address: address || '',
+            location: location || address || 'Lead City University Campus',
             matricNo, 
             isVerified: true,
             isActivated,
@@ -148,12 +161,12 @@ const verifyRegistration = async (req, res, next) => {
                     duration: Number(svc.duration) || 45,
                     type: 'single',
                     category: svc.category || 'Single Services',
-                    location: svc.location || 'Campus Studio / Main Salon',
+                    location: address || location || svc.location || 'Lead City University Campus',
                     stylist_id
                 });
                 await User.findByIdAndUpdate(stylist_id, {
                     specialty: svc.name,
-                    bio: `Specialized ${svc.name} expert at Lead City University.`
+                    bio: `Specialized ${svc.name} expert at ${address || 'Lead City University Campus'}.`
                 });
             }
         }
@@ -471,11 +484,23 @@ const topupWallet = async (req, res, next) => {
 
 const getExperts = async (req, res, next) => {
     try {
-        const experts = await User.find({ 
+        const { location: locationQuery } = req.query;
+        let queryFilter = { 
             role: { $in: ['expert', 'stylist'] }, 
             isVerified: true, 
             isActivated: true 
-        }).select('-password');
+        };
+
+        if (locationQuery && locationQuery.trim()) {
+            const locRegex = new RegExp(locationQuery.trim(), 'i');
+            queryFilter.$or = [
+                { address: locRegex },
+                { location: locRegex },
+                { state: locRegex }
+            ];
+        }
+
+        const experts = await User.find(queryFilter).select('-password');
         const Service = require('../models/Service');
 
         // Populate services for each verified expert (auto-seeding default services if none exist)
@@ -489,7 +514,7 @@ const getExperts = async (req, res, next) => {
 
             // If an expert has no services listed yet, create their single specialty service
             if (!services || services.length === 0) {
-                const spec = exp.specialty || 'Hair Styling';
+                const spec = exp.specialty || 'Barber';
                 const defaultSingle = await Service.create({
                     name: spec,
                     description: `${exp.name}'s professional campus service.`,
@@ -497,7 +522,7 @@ const getExperts = async (req, res, next) => {
                     duration: 45,
                     type: 'single',
                     category: 'Single Services',
-                    location: 'Campus Studio / Main Salon',
+                    location: exp.address || exp.location || 'Lead City University Campus',
                     stylist_id: exp._id
                 });
                 services = [defaultSingle];
@@ -510,6 +535,8 @@ const getExperts = async (req, res, next) => {
                 email: exp.email,
                 role: exp.role,
                 phone: exp.phone || '',
+                address: exp.address || exp.location || '',
+                location: exp.location || exp.address || 'Lead City University Campus',
                 matricNo: exp.matricNo || '',
                 department: exp.department || 'Campus Styling Specialist',
                 bio: exp.bio || 'Professional Verified Specialist',

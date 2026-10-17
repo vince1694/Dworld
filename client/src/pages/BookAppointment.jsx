@@ -23,7 +23,8 @@ import {
   Filter,
   Tag,
   ArrowRight,
-  Info
+  Info,
+  Images
 } from 'lucide-react';
 
 import { useAuth } from '../context/AuthContext';
@@ -134,7 +135,8 @@ const BookAppointment = () => {
       }
 
       if (walRes.status === 'fulfilled' && walRes.value.data.success) {
-        setWalletBalance(walRes.value.data.data.walletBalance || 0);
+        const bal = walRes.value.data.data.walletBalance || 0;
+        setWalletBalance(bal);
       }
     } catch (err) {
       console.error('Error loading booking data:', err);
@@ -143,6 +145,36 @@ const BookAppointment = () => {
       setLoadingExperts(false);
     }
   };
+
+  // Auto-select Paystack if wallet balance is less than service price
+  useEffect(() => {
+    if (selectedService && walletBalance < (selectedService.price || 0)) {
+      setPaymentMethod('paystack');
+    }
+  }, [selectedService, walletBalance]);
+
+  // Handle return from Paystack checkout
+  useEffect(() => {
+    const reference = searchParams.get('reference') || searchParams.get('trxref');
+    const aptId = searchParams.get('aptId') || searchParams.get('appointmentId');
+    if (reference) {
+      axios.post(`${API_URL}/payments/verify`, { reference })
+        .then(res => {
+          if (res.data.success) {
+            setStep(5);
+            setConfirmedBooking({
+              _id: aptId || 'APT-' + Date.now(),
+              paymentStatus: 'paid',
+              date: selectedDate,
+              time: selectedTime,
+              service_id: selectedService || { name: 'Campus Specialist Service' },
+              stylist_id: selectedExpert || { name: 'Assigned Specialist' }
+            });
+          }
+        })
+        .catch(err => console.warn('Payment verify notice:', err));
+    }
+  }, [searchParams]);
 
   // 2. Fetch slots when date changes
   useEffect(() => {
@@ -243,76 +275,20 @@ const BookAppointment = () => {
         const userEmail = (user?.email && user.email.trim()) || '';
         const price = selectedService.price || 0;
 
-        // Fetch dynamic public key from backend
-        let publicKey = PAYSTACK_FALLBACK_KEY;
-        try {
-          const configRes = await axios.get(`${API_URL}/payments/config`);
-          if (configRes.data?.success && configRes.data?.publicKey) {
-            publicKey = configRes.data.publicKey;
-          }
-        } catch (e) {
-          console.warn('Using fallback Paystack key', e);
-        }
+        // Direct Paystack official checkout redirect — eliminates all popup/iframe and callback errors
+        const initRes = await axios.post(`${API_URL}/payments/initialize`, {
+          amount: price,
+          appointment_id: aptId,
+          purpose: 'appointment_pay',
+          email: userEmail,
+          name: user?.name
+        });
 
-        // On mobile or if script is missing, use clean server-side Paystack checkout redirect
-        const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-
-        let popupDone = false;
-        if (!isMobileDevice) {
-          try {
-            await loadPaystackScript();
-            if (typeof window.PaystackPop !== 'undefined' && userEmail && publicKey) {
-              await new Promise((resolve) => {
-                const handler = window.PaystackPop.setup({
-                  key: publicKey,
-                  email: userEmail,
-                  amount: Math.round(price * 100),
-                  currency: 'NGN',
-                  ref: 'APT-' + aptId + '-' + Date.now(),
-                  metadata: {
-                    appointment_id: aptId,
-                    purpose: 'appointment_pay',
-                    client_name: user?.name
-                  },
-                  callback: function(resp) {
-                    axios.post(`${API_URL}/payments/verify`, { reference: resp.reference })
-                      .then(() => {
-                        bookedApt.paymentStatus = 'paid';
-                        popupDone = true;
-                      })
-                      .catch((e) => {
-                        console.error('Paystack verify error:', e);
-                      })
-                      .finally(() => resolve());
-                  },
-                  onClose: function() {
-                    resolve();
-                  }
-                });
-                handler.openIframe();
-              });
-            }
-          } catch (inlineErr) {
-            console.warn('Paystack inline popup warning, falling back to redirect:', inlineErr);
-          }
-        }
-
-        // If on mobile or popup was bypassed/closed without instant inline completion, initialize via server
-        if (!popupDone) {
-          try {
-            const initRes = await axios.post(`${API_URL}/payments/initialize`, {
-              amount: price,
-              appointment_id: aptId,
-              purpose: 'appointment_pay',
-              email: userEmail
-            });
-            if (initRes.data?.success && initRes.data?.data?.authorization_url) {
-              window.location.href = initRes.data.data.authorization_url;
-              return;
-            }
-          } catch (initErr) {
-            console.warn('Server initialize notice:', initErr);
-          }
+        if (initRes.data?.success && initRes.data?.data?.authorization_url) {
+          window.location.href = initRes.data.data.authorization_url;
+          return;
+        } else {
+          throw new Error(initRes.data?.message || 'Paystack payment initialization failed');
         }
       }
 
@@ -699,13 +675,39 @@ const BookAppointment = () => {
                       {exp.specialty || 'General Beauty & Hair Expert'}
                     </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                       <span style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', color: '#f59e0b', fontWeight: 700 }}>
                         <Star size={12} fill="#f59e0b" /> 4.9
                       </span>
                       <span>•</span>
                       <span>{exp.matricNo || 'LCU/UG/Verified'}</span>
                     </div>
+
+                    {/* Lookbook mini-strip */}
+                    {exp.portfolio && exp.portfolio.length > 0 && (
+                      <div style={{ display: 'flex', gap: '0.3rem', marginTop: '0.6rem', overflowX: 'auto', scrollbarWidth: 'none' }}>
+                        {exp.portfolio.slice(0, 4).map((item, pi) => (
+                          <div
+                            key={pi}
+                            title={item.title || item.category || 'Portfolio'}
+                            style={{ flexShrink: 0, width: '36px', height: '36px', borderRadius: '7px', overflow: 'hidden', border: '1.5px solid var(--border-light)', background: 'rgba(168,85,247,0.06)' }}
+                          >
+                            <img
+                              src={item.imageUrl}
+                              alt={item.title || 'Work'}
+                              loading="lazy"
+                              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                              onError={e => { e.target.style.opacity = '0.2'; }}
+                            />
+                          </div>
+                        ))}
+                        {exp.portfolio.length > 4 && (
+                          <div style={{ flexShrink: 0, width: '36px', height: '36px', borderRadius: '7px', background: 'rgba(168,85,247,0.1)', border: '1px solid rgba(168,85,247,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.6rem', fontWeight: 800, color: 'var(--secondary)' }}>
+                            +{exp.portfolio.length - 4}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   <div style={{
@@ -988,9 +990,22 @@ const BookAppointment = () => {
                     </span>
                   </div>
                   <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                    {walletBalance >= (selectedService?.price || 0) 
-                      ? 'Instant 1-click booking confirmation & deduction' 
-                      : `Insufficient balance (Need ₦${((selectedService?.price || 0) - walletBalance).toLocaleString()} more)`}
+                    {walletBalance >= (selectedService?.price || 0) ? (
+                      'Instant 1-click booking confirmation & deduction'
+                    ) : (
+                      <div style={{ marginTop: '0.2rem' }}>
+                        <span>Insufficient balance (Need ₦{((selectedService?.price || 0) - walletBalance).toLocaleString()} more).</span>{' '}
+                        <Link 
+                          to="/wallet" 
+                          target="_blank"
+                          rel="noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          style={{ color: 'var(--primary)', fontWeight: 700, textDecoration: 'underline' }}
+                        >
+                          Top up wallet ↗
+                        </Link>
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div style={{

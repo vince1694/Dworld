@@ -16,30 +16,19 @@ import {
   Sparkles,
   ArrowRight,
   Briefcase,
-  ChevronDown
+  ChevronDown,
+  MapPin
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-// Available single specialty services for experts
+// Available single specialty services for experts (Strictly 1 service per expert)
 const EXPERT_SPECIALTIES = [
-  { name: 'Nails', price: 2500, duration: 30, category: 'Nails', description: 'Classic nail care, shaping, and polish.' },
-  { name: 'Lash Extensions', price: 4000, duration: 45, category: 'Lashes', description: 'Classic full set lash extensions.' },
-  { name: 'Hair Braiding', price: 5000, duration: 90, category: 'Hair', description: 'Neat campus hair braiding and styling.' },
-  { name: 'Wig Installation', price: 6000, duration: 60, category: 'Hair', description: 'Professional wig install and melt.' },
-  { name: 'Frontal Installation', price: 7500, duration: 75, category: 'Hair', description: 'Custom frontal wig placement and styling.' },
-  { name: 'Wig Revamping', price: 4500, duration: 60, category: 'Hair', description: 'Wig wash, deep conditioning, and restyling.' },
-  { name: 'Hair Tinting', price: 4000, duration: 45, category: 'Hair', description: 'Vibrant hair color tinting and treatment.' },
-  { name: 'Makeup', price: 5000, duration: 50, category: 'Makeup', description: 'Professional full face glam makeup.' },
-  { name: 'Male Haircut / Barbering', price: 3000, duration: 30, category: 'Barbering', description: 'Precision male haircut and line-up.' },
-  { name: 'Male Hair Braiding', price: 4500, duration: 60, category: 'Hair', description: 'Neat male cornrows and braided styles.' },
-  { name: 'Hair Styling', price: 3500, duration: 45, category: 'Hair', description: 'Blowout, press, curling, and updos.' },
-  { name: 'Hair Treatment', price: 3500, duration: 40, category: 'Hair', description: 'Deep scalp conditioning and moisture therapy.' },
-  { name: 'Manicure', price: 2500, duration: 30, category: 'Nails', description: 'Nail trim, cuticle care, and hand massage.' },
-  { name: 'Pedicure', price: 3500, duration: 45, category: 'Nails', description: 'Exfoliating foot soak, nail trim, and massage.' },
-  { name: 'Facial', price: 5000, duration: 45, category: 'Skincare', description: 'Deep cleansing facial treatment and glow mask.' },
-  { name: 'Eyebrow Grooming', price: 1500, duration: 20, category: 'Grooming', description: 'Precision eyebrow shaping, threading, or waxing.' },
-  { name: 'Waxing', price: 3500, duration: 30, category: 'Skincare', description: 'Smooth body or facial hair removal waxing.' },
-  { name: 'Massage', price: 6000, duration: 45, category: 'Wellness', description: 'Relaxing full body or neck & shoulder massage.' }
+  { name: 'Lash Techs', price: 4000, duration: 45, category: 'Lashes', description: 'Classic lash extensions, volume sets, lash lifts, and infills.' },
+  { name: 'Nail Techs', price: 3500, duration: 40, category: 'Nails', description: 'Acrylic full set, gel extensions, custom nail art, and grooming.' },
+  { name: 'Hair Braider (Male & Female)', price: 5000, duration: 90, category: 'Hair', description: 'Cornrows, knotless braids, box braids, and twists for males and females.' },
+  { name: 'Wig Installers (Frontal & Others)', price: 6500, duration: 60, category: 'Hair', description: 'Frontal wig melt, closure installation, styling, and revamp.' },
+  { name: 'Barber', price: 3000, duration: 30, category: 'Barbering', description: 'Clean precision haircut, beard grooming, fading, styling, and razor line-up.' },
+  { name: 'Body Care (Manicure, Pedicure)', price: 4500, duration: 50, category: 'Body Care', description: 'Refreshing manicure, exfoliating pedicure, cuticle therapy, and body relaxation.' }
 ];
 
 // ── OTP Step Component ────────────────────────────────────────────────────────
@@ -250,6 +239,7 @@ const Register = () => {
     password: '',
     role: 'user',
     matricNo: '',
+    address: '',
     newServices: []
   });
   const [error, setError] = useState('');
@@ -290,6 +280,13 @@ const Register = () => {
     const matricRegex = /^lcu\/ug\/\d{2}\/\d{4,5}$/i;
     if (!formData.matricNo || !matricRegex.test(formData.matricNo.trim())) {
       const msg = 'Invalid Matric Number. Expected format: LCU/UG/00/00000 (e.g. LCU/UG/22/04192)';
+      setError(msg);
+      notify.warning(msg);
+      return;
+    }
+
+    if ((formData.role === 'expert' || formData.role === 'stylist') && !formData.address?.trim()) {
+      const msg = 'Please enter your location or campus address (e.g. Unity Hall, Lead City University, Ibadan) so students can find you nearby.';
       setError(msg);
       notify.warning(msg);
       return;
@@ -626,6 +623,40 @@ const Register = () => {
                     </button>
                   </div>
                 </div>
+
+                {/* Expert Location Address */}
+                {(formData.role === 'expert' || formData.role === 'stylist') && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="input-group"
+                    style={{ marginBottom: '1.25rem' }}
+                  >
+                    <label htmlFor="address">
+                      <span>Location Address / Studio Spot</span>
+                      <span style={{ fontSize: '0.72rem', color: '#10b981', fontWeight: 700 }}>Nearby Discovery</span>
+                    </label>
+                    <div className="auth-input-wrapper">
+                      <span className="auth-input-icon">
+                        <MapPin size={18} style={{ color: '#10b981' }} />
+                      </span>
+                      <input
+                        id="address"
+                        name="address"
+                        type="text"
+                        placeholder="e.g. Unity Hall, Lead City University, Ibadan"
+                        value={formData.address}
+                        onChange={handleChange}
+                        required
+                        className="auth-input-field"
+                      />
+                    </div>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-subtle)', marginTop: '0.35rem', display: 'block' }}>
+                      📍 Customers can search and find you by this location address.
+                    </span>
+                  </motion.div>
+                )}
 
                 {/* Expert Specialty Service Selection (Sleek Compact Picker) */}
                 {(formData.role === 'expert' || formData.role === 'stylist') && (

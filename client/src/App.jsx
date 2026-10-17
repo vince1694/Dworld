@@ -18,6 +18,8 @@ import ExpertsDirectory from './pages/ExpertsDirectory';
 import Contact from './pages/Contact';
 import ForgotPassword from './pages/ForgotPassword';
 import BookAppointment from './pages/BookAppointment';
+import WalletPage from './pages/WalletPage';
+import Chat from './pages/Chat';
 
 const ProtectedRoute = ({ children, allowedRoles, redirectTo = '/login' }) => {
   const { user, loading } = useAuth();
@@ -70,6 +72,22 @@ function App() {
               <ProtectedRoute>
                 <AppLayout>
                   <Dashboard />
+                </AppLayout>
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/wallet" element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <WalletPage />
+                </AppLayout>
+              </ProtectedRoute>
+            } />
+
+            <Route path="/chat" element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <Chat />
                 </AppLayout>
               </ProtectedRoute>
             } />

@@ -280,10 +280,55 @@ const sendWelcomeEmail = async (email, name, role = 'user') => {
     });
 };
 
+const sendContactInquiryEmail = async ({ name, email, message }) => {
+    const adminEmail = 'beatsnitro101@gmail.com';
+    const topBar = `
+      <div class="logo">D.WORLD</div>
+      <div class="logo-sub">Campus Help Desk &bull; Lead City University</div>
+    `;
+
+    const body = `
+      <div class="success-card" style="background:linear-gradient(135deg,rgba(99,102,241,0.15),rgba(124,58,237,0.2));border-color:#6366f1;">
+        <div class="success-icon">📬</div>
+        <p style="margin:0;font-size:20px;font-weight:800;color:#818cf8;">New User Inquiry Received</p>
+      </div>
+      <p class="title">Incoming Help Desk Inquiry</p>
+      <p class="txt">A user has submitted an inquiry on the D.WORLD platform:</p>
+
+      <div style="background:#1e293b;border-radius:12px;padding:20px;margin-bottom:24px;border:1px solid #334155;">
+        <div style="margin-bottom:12px;">
+          <strong style="color:#94a3b8;font-size:12px;text-transform:uppercase;display:block;letter-spacing:0.05em;">Sender Name:</strong>
+          <span style="color:#f8fafc;font-size:15px;font-weight:700;">${name}</span>
+        </div>
+        <div style="margin-bottom:12px;">
+          <strong style="color:#94a3b8;font-size:12px;text-transform:uppercase;display:block;letter-spacing:0.05em;">Sender Email:</strong>
+          <a href="mailto:${email}" style="color:#818cf8;font-size:15px;text-decoration:none;font-weight:600;">${email}</a>
+        </div>
+        <div>
+          <strong style="color:#94a3b8;font-size:12px;text-transform:uppercase;display:block;letter-spacing:0.05em;">Message:</strong>
+          <div style="color:#e2e8f0;font-size:14px;line-height:1.6;margin-top:4px;white-space:pre-wrap;background:#0f172a;padding:12px 14px;border-radius:8px;border:1px solid #1e293b;">${message}</div>
+        </div>
+      </div>
+
+      <div style="text-align:center;margin:28px 0 20px;">
+        <a href="mailto:${email}?subject=RE: D.WORLD Inquiry from ${encodeURIComponent(name)}" style="display:inline-block;padding:14px 28px;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#ffffff;text-decoration:none;border-radius:12px;font-weight:800;font-size:15px;box-shadow:0 8px 20px rgba(79,70,229,0.35);">
+          Reply Directly to ${name} &rarr;
+        </a>
+      </div>
+    `;
+
+    return sendEmail({
+        to: adminEmail,
+        subject: `📬 New User Inquiry from ${name} (${email}) - D.WORLD`,
+        html: htmlWrap(topBar, body)
+    });
+};
+
 module.exports = {
     sendRegistrationOtpEmail,
     sendPasswordResetEmail,
     sendBookingConfirmationEmail,
     sendExpertActivationEmail,
-    sendWelcomeEmail
+    sendWelcomeEmail,
+    sendContactInquiryEmail
 };

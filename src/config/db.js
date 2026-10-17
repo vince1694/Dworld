@@ -30,28 +30,15 @@ const connectDB = async () => {
     if (serviceCount === 0) {
 
       const defaultServices = [
-        // 🟢 PURE SINGLE SERVICES ONLY (18)
-        { name: 'Nails', description: 'Classic nail care, shaping, and polish.', duration: 30, price: 2500, type: 'single', category: 'Nails', location: 'Beauty Studio' },
-        { name: 'Lash Extensions', description: 'Classic full set lash extensions.', duration: 45, price: 4000, type: 'single', category: 'Lashes', location: 'Beauty Studio' },
-        { name: 'Hair Braiding', description: 'Neat campus hair braiding and styling.', duration: 90, price: 5000, type: 'single', category: 'Hair', location: 'Hair Suite' },
-        { name: 'Wig Installation', description: 'Professional wig install and melt.', duration: 60, price: 6000, type: 'single', category: 'Hair', location: 'Hair Suite' },
-        { name: 'Frontal Installation', description: 'Custom frontal wig placement and styling.', duration: 75, price: 7500, type: 'single', category: 'Hair', location: 'Hair Suite' },
-        { name: 'Wig Revamping', description: 'Wig wash, deep conditioning, and restyling.', duration: 60, price: 4500, type: 'single', category: 'Hair', location: 'Hair Suite' },
-        { name: 'Hair Tinting', description: 'Vibrant hair color tinting and treatment.', duration: 45, price: 4000, type: 'single', category: 'Hair', location: 'Hair Suite' },
-        { name: 'Makeup', description: 'Professional full face glam makeup.', duration: 50, price: 5000, type: 'single', category: 'Makeup', location: 'Glam Studio' },
-        { name: 'Male Haircut / Barbering', description: 'Precision male haircut and line-up.', duration: 30, price: 3000, type: 'single', category: 'Barbering', location: 'Barber Suite' },
-        { name: 'Male Hair Braiding', description: 'Neat male cornrows and braided styles.', duration: 60, price: 4500, type: 'single', category: 'Hair', location: 'Hair Suite' },
-        { name: 'Hair Styling', description: 'Blowout, press, curling, and updos.', duration: 45, price: 3500, type: 'single', category: 'Hair', location: 'Hair Suite' },
-        { name: 'Hair Treatment', description: 'Deep scalp conditioning and moisture therapy.', duration: 40, price: 3500, type: 'single', category: 'Hair', location: 'Hair Suite' },
-        { name: 'Manicure', description: 'Nail trim, cuticle care, and hand massage.', duration: 30, price: 2500, type: 'single', category: 'Nails', location: 'Beauty Studio' },
-        { name: 'Pedicure', description: 'Exfoliating foot soak, nail trim, and massage.', duration: 45, price: 3500, type: 'single', category: 'Nails', location: 'Beauty Studio' },
-        { name: 'Facial', description: 'Deep cleansing facial treatment and glow mask.', duration: 45, price: 5000, type: 'single', category: 'Skincare', location: 'Spa Room' },
-        { name: 'Eyebrow Grooming', description: 'Precision eyebrow shaping, threading, or waxing.', duration: 20, price: 1500, type: 'single', category: 'Grooming', location: 'Beauty Studio' },
-        { name: 'Waxing', description: 'Smooth body or facial hair removal waxing.', duration: 30, price: 3500, type: 'single', category: 'Skincare', location: 'Spa Room' },
-        { name: 'Massage', description: 'Relaxing full body or neck & shoulder massage.', duration: 45, price: 6000, type: 'single', category: 'Wellness', location: 'Spa Room' }
+        { name: 'Lash Techs', description: 'Classic lash extensions, volume sets, lash lifts, and infills.', duration: 45, price: 4000, type: 'single', category: 'Lashes', location: 'Lead City University Campus' },
+        { name: 'Nail Techs', description: 'Acrylic full set, gel extensions, custom nail art, and grooming.', duration: 40, price: 3500, type: 'single', category: 'Nails', location: 'Lead City University Campus' },
+        { name: 'Hair Braider (Male & Female)', description: 'Cornrows, knotless braids, box braids, and twists for males and females.', duration: 90, price: 5000, type: 'single', category: 'Hair', location: 'Lead City University Campus' },
+        { name: 'Wig Installers (Frontal & Others)', description: 'Frontal wig melt, closure installation, styling, and revamp.', duration: 60, price: 6500, type: 'single', category: 'Hair', location: 'Lead City University Campus' },
+        { name: 'Barber', description: 'Clean precision haircut, beard grooming, fading, styling, and razor line-up.', duration: 30, price: 3000, type: 'single', category: 'Barbering', location: 'Lead City University Campus' },
+        { name: 'Body Care (Manicure, Pedicure)', description: 'Refreshing manicure, exfoliating pedicure, cuticle therapy, and body relaxation.', duration: 50, price: 4500, type: 'single', category: 'Body Care', location: 'Lead City University Campus' }
       ];
       await Service.insertMany(defaultServices);
-      console.log('Successfully seeded 18 Pure Single Services!');
+      console.log('Successfully seeded the 6 D.World Platform Services!');
     }
   } catch (err) {
     console.error(`Error connecting to MongoDB: ${err.message}`);

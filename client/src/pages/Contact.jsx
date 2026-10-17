@@ -64,7 +64,7 @@ const Contact = () => {
               </div>
               <div>
                 <strong style={{ display: 'block', fontSize: '1.1rem', marginBottom: '0.5rem', color: 'var(--text-main)', fontFamily: 'Outfit' }}>Official Support Email</strong>
-                <span style={{ color: 'var(--text-muted)', fontSize: '0.95rem' }}>support@dworld.lcu.edu.ng</span>
+                <a href="mailto:beatsnitro101@gmail.com" style={{ color: 'var(--primary)', fontSize: '0.95rem', textDecoration: 'none', fontWeight: 600 }}>beatsnitro101@gmail.com</a>
               </div>
             </div>
 
@@ -74,7 +74,7 @@ const Contact = () => {
               </div>
               <div>
                 <strong style={{ display: 'block', fontSize: '1.1rem', marginBottom: '0.5rem', color: 'var(--text-main)', fontFamily: 'Outfit' }}>Help Desk Line</strong>
-                <span style={{ color: 'var(--text-muted)', fontSize: '0.95rem' }}>+234 (0) 803 555 0199</span>
+                <a href="tel:+2349162789976" style={{ color: 'var(--text-main)', fontSize: '0.95rem', textDecoration: 'none', fontWeight: 600 }}>+234 916 278 9976</a>
               </div>
             </div>
           </div>

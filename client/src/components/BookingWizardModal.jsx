@@ -503,7 +503,7 @@ const BookingWizardModal = ({ isOpen, onClose, onBookingSuccess, preselectedServ
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.825rem' }}>
                         <span style={{ color: 'var(--text-subtle)' }}>Phone:</span>
-                        <span style={{ fontWeight: 600, color: 'var(--text-main)' }}>{selectedExpert?.phone || '+234 803 555 0199'}</span>
+                        <span style={{ fontWeight: 600, color: 'var(--text-main)' }}>{selectedExpert?.phone || '+234 916 278 9976'}</span>
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.825rem' }}>
                         <span style={{ color: 'var(--text-subtle)' }}>Email:</span>

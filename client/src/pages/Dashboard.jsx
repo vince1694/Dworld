@@ -234,16 +234,16 @@ const Dashboard = () => {
   };
 
   const handleDeleteAppointment = async (appointmentId) => {
-    if (!window.confirm('Delete this appointment from your history?')) return;
+    if (!window.confirm('Are you sure you want to delete this booking?')) return;
     try {
       const res = await axios.delete(`${API_URL}/appointments/${appointmentId}`);
       if (res.data.success) {
-        addToast('Appointment deleted from history.', 'info');
+        addToast('Booking deleted successfully.', 'info');
         setSelectedAppointment(null);
         fetchData();
       }
     } catch (err) {
-      addToast(err.response?.data?.message || 'Failed to delete appointment record.', 'error');
+      addToast(err.response?.data?.message || 'Failed to delete booking.', 'error');
     }
   };
 
@@ -551,6 +551,30 @@ const Dashboard = () => {
                         >
                           <MessageSquare size={12} /> Chat
                         </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteAppointment(app.id || app._id);
+                          }}
+                          style={{
+                            background: 'rgba(239, 68, 68, 0.08)',
+                            border: '1px solid rgba(239, 68, 68, 0.25)',
+                            color: '#ef4444',
+                            padding: '0.35rem 0.55rem',
+                            borderRadius: '8px',
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.25rem',
+                            fontSize: '0.75rem',
+                            fontWeight: 600,
+                            minHeight: '32px'
+                          }}
+                          title="Delete Booking"
+                        >
+                          <Trash2 size={12} /> Delete
+                        </button>
                         <span className={`status-badge status-${app.status}`}>
                           {app.status}
                         </span>
@@ -857,20 +881,19 @@ const Dashboard = () => {
                   <button 
                     onClick={() => handleCancelAppointment(selectedAppointment.id || selectedAppointment._id)}
                     className="btn btn-outline"
-                    style={{ color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.3)' }}
+                    style={{ color: '#f59e0b', borderColor: 'rgba(245, 158, 11, 0.3)' }}
                   >
                     Cancel Booking
                   </button>
                 )}
-                {(selectedAppointment.status === 'completed' || selectedAppointment.status === 'cancelled') && (
-                  <button 
-                    onClick={() => handleDeleteAppointment(selectedAppointment.id || selectedAppointment._id)}
-                    className="btn btn-outline"
-                    style={{ color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.3)' }}
-                  >
-                    <Trash2 size={15} /> Delete Record
-                  </button>
-                )}
+
+                <button 
+                  onClick={() => handleDeleteAppointment(selectedAppointment.id || selectedAppointment._id)}
+                  className="btn btn-outline"
+                  style={{ color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.3)', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
+                >
+                  <Trash2 size={15} /> Delete Booking
+                </button>
 
                 <button onClick={() => setSelectedAppointment(null)} className="btn btn-secondary">
                   Close Window

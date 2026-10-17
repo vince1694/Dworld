@@ -19,9 +19,9 @@ import {
   Bell,
   Sparkles,
   HelpCircle,
-  Plus
+  Plus,
+  MessageSquare
 } from 'lucide-react';
-import WalletModal from './WalletModal';
 import axios from 'axios';
 
 import { API_URL } from '../config/api';
@@ -32,7 +32,6 @@ const AppLayout = ({ children }) => {
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [isWalletOpen, setIsWalletOpen] = useState(false);
   const [walletBalance, setWalletBalance] = useState(user?.walletBalance || 0);
 
   // Notification States
@@ -106,7 +105,9 @@ const AppLayout = ({ children }) => {
     } else if (['expert', 'stylist'].includes(user.role)) {
       return [
         { name: 'My Schedule', path: '/expert?tab=appointments', tab: 'appointments', icon: <CalendarRange size={18} /> },
+        { name: 'Direct Messages', path: '/chat', icon: <MessageSquare size={18} /> },
         { name: 'My Services', path: '/expert?tab=services', tab: 'services', icon: <Briefcase size={18} /> },
+        { name: 'Campus Wallet', path: '/wallet', icon: <Wallet size={18} />, badge: `₦${walletBalance.toLocaleString()}` },
         { name: 'Services & Experts', path: '/services', icon: <UserCheck size={18} /> },
         { name: 'Profile Settings', path: '/expert?tab=profile', tab: 'profile', icon: <User size={18} /> },
       ];
@@ -115,8 +116,9 @@ const AppLayout = ({ children }) => {
       return [
         { name: 'Dashboard Overview', path: '/dashboard?tab=overview', tab: 'overview', icon: <LayoutDashboard size={18} /> },
         { name: 'Book Appointment', path: '/book', icon: <CalendarPlus size={18} /> },
+        { name: 'Direct Messages', path: '/chat', icon: <MessageSquare size={18} /> },
+        { name: 'Student Wallet', path: '/wallet', icon: <Wallet size={18} />, badge: `₦${walletBalance.toLocaleString()}` },
         { name: 'Campus Stylists', path: '/services', icon: <Sparkles size={18} /> },
-        { name: 'Student Wallet', action: 'wallet', icon: <Wallet size={18} />, badge: `₦${walletBalance.toLocaleString()}` },
         { name: 'Profile & Settings', path: '/dashboard?tab=profile', tab: 'profile', icon: <User size={18} /> },
         { name: 'Campus Support', path: '/contact', icon: <HelpCircle size={18} /> },
       ];
@@ -232,7 +234,7 @@ const AppLayout = ({ children }) => {
               </strong>
               <button 
                 type="button"
-                onClick={() => setIsWalletOpen(true)}
+                onClick={() => navigate('/wallet')}
                 className="sidebar-topup-btn"
                 title="Top up wallet balance"
               >
@@ -313,7 +315,7 @@ const AppLayout = ({ children }) => {
 
           <div className="topbar-actions-wrapper">
             <button 
-              onClick={() => setIsWalletOpen(true)}
+              onClick={() => navigate('/wallet')}
               style={{
                 background: 'linear-gradient(135deg, var(--primary), var(--secondary))',
                 color: 'white',
@@ -328,6 +330,7 @@ const AppLayout = ({ children }) => {
                 cursor: 'pointer',
                 boxShadow: '0 4px 12px rgba(79, 70, 229, 0.25)'
               }}
+              title="Open Campus Wallet"
             >
               <Wallet size={16} /> <span>₦{walletBalance.toLocaleString()}</span>
             </button>
@@ -447,13 +450,6 @@ const AppLayout = ({ children }) => {
           </div>
         </header>
 
-        {/* Wallet Modal */}
-        <WalletModal 
-          isOpen={isWalletOpen}
-          onClose={() => setIsWalletOpen(false)}
-          onWalletUpdated={(newBal) => setWalletBalance(newBal)}
-        />
-
         <main className="app-workspace-content">
           {children}
         </main>
@@ -528,7 +524,7 @@ const AppLayout = ({ children }) => {
                     type="button"
                     onClick={() => {
                       setMobileOpen(false);
-                      setIsWalletOpen(true);
+                      navigate('/wallet');
                     }}
                     className="sidebar-topup-btn"
                   >

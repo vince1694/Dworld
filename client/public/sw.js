@@ -1,10 +1,14 @@
-const CACHE_NAME = 'dworld-pwa-v1';
+const CACHE_NAME = 'dworld-pwa-v2';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
   '/manifest.json',
-  '/favicon.svg',
-  '/icons.svg'
+  '/logo.png',
+  '/logo-sm.png',
+  '/pwa-192x192.png',
+  '/pwa-512x512.png',
+  '/favicon.png',
+  '/apple-touch-icon.png'
 ];
 
 // 1. Install: Precache shell

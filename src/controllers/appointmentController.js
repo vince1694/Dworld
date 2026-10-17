@@ -388,8 +388,13 @@ const deleteAppointment = async (req, res, next) => {
             return res.status(403).json({ success: false, message: 'Not authorized to delete this appointment' });
         }
 
+        // Release slot if booking was active
+        if (appointment.date && appointment.time) {
+            await TimeSlot.markAvailable(appointment.date, appointment.time);
+        }
+
         await Appointment.findByIdAndDelete(appointmentId);
-        res.status(200).json({ success: true, message: 'Appointment history record deleted' });
+        res.status(200).json({ success: true, message: 'Booking deleted successfully' });
     } catch (error) {
         next(error);
     }

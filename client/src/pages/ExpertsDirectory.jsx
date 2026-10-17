@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { motion } from 'framer-motion';
-import { UserCheck, Star, CalendarPlus, Briefcase, Mail, Phone, Clock, Award, ShieldCheck, MessageSquare, ChevronDown, ChevronUp } from 'lucide-react';
+import { UserCheck, Star, CalendarPlus, Briefcase, Mail, Phone, Clock, Award, ShieldCheck, MessageSquare, ChevronDown, ChevronUp, Images, ChevronRight, MapPin, Search } from 'lucide-react';
 import BookingWizardModal from '../components/BookingWizardModal';
 
 import { API_URL } from '../config/api';
@@ -14,6 +14,7 @@ const ExpertsDirectory = () => {
   const [reviewsMap, setReviewsMap] = useState({});
   const [isWizardOpen, setIsWizardOpen] = useState(false);
   const [preselectedServiceId, setPreselectedServiceId] = useState(null);
+  const [locationQuery, setLocationQuery] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -58,6 +59,15 @@ const ExpertsDirectory = () => {
     setIsWizardOpen(true);
   };
 
+  const filteredExperts = experts.filter(exp => {
+    if (!locationQuery.trim()) return true;
+    const q = locationQuery.toLowerCase();
+    const loc = (exp.address || exp.location || '').toLowerCase();
+    const name = (exp.name || '').toLowerCase();
+    const spec = (exp.specialty || '').toLowerCase();
+    return loc.includes(q) || name.includes(q) || spec.includes(q);
+  });
+
   return (
     <div className="page-wrapper container animate-fade-in">
       
@@ -71,7 +81,7 @@ const ExpertsDirectory = () => {
         }}
       />
 
-      <header style={{ textAlign: 'center', marginBottom: '3.5rem' }}>
+      <header style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
         <span style={{ 
           color: 'var(--primary)', 
           fontWeight: 700, 
@@ -90,23 +100,76 @@ const ExpertsDirectory = () => {
         <h1 style={{ fontSize: '2.5rem', marginBottom: '0.75rem', color: 'var(--text-main)', letterSpacing: '-0.02em', fontFamily: 'Outfit' }}>
           Experts & Specialists Directory
         </h1>
-        <p style={{ color: 'var(--text-muted)', fontSize: '1.05rem', maxWidth: '620px', margin: '0 auto' }}>
-          Browse available experts, explore their offered services and roles, and pick the specialist that suits your needs.
+        <p style={{ color: 'var(--text-muted)', fontSize: '1.05rem', maxWidth: '620px', margin: '0 auto 1.75rem' }}>
+          Browse available experts, explore their single specialty services, and find nearby specialists by campus location or hostel.
         </p>
+
+        {/* Nearby Location Search Bar */}
+        <div style={{ maxWidth: '520px', margin: '0 auto', position: 'relative' }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            background: '#ffffff',
+            borderRadius: '16px',
+            padding: '0.5rem 1rem',
+            border: '1.5px solid rgba(79, 70, 229, 0.2)',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.04)'
+          }}>
+            <MapPin size={18} color="var(--primary)" style={{ flexShrink: 0, marginRight: '0.65rem' }} />
+            <input
+              type="text"
+              placeholder="Find nearby experts by location (e.g. Unity Hall, Hostel, Off-campus)..."
+              value={locationQuery}
+              onChange={(e) => setLocationQuery(e.target.value)}
+              style={{
+                border: 'none',
+                outline: 'none',
+                width: '100%',
+                fontSize: '0.9rem',
+                color: 'var(--text-main)',
+                fontFamily: 'inherit'
+              }}
+            />
+            {locationQuery && (
+              <button
+                type="button"
+                onClick={() => setLocationQuery('')}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--text-muted)',
+                  cursor: 'pointer',
+                  fontSize: '0.8rem',
+                  fontWeight: 600,
+                  padding: '0.2rem 0.5rem'
+                }}
+              >
+                Clear
+              </button>
+            )}
+          </div>
+        </div>
       </header>
 
       {loading ? (
         <div style={{ padding: '4rem', textAlign: 'center', color: 'var(--text-muted)' }}>
           Loading specialists catalog...
         </div>
-      ) : experts.length === 0 ? (
+      ) : filteredExperts.length === 0 ? (
         <div style={{ padding: '4rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-          <h2 style={{ fontSize: '1.4rem', color: 'var(--text-main)', fontFamily: 'Outfit' }}>No experts listed yet</h2>
-          <p>Check back shortly as new specialists join the platform.</p>
+          <h2 style={{ fontSize: '1.4rem', color: 'var(--text-main)', fontFamily: 'Outfit' }}>
+            {locationQuery ? `No experts found matching "${locationQuery}"` : 'No experts listed yet'}
+          </h2>
+          <p>{locationQuery ? 'Try searching for another hostel, hall, or location keyword.' : 'Check back shortly as new specialists join the platform.'}</p>
+          {locationQuery && (
+            <button onClick={() => setLocationQuery('')} className="btn btn-secondary" style={{ marginTop: '0.75rem' }}>
+              Clear Search
+            </button>
+          )}
         </div>
       ) : (
         <div className="grid-layout grid-cols-1 md:grid-cols-2 lg:grid-cols-3" style={{ gap: '1.75rem' }}>
-          {experts.map((exp, idx) => (
+          {filteredExperts.map((exp, idx) => (
             <motion.div
               key={exp.id || exp._id}
               initial={{ opacity: 0, y: 15 }}
@@ -139,6 +202,23 @@ const ExpertsDirectory = () => {
                     <span style={{ fontSize: '0.8rem', color: 'var(--primary)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
                       <Award size={13} /> {exp.specialty || 'General Specialist'}
                     </span>
+                    {(exp.address || exp.location) && (
+                      <span style={{ 
+                        fontSize: '0.75rem', 
+                        color: '#059669', 
+                        fontWeight: 600, 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: '0.25rem',
+                        marginTop: '0.25rem',
+                        background: '#ecfdf5',
+                        padding: '0.15rem 0.5rem',
+                        borderRadius: '6px',
+                        width: 'fit-content'
+                      }}>
+                        <MapPin size={11} /> {exp.address || exp.location}
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -195,6 +275,52 @@ const ExpertsDirectory = () => {
                 <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', lineHeight: 1.5, marginBottom: '1.25rem' }}>
                   {exp.bio || 'Experienced specialist offering high quality appointment services.'}
                 </p>
+
+                {/* ── Lookbook Photo Strip ── */}
+                {exp.portfolio && exp.portfolio.length > 0 && (
+                  <div style={{ marginBottom: '1.25rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.5rem' }}>
+                      <Images size={13} color="var(--secondary)" />
+                      <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Lookbook — {exp.portfolio.length} styles</span>
+                    </div>
+                    <div style={{ display: 'flex', gap: '0.5rem', overflowX: 'auto', paddingBottom: '0.25rem', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                      {exp.portfolio.slice(0, 8).map((item, pi) => (
+                        <div
+                          key={pi}
+                          title={item.title || item.category || 'Portfolio'}
+                          style={{
+                            flexShrink: 0,
+                            width: '80px',
+                            height: '80px',
+                            borderRadius: '10px',
+                            overflow: 'hidden',
+                            border: '1.5px solid var(--border-light)',
+                            background: 'rgba(168,85,247,0.06)',
+                            position: 'relative',
+                            transition: 'transform 0.15s ease',
+                            cursor: 'pointer'
+                          }}
+                          onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.06)'}
+                          onMouseLeave={e => e.currentTarget.style.transform = ''}
+                        >
+                          <img
+                            src={item.imageUrl}
+                            alt={item.title || 'Lookbook'}
+                            loading="lazy"
+                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                            onError={e => { e.target.style.opacity = '0.2'; }}
+                          />
+                        </div>
+                      ))}
+                      {exp.portfolio.length > 8 && (
+                        <div style={{ flexShrink: 0, width: '80px', height: '80px', borderRadius: '10px', background: 'rgba(168,85,247,0.1)', border: '1.5px solid rgba(168,85,247,0.2)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '0.2rem' }}>
+                          <span style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--secondary)' }}>+{exp.portfolio.length - 8}</span>
+                          <span style={{ fontSize: '0.6rem', color: 'var(--secondary)', fontWeight: 600 }}>more</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 {/* Offered Services List */}
                 <div style={{ borderTop: '1px solid var(--border-light)', paddingTop: '1rem', marginBottom: '1.25rem' }}>

@@ -32,7 +32,12 @@ import {
   Star,
   Shield,
   BarChart2,
-  Settings
+  Settings,
+  Images,
+  Upload,
+  Link as LinkIcon,
+  Eye,
+  ImageOff
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -53,9 +58,10 @@ const statusBg = (s) => {
 };
 
 const NAV_ITEMS = [
-  { key: 'appointments', label: 'Schedule', icon: CalendarRange },
+  { key: 'appointments', label: 'Schedule',  icon: CalendarRange },
   { key: 'services',     label: 'Services',  icon: Briefcase },
   { key: 'availability', label: 'Hours',     icon: Clock },
+  { key: 'lookbook',     label: 'Lookbook',  icon: Images },
   { key: 'wallet',       label: 'Wallet',    icon: Wallet },
   { key: 'profile',      label: 'Profile',   icon: User },
 ];
@@ -80,6 +86,12 @@ const ExpertDashboard = () => {
   const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
   const [serviceForm, setServiceForm] = useState({ name: '', description: '', duration: '45', price: '', location: 'Main Studio', category: 'Hair Packages' });
   const [editingServiceId, setEditingServiceId] = useState(null);
+
+  // Lookbook / Portfolio
+  const [portfolio, setPortfolio] = useState(user?.portfolio || []);
+  const [portfolioForm, setPortfolioForm] = useState({ title: '', description: '', imageUrl: '', category: user?.specialty || 'Hair Styling' });
+  const [portfolioSubmitting, setPortfolioSubmitting] = useState(false);
+  const [portfolioPreview, setPortfolioPreview] = useState(null);
 
   const { notify } = useNotify();
   const addToast = (message, type = 'success') => {
@@ -181,6 +193,39 @@ const ExpertDashboard = () => {
       if (res.data.success) addToast('Profile saved!', 'success');
     } catch (err) { addToast('Failed to update profile.', 'error'); }
     finally { setSavingProfile(false); }
+  };
+
+  // ── Portfolio handlers ──────────────────────────────────────────────────────
+  const handleAddPortfolioItem = async (e) => {
+    e.preventDefault();
+    if (!portfolioForm.imageUrl.trim()) { addToast('Please provide an image URL.', 'error'); return; }
+    try {
+      setPortfolioSubmitting(true);
+      const res = await axios.post(`${API_URL}/auth/portfolio`, portfolioForm);
+      if (res.data.success) {
+        setPortfolio(res.data.data);
+        setPortfolioForm({ title: '', description: '', imageUrl: '', category: user?.specialty || 'Hair Styling' });
+        setPortfolioPreview(null);
+        addToast('Lookbook style added! 🎨', 'success');
+      }
+    } catch (err) {
+      addToast(err.response?.data?.message || 'Failed to add lookbook item.', 'error');
+    } finally {
+      setPortfolioSubmitting(false);
+    }
+  };
+
+  const handleDeletePortfolioItem = async (itemId) => {
+    if (!window.confirm('Remove this photo from your lookbook?')) return;
+    try {
+      const res = await axios.delete(`${API_URL}/auth/portfolio/${itemId}`);
+      if (res.data.success) {
+        setPortfolio(res.data.data);
+        addToast('Lookbook item removed.', 'info');
+      }
+    } catch (err) {
+      addToast('Failed to remove lookbook item.', 'error');
+    }
   };
 
   const pendingApps   = appointments.filter(a => a.status === 'pending').length;
@@ -878,6 +923,160 @@ const ExpertDashboard = () => {
                     </div>
                   )}
 
+                  {/* ─── LOOKBOOK ─── */}
+                  {activeTab === 'lookbook' && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+
+                      {/* Upload Form */}
+                      <div className="app-card">
+                        <div className="card-header">
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                            <Images size={20} color="var(--secondary)" />
+                            <div>
+                              <h3 style={{ margin: 0 }}>My Style Lookbook</h3>
+                              <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-muted)' }}>Share your best work — students see this before booking</p>
+                            </div>
+                          </div>
+                          <span style={{ fontSize: '0.78rem', padding: '0.3rem 0.75rem', borderRadius: '9999px', background: 'rgba(168,85,247,0.1)', color: 'var(--secondary)', fontWeight: 700 }}>
+                            {portfolio.length} photos
+                          </span>
+                        </div>
+                        <div className="card-body">
+                          <form onSubmit={handleAddPortfolioItem} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                            {/* Image URL input + live preview */}
+                            <div className="input-group" style={{ marginBottom: 0 }}>
+                              <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><LinkIcon size={13} /> Image URL (paste a direct image link)</label>
+                              <input
+                                type="url"
+                                placeholder="https://example.com/your-work-photo.jpg"
+                                value={portfolioForm.imageUrl}
+                                onChange={e => {
+                                  setPortfolioForm({ ...portfolioForm, imageUrl: e.target.value });
+                                  setPortfolioPreview(e.target.value.trim() || null);
+                                }}
+                                style={{ fontFamily: 'monospace', fontSize: '0.82rem' }}
+                              />
+                            </div>
+
+                            {/* Live preview */}
+                            {portfolioPreview && (
+                              <div style={{ borderRadius: '14px', overflow: 'hidden', border: '2px dashed rgba(168,85,247,0.3)', background: 'rgba(168,85,247,0.04)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '160px', position: 'relative' }}>
+                                <img
+                                  src={portfolioPreview}
+                                  alt="preview"
+                                  onError={() => setPortfolioPreview(null)}
+                                  style={{ maxWidth: '100%', maxHeight: '220px', objectFit: 'cover', borderRadius: '12px' }}
+                                />
+                                <span style={{ position: 'absolute', top: '0.5rem', right: '0.5rem', background: 'rgba(0,0,0,0.55)', color: '#fff', fontSize: '0.65rem', fontWeight: 700, padding: '0.2rem 0.5rem', borderRadius: '6px' }}>PREVIEW</span>
+                              </div>
+                            )}
+
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                              <div className="input-group" style={{ marginBottom: 0 }}>
+                                <label>Title (optional)</label>
+                                <input
+                                  type="text"
+                                  placeholder="e.g. Ghana Braids"
+                                  value={portfolioForm.title}
+                                  onChange={e => setPortfolioForm({ ...portfolioForm, title: e.target.value })}
+                                />
+                              </div>
+                              <div className="input-group" style={{ marginBottom: 0 }}>
+                                <label>Category</label>
+                                <select
+                                  value={portfolioForm.category}
+                                  onChange={e => setPortfolioForm({ ...portfolioForm, category: e.target.value })}
+                                  style={{ padding: '0.75rem 1rem', borderRadius: '10px', border: '1px solid var(--border-light)', width: '100%', background: 'var(--bg-input, var(--bg-card))' }}
+                                >
+                                  {['Hair Styling', 'Braids & Twists', 'Nails & Manicure', 'Lash Extensions', 'Makeup & Glam', 'Male Grooming', 'Other'].map(c => (
+                                    <option key={c} value={c}>{c}</option>
+                                  ))}
+                                </select>
+                              </div>
+                            </div>
+
+                            <div className="input-group" style={{ marginBottom: 0 }}>
+                              <label>Caption / Description (optional)</label>
+                              <textarea
+                                rows="2"
+                                placeholder="Describe this style, technique used, products, etc."
+                                value={portfolioForm.description}
+                                onChange={e => setPortfolioForm({ ...portfolioForm, description: e.target.value })}
+                              />
+                            </div>
+
+                            <button
+                              type="submit"
+                              disabled={portfolioSubmitting || !portfolioForm.imageUrl.trim()}
+                              className="btn btn-primary"
+                              style={{ alignSelf: 'flex-start', background: 'linear-gradient(135deg, var(--secondary), var(--primary))', borderColor: 'transparent', padding: '0.65rem 1.5rem' }}
+                            >
+                              {portfolioSubmitting ? 'Uploading...' : <><Images size={15} /> Add to Lookbook</>}
+                            </button>
+                          </form>
+                        </div>
+                      </div>
+
+                      {/* Gallery Grid */}
+                      {portfolio.length === 0 ? (
+                        <div style={{ textAlign: 'center', padding: '4rem 2rem', background: 'var(--bg-card)', borderRadius: '18px', border: '1px dashed var(--border-light)' }}>
+                          <ImageOff size={40} style={{ opacity: 0.2, marginBottom: '1rem' }} />
+                          <p style={{ fontWeight: 700, color: 'var(--text-main)', fontSize: '1rem' }}>No lookbook photos yet</p>
+                          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '0.25rem' }}>Add your first style photo above — students will see these when booking you.</p>
+                        </div>
+                      ) : (
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '1rem' }}>
+                          {portfolio.map((item) => (
+                            <div
+                              key={String(item._id)}
+                              style={{
+                                borderRadius: '16px',
+                                overflow: 'hidden',
+                                background: 'var(--bg-card)',
+                                border: '1px solid var(--border-light)',
+                                position: 'relative',
+                                transition: 'transform 0.18s ease, box-shadow 0.18s ease',
+                                cursor: 'default'
+                              }}
+                              onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 10px 28px rgba(0,0,0,0.15)'; }}
+                              onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = ''; }}
+                            >
+                              <div style={{ position: 'relative', paddingBottom: '75%', background: 'rgba(168,85,247,0.06)' }}>
+                                <img
+                                  src={item.imageUrl}
+                                  alt={item.title || 'Lookbook'}
+                                  loading="lazy"
+                                  style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+                                  onError={e => { e.target.style.opacity = '0.3'; }}
+                                />
+                                {/* Category badge */}
+                                <span style={{ position: 'absolute', top: '0.5rem', left: '0.5rem', background: 'rgba(0,0,0,0.65)', color: '#fff', fontSize: '0.6rem', fontWeight: 700, padding: '0.2rem 0.5rem', borderRadius: '6px', backdropFilter: 'blur(4px)', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+                                  {item.category}
+                                </span>
+                                {/* Delete button */}
+                                <button
+                                  onClick={() => handleDeletePortfolioItem(String(item._id))}
+                                  title="Remove from lookbook"
+                                  style={{ position: 'absolute', top: '0.5rem', right: '0.5rem', background: 'rgba(239,68,68,0.85)', border: 'none', borderRadius: '8px', width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', cursor: 'pointer', backdropFilter: 'blur(4px)', transition: 'background 0.15s' }}
+                                  onMouseEnter={e => e.currentTarget.style.background = '#ef4444'}
+                                  onMouseLeave={e => e.currentTarget.style.background = 'rgba(239,68,68,0.85)'}
+                                >
+                                  <Trash2 size={13} />
+                                </button>
+                              </div>
+                              {(item.title || item.description) && (
+                                <div style={{ padding: '0.75rem 0.9rem' }}>
+                                  {item.title && <p style={{ margin: 0, fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-main)', fontFamily: 'Outfit' }}>{item.title}</p>}
+                                  {item.description && <p style={{ margin: '0.2rem 0 0', fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>{item.description}</p>}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {/* ─── PROFILE ─── */}
                   {activeTab === 'profile' && (
                     <div className="app-card" style={{ maxWidth: '580px' }}>
@@ -939,17 +1138,9 @@ const ExpertDashboard = () => {
                   <label>Service Title</label>
                   <input type="text" name="name" value={serviceForm.name} onChange={e => setServiceForm({ ...serviceForm, [e.target.name]: e.target.value })} required />
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                  <div className="input-group" style={{ marginBottom: 0 }}>
-                    <label>Category</label>
-                    <select name="category" value={serviceForm.category} onChange={e => setServiceForm({ ...serviceForm, [e.target.name]: e.target.value })} style={{ padding: '0.75rem 1rem', borderRadius: '10px', border: '1px solid var(--border-light)', width: '100%', background: 'var(--bg-input, var(--bg-card))' }}>
-                      {['Hair Packages','Nail Packages','Lash Packages','Makeup Packages','Male Grooming','Academic','Technical'].map(c => <option key={c} value={c}>{c}</option>)}
-                    </select>
-                  </div>
-                  <div className="input-group" style={{ marginBottom: 0 }}>
-                    <label>Location</label>
-                    <input type="text" name="location" value={serviceForm.location} onChange={e => setServiceForm({ ...serviceForm, [e.target.name]: e.target.value })} />
-                  </div>
+                <div className="input-group" style={{ marginBottom: 0 }}>
+                  <label>Location</label>
+                  <input type="text" name="location" value={serviceForm.location} onChange={e => setServiceForm({ ...serviceForm, [e.target.name]: e.target.value })} />
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                   <div className="input-group" style={{ marginBottom: 0 }}>

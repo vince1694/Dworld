@@ -78,7 +78,55 @@ const sendAppointmentMessage = async (req, res, next) => {
     }
 };
 
+const getAllUserConversations = async (req, res, next) => {
+    try {
+        const userId = req.user.id;
+        // Find all appointments involving this user
+        const appointments = await Appointment.find({
+            $or: [
+                { user_id: userId },
+                { stylist_id: userId }
+            ]
+        })
+        .populate('service_id', 'name price duration category image')
+        .populate('user_id', 'name email role phone matricNo')
+        .populate('stylist_id', 'name email role phone matricNo specialty')
+        .sort({ updatedAt: -1 });
+
+        // For each appointment, fetch the last message
+        const conversations = await Promise.all(appointments.map(async (apt) => {
+            const lastMsg = await AppointmentMessage.findOne({ appointment_id: apt._id })
+                .sort({ createdAt: -1 });
+            
+            const isClient = String(apt.user_id?._id || apt.user_id) === String(userId);
+            const otherParty = isClient ? apt.stylist_id : apt.user_id;
+
+            return {
+                appointmentId: apt._id,
+                service: apt.service_id,
+                date: apt.date,
+                time: apt.time,
+                status: apt.status,
+                paymentStatus: apt.paymentStatus,
+                isClient,
+                otherParty: otherParty || { name: 'Campus Specialist', role: 'expert' },
+                lastMessage: lastMsg ? {
+                    text: lastMsg.text,
+                    photo_url: lastMsg.photo_url,
+                    createdAt: lastMsg.createdAt,
+                    sender_id: lastMsg.sender_id
+                } : null
+            };
+        }));
+
+        res.json({ success: true, data: conversations });
+    } catch (error) {
+        next(error);
+    }
+};
+
 module.exports = {
     getAppointmentMessages,
-    sendAppointmentMessage
+    sendAppointmentMessage,
+    getAllUserConversations
 };

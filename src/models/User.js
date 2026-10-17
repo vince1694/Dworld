@@ -15,6 +15,8 @@ const userSchema = new mongoose.Schema({
   role: { type: String, enum: ['user', 'expert', 'admin'], default: 'user' },
   phone: { type: String, default: '' },
   state: { type: String, default: '' },
+  address: { type: String, default: '' },
+  location: { type: String, default: '' },
   matricNo: { type: String, default: '' },
   bio: { type: String, default: 'Experienced professional specialist.' },
   specialty: { type: String, default: 'General Specialist' },
