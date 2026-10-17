@@ -12,12 +12,14 @@ import {
   UserCheck, 
   FileText,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Download
 } from 'lucide-react';
 import axios from 'axios';
 
 import { useAuth } from '../context/AuthContext';
 import VerifiedBadge from './VerifiedBadge';
+import { getGoogleCalendarUrl, downloadIcsFile } from '../utils/calendar';
 
 import { API_URL } from '../config/api';
 
@@ -410,6 +412,27 @@ const BookingWizardModal = ({ isOpen, onClose, onBookingSuccess, preselectedServ
                     value={selectedDate}
                     onChange={(e) => setSelectedDate(e.target.value)}
                   />
+                  {(() => {
+                    if (!selectedDate) return null;
+                    const dateObj = new Date(selectedDate + 'T00:00:00');
+                    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                    const dayName = days[dateObj.getDay()];
+                    const isStylistOff = selectedExpert?.workingDays && selectedExpert.workingDays.length > 0
+                      ? !selectedExpert.workingDays.includes(dayName)
+                      : false;
+
+                    if (isStylistOff) {
+                      return (
+                        <div style={{ marginTop: '0.65rem', padding: '0.6rem 0.85rem', borderRadius: '10px', background: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.3)', color: '#d97706', fontSize: '0.825rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <AlertCircle size={16} />
+                          <span>
+                            <strong>Stylist Off-Day Notice:</strong> {selectedExpert?.name || 'This expert'} usually takes {dayName}s off. (Working days: {selectedExpert?.workingDays?.join(', ')}).
+                          </span>
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
                 </div>
 
                 <div style={{ marginTop: '1.5rem' }}>
@@ -570,9 +593,40 @@ const BookingWizardModal = ({ isOpen, onClose, onBookingSuccess, preselectedServ
             <h3 style={{ fontSize: '1.5rem', marginBottom: '0.5rem', fontFamily: 'Outfit' }}>
               Appointment Reserved!
             </h3>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', maxWidth: '420px', margin: '0 auto 2rem' }}>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', maxWidth: '420px', margin: '0 auto 1.5rem' }}>
               Your appointment for <strong style={{ color: 'var(--text-main)' }}>{selectedService?.name}</strong> on <strong style={{ color: 'var(--primary)' }}>{selectedDate} at {selectedTime}</strong> has been successfully requested.
             </p>
+
+            {/* 1-Click Calendar Add */}
+            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', marginBottom: '1.75rem', flexWrap: 'wrap' }}>
+              <a
+                href={getGoogleCalendarUrl({
+                  date: selectedDate,
+                  time: selectedTime,
+                  service_id: selectedService,
+                  notes
+                })}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn btn-secondary"
+                style={{ fontSize: '0.85rem', padding: '0.55rem 1rem', display: 'inline-flex', alignItems: 'center', gap: '0.45rem', textDecoration: 'none' }}
+              >
+                <CalendarIcon size={16} color="var(--primary)" /> Add to Google Calendar
+              </a>
+              <button
+                type="button"
+                onClick={() => downloadIcsFile({
+                  date: selectedDate,
+                  time: selectedTime,
+                  service_id: selectedService,
+                  notes
+                })}
+                className="btn btn-secondary"
+                style={{ fontSize: '0.85rem', padding: '0.55rem 1rem', display: 'inline-flex', alignItems: 'center', gap: '0.45rem' }}
+              >
+                <Download size={16} color="var(--secondary)" /> Download .ics File
+              </button>
+            </div>
 
             <button 
               onClick={onClose} 

@@ -247,6 +247,43 @@ const resetPassword = async (req, res, next) => {
     }
 };
 
+const updateProfile = async (req, res, next) => {
+    try {
+        const { name, phone, bio, specialty } = req.body;
+        const user = await User.findByIdAndUpdate(
+            req.user.id,
+            { name, phone, bio, specialty },
+            { new: true }
+        );
+        res.json({ success: true, message: 'Profile updated successfully', user });
+    } catch (error) {
+        next(error);
+    }
+};
+
+const updateAvailability = async (req, res, next) => {
+    try {
+        const { workingDays, workingHours } = req.body;
+        const updateData = {};
+        if (workingDays && Array.isArray(workingDays)) updateData.workingDays = workingDays;
+        if (workingHours) updateData.workingHours = workingHours;
+
+        const user = await User.findByIdAndUpdate(
+            req.user.id,
+            updateData,
+            { new: true }
+        );
+        res.json({ 
+            success: true, 
+            message: 'Working days and hours updated successfully!',
+            workingDays: user.workingDays,
+            workingHours: user.workingHours
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 const getMe = async (req, res, next) => {
     try {
         const user = await User.findById(req.user.id);
@@ -261,6 +298,8 @@ const getMe = async (req, res, next) => {
             phone: user.phone,
             bio: user.bio,
             specialty: user.specialty,
+            workingDays: user.workingDays || ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
+            workingHours: user.workingHours || { start: '09:00', end: '18:00' },
             walletBalance: user.walletBalance || 500
         }});
     } catch (error) {
@@ -333,15 +372,20 @@ const getExperts = async (req, res, next) => {
                 ] 
             });
 
-            // If an expert has no services listed yet, automatically create default campus offerings for them
+            // If an expert has no services listed yet, create their single specialty service
             if (!services || services.length === 0) {
-                const defaultSeeds = [
-                    { name: 'Haircut & Precision Styling', description: 'Professional haircut, line-up, and precision styling.', price: 3000, duration: 30, type: 'single', category: 'Male Grooming', stylist_id: exp._id },
-                    { name: 'Hair + Wig Service Package', description: 'Full hair installation and wig styling combo.', price: 6000, duration: 60, type: 'package', category: 'Hair Packages', stylist_id: exp._id },
-                    { name: 'Manicure + Pedicure Combo', description: 'Full hand manicure and foot pedicure combo.', price: 5000, duration: 60, type: 'package', category: 'Nail Packages', stylist_id: exp._id },
-                    { name: 'Lash Extensions', description: 'Classic full lash set extensions.', price: 4000, duration: 45, type: 'single', category: 'Lash Packages', stylist_id: exp._id }
-                ];
-                services = await Service.insertMany(defaultSeeds);
+                const spec = exp.specialty || 'Hair Styling';
+                const defaultSingle = await Service.create({
+                    name: spec,
+                    description: `${exp.name}'s professional campus service.`,
+                    price: 3500,
+                    duration: 45,
+                    type: 'single',
+                    category: 'Single Services',
+                    location: 'Campus Studio / Main Salon',
+                    stylist_id: exp._id
+                });
+                services = [defaultSingle];
             }
 
             return {
@@ -355,6 +399,8 @@ const getExperts = async (req, res, next) => {
                 department: exp.department || 'Cosmetology & Campus Styling',
                 bio: exp.bio || 'Professional Verified Specialist',
                 specialty: exp.specialty || 'General Specialist',
+                workingDays: exp.workingDays || ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
+                workingHours: exp.workingHours || { start: '09:00', end: '18:00' },
                 rating: exp.rating || 4.9,
                 isVerified: true,
                 services
@@ -371,11 +417,12 @@ module.exports = {
     register, 
     login, 
     updateProfile, 
+    updateAvailability,
     forgotPassword, 
     verifyOtp, 
     resetPassword, 
-    getMe,
-    getWallet,
-    topupWallet,
-    getExperts
+    getMe, 
+    getWallet, 
+    topupWallet, 
+    getExperts 
 };

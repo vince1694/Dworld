@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node src/app.js",
     "build": "npm run build --prefix client",
-    "render-build": "npm install && npm install --prefix client && npm run build --prefix client",
+    "render-build": "npm install && npm install --include=dev --prefix client && npm run build --prefix client",
     "server": "node --watch --watch-path=src src/app.js",
     "client": "npm run dev --prefix client",
     "dev": "concurrently \"npm run server\" \"npm run client\"",

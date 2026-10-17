@@ -13,8 +13,13 @@ const {
     deleteAppointment,
     clearBookingHistory
 } = require('../controllers/appointmentController');
+const { getAppointmentMessages, sendAppointmentMessage } = require('../controllers/appointmentChatController');
 const { protect, adminOnly } = require('../middleware/authMiddleware');
 const router = express.Router();
+
+// Appointment In-App Messaging
+router.get('/:id/messages', protect, getAppointmentMessages);
+router.post('/:id/messages', protect, sendAppointmentMessage);
 
 // User routes
 router.post('/book', protect, bookAppointment);

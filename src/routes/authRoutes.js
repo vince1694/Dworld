@@ -3,6 +3,7 @@ const {
   register, 
   login, 
   updateProfile, 
+  updateAvailability,
   forgotPassword, 
   verifyOtp, 
   resetPassword, 
@@ -37,5 +38,6 @@ router.post('/forgot-password', forgotPassword);
 router.post('/verify', verifyOtp);
 router.post('/reset-password', resetPassword);
 router.put('/profile', protect, updateProfile);
+router.put('/availability', protect, updateAvailability);
 
 module.exports = router;

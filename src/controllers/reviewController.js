@@ -4,7 +4,7 @@ const Appointment = require('../models/Appointment');
 
 const createReview = async (req, res, next) => {
   try {
-    const { appointment_id, rating, comment } = req.body;
+    const { appointment_id, rating, comment, photo_url } = req.body;
     const client_id = req.user.id;
 
     const appointment = await Appointment.findById(appointment_id).populate('service_id');
@@ -35,7 +35,8 @@ const createReview = async (req, res, next) => {
       expert_id,
       appointment_id,
       rating: parseInt(rating),
-      comment: comment || ''
+      comment: comment || '',
+      photo_url: photo_url || ''
     });
 
     // Recalculate Expert Average Rating

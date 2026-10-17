@@ -24,6 +24,14 @@ const userSchema = new mongoose.Schema({
   walletBalance: { type: Number, default: 50000 },
   resetOtp: { type: String, default: null },
   resetOtpExpires: { type: Date, default: null },
+  workingDays: { 
+    type: [String], 
+    default: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] 
+  },
+  workingHours: {
+    start: { type: String, default: '09:00' },
+    end: { type: String, default: '18:00' }
+  },
   transactions: [transactionSchema]
 }, { timestamps: true });
 

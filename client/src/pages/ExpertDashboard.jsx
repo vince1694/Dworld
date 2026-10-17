@@ -21,10 +21,17 @@ import {
   X,
   Sparkles,
   Wallet,
-  ArrowDownLeft
+  ArrowDownLeft,
+  MessageSquare,
+  Download,
+  Calendar,
+  Sun,
+  Moon
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ToastContainer from '../components/ToastContainer';
+import AppointmentChatModal from '../components/AppointmentChatModal';
+import { getGoogleCalendarUrl, downloadIcsFile } from '../utils/calendar';
 
 import { API_URL } from '../config/api';
 
@@ -58,6 +65,22 @@ const ExpertDashboard = () => {
   const [profileForm, setProfileForm] = useState({ name: user?.name || '', phone: user?.phone || '' });
   const [savingProfile, setSavingProfile] = useState(false);
 
+  // Availability & Working Hours
+  const ALL_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+  const [workingDays, setWorkingDays] = useState(
+    user?.workingDays && user.workingDays.length > 0
+      ? user.workingDays 
+      : ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+  );
+  const [workingHours, setWorkingHours] = useState({
+    start: user?.workingHours?.start || '09:00',
+    end: user?.workingHours?.end || '18:00'
+  });
+  const [savingAvailability, setSavingAvailability] = useState(false);
+
+  // Chat State
+  const [chatAppointment, setChatAppointment] = useState(null);
+
   useEffect(() => {
     fetchData();
     fetchWallet();
@@ -84,10 +107,47 @@ const ExpertDashboard = () => {
       ]);
       if (appRes.data.success) setAppointments(appRes.data.data.appointments);
       if (srvRes.data.success) setServices(srvRes.data.data);
+
+      // Refresh expert availability from user profile
+      const userRes = await axios.get(`${API_URL}/auth/me`);
+      if (userRes.data.success && userRes.data.data) {
+        if (userRes.data.data.workingDays) setWorkingDays(userRes.data.data.workingDays);
+        if (userRes.data.data.workingHours) setWorkingHours(userRes.data.data.workingHours);
+      }
     } catch (err) {
       console.error('Error fetching expert data', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const toggleDay = (day) => {
+    if (workingDays.includes(day)) {
+      if (workingDays.length === 1) {
+        addToast('You must keep at least one working day available.', 'error');
+        return;
+      }
+      setWorkingDays(workingDays.filter(d => d !== day));
+    } else {
+      setWorkingDays([...workingDays, day]);
+    }
+  };
+
+  const handleSaveAvailability = async (e) => {
+    e.preventDefault();
+    setSavingAvailability(true);
+    try {
+      const res = await axios.put(`${API_URL}/auth/availability`, {
+        workingDays,
+        workingHours
+      });
+      if (res.data.success) {
+        addToast('Availability & working hours updated successfully!', 'success');
+      }
+    } catch (err) {
+      addToast(err.response?.data?.message || 'Failed to update availability', 'error');
+    } finally {
+      setSavingAvailability(false);
     }
   };
 
@@ -317,6 +377,13 @@ const ExpertDashboard = () => {
           <Briefcase size={16} /> My Services ({services.length})
         </button>
         <button
+          onClick={() => setSearchParams({ tab: 'availability' })}
+          className={`btn ${activeTab === 'availability' ? 'btn-primary' : 'btn-secondary'}`}
+          style={{ fontSize: '0.85rem' }}
+        >
+          <Clock size={16} /> Working Hours & Availability
+        </button>
+        <button
           onClick={() => setSearchParams({ tab: 'profile' })}
           className={`btn ${activeTab === 'profile' ? 'btn-primary' : 'btn-secondary'}`}
           style={{ fontSize: '0.85rem' }}
@@ -379,10 +446,53 @@ const ExpertDashboard = () => {
                             </span>
                           </div>
 
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
                             <span className={`status-badge status-${app.status}`}>
                               {app.status}
                             </span>
+
+                            {/* Chat Button */}
+                            <button
+                              type="button"
+                              onClick={() => setChatAppointment(app)}
+                              className="btn btn-secondary"
+                              style={{
+                                padding: '0.35rem 0.65rem',
+                                fontSize: '0.78rem',
+                                color: 'var(--primary)',
+                                background: 'rgba(99, 102, 241, 0.1)',
+                                border: '1px solid rgba(99, 102, 241, 0.3)',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.35rem',
+                                fontWeight: 600
+                              }}
+                            >
+                              <MessageSquare size={13} /> Chat with Client
+                            </button>
+
+                            {/* Calendar Exports */}
+                            <div style={{ display: 'inline-flex', gap: '0.3rem' }}>
+                              <a
+                                href={getGoogleCalendarUrl(app)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="btn btn-secondary"
+                                style={{ padding: '0.35rem 0.55rem', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '0.25rem', textDecoration: 'none' }}
+                                title="Add to Google Calendar"
+                              >
+                                <Calendar size={13} color="var(--primary)" /> Cal
+                              </a>
+                              <button
+                                type="button"
+                                onClick={() => downloadIcsFile(app)}
+                                className="btn btn-secondary"
+                                style={{ padding: '0.35rem 0.55rem', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}
+                                title="Download .ics Calendar File"
+                              >
+                                <Download size={13} color="var(--secondary)" /> .ics
+                              </button>
+                            </div>
 
                             <div style={{ display: 'flex', gap: '0.4rem' }}>
                               {app.status !== 'approved' && app.status !== 'completed' && (
@@ -500,6 +610,118 @@ const ExpertDashboard = () => {
               </motion.div>
             )}
 
+            {/* AVAILABILITY & WORKING HOURS TAB */}
+            {activeTab === 'availability' && (
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="app-card" style={{ maxWidth: '680px' }}>
+                <div className="card-header">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <div style={{ padding: '0.5rem', background: 'rgba(99, 102, 241, 0.1)', borderRadius: '8px', color: 'var(--primary)' }}>
+                      <Clock size={20} />
+                    </div>
+                    <div>
+                      <h3 style={{ margin: 0, fontSize: '1.15rem' }}>Availability & Working Hours</h3>
+                      <p style={{ margin: 0, fontSize: '0.825rem', color: 'var(--text-muted)' }}>
+                        Control which days and hours clients can book you for
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="card-body" style={{ padding: '1.5rem' }}>
+                  <form onSubmit={handleSaveAvailability}>
+                    {/* Daily Toggles */}
+                    <div style={{ marginBottom: '1.75rem' }}>
+                      <label style={{ display: 'block', fontWeight: 600, fontSize: '0.9rem', marginBottom: '0.75rem', color: 'var(--text-main)' }}>
+                        Available Days of the Week
+                      </label>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: '0.75rem' }}>
+                        {ALL_DAYS.map((day) => {
+                          const isActive = workingDays.includes(day);
+                          return (
+                            <button
+                              key={day}
+                              type="button"
+                              onClick={() => toggleDay(day)}
+                              style={{
+                                padding: '0.85rem 0.75rem',
+                                borderRadius: '12px',
+                                border: isActive ? '2px solid var(--primary)' : '1px solid var(--border-light)',
+                                background: isActive ? 'rgba(99, 102, 241, 0.12)' : 'rgba(255, 255, 255, 0.02)',
+                                color: isActive ? 'var(--primary)' : 'var(--text-muted)',
+                                fontWeight: isActive ? 700 : 500,
+                                fontSize: '0.85rem',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                gap: '0.35rem',
+                                transition: 'all 0.15s ease'
+                              }}
+                            >
+                              <span>{day}</span>
+                              <span style={{
+                                fontSize: '0.7rem',
+                                padding: '0.15rem 0.5rem',
+                                borderRadius: '9999px',
+                                background: isActive ? '#10b981' : '#64748b',
+                                color: '#ffffff'
+                              }}>
+                                {isActive ? 'Open' : 'Off'}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Working Hours Pickers */}
+                    <div style={{ marginBottom: '1.75rem' }}>
+                      <label style={{ display: 'block', fontWeight: 600, fontSize: '0.9rem', marginBottom: '0.75rem', color: 'var(--text-main)' }}>
+                        Daily Service Hours (Start — End)
+                      </label>
+                      <div className="grid-layout grid-cols-2" style={{ gap: '1rem' }}>
+                        <div className="input-group" style={{ marginBottom: 0 }}>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                            <Sun size={14} color="#f59e0b" /> Opening Time
+                          </label>
+                          <input
+                            type="time"
+                            value={workingHours.start}
+                            onChange={(e) => setWorkingHours({ ...workingHours, start: e.target.value })}
+                            required
+                            style={{ padding: '0.75rem 1rem', borderRadius: '10px' }}
+                          />
+                        </div>
+                        <div className="input-group" style={{ marginBottom: 0 }}>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                            <Moon size={14} color="#6366f1" /> Closing Time
+                          </label>
+                          <input
+                            type="time"
+                            value={workingHours.end}
+                            onChange={(e) => setWorkingHours({ ...workingHours, end: e.target.value })}
+                            required
+                            style={{ padding: '0.75rem 1rem', borderRadius: '10px' }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                      <button
+                        type="submit"
+                        disabled={savingAvailability}
+                        className="btn btn-primary"
+                        style={{ padding: '0.75rem 1.75rem' }}
+                      >
+                        {savingAvailability ? 'Saving Schedule...' : 'Save Availability'}
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </motion.div>
+            )}
+
             {/* PROFILE TAB */}
             {activeTab === 'profile' && (
               <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="app-card" style={{ maxWidth: '600px' }}>
@@ -579,9 +801,6 @@ const ExpertDashboard = () => {
                       style={{ padding: '0.75rem 1rem', borderRadius: '12px', border: '1px solid var(--border-light)', width: '100%' }}
                     >
                       <option value="single">🟢 Single Service</option>
-                      <option value="double">🔵 Double Service</option>
-                      <option value="triple">🟣 Triple Package</option>
-                      <option value="premium">👑 Full / Premium Package</option>
                     </select>
                   </div>
 
@@ -598,7 +817,6 @@ const ExpertDashboard = () => {
                       <option value="Lash Packages">Lash Packages</option>
                       <option value="Makeup Packages">Makeup Packages</option>
                       <option value="Male Grooming">Male Grooming</option>
-                      <option value="Full Beauty Packages">Full Beauty Packages</option>
                       <option value="Academic">Academic</option>
                       <option value="Technical">Technical</option>
                     </select>
@@ -661,6 +879,13 @@ const ExpertDashboard = () => {
           </div>
         )}
       </AnimatePresence>
+
+      {/* CHAT MODAL */}
+      <AppointmentChatModal
+        isOpen={Boolean(chatAppointment)}
+        onClose={() => setChatAppointment(null)}
+        appointment={chatAppointment}
+      />
 
     </div>
   );

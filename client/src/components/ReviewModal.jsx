@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Star, X, CheckCircle, MessageSquare } from 'lucide-react';
+import { Star, X, CheckCircle, MessageSquare, Camera, Image as ImageIcon } from 'lucide-react';
 import axios from 'axios';
 
 import { API_URL } from '../config/api';
@@ -9,10 +9,53 @@ const ReviewModal = ({ isOpen, onClose, appointment, onReviewSubmitted }) => {
   const [rating, setRating] = useState(5);
   const [hoverRating, setHoverRating] = useState(0);
   const [comment, setComment] = useState('');
+  const [photoUrl, setPhotoUrl] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
   if (!isOpen || !appointment) return null;
+
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      setError('Photo must be less than 5MB');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (uploadEvent) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 800;
+        const MAX_HEIGHT = 800;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height *= MAX_WIDTH / width;
+            width = MAX_WIDTH;
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width *= MAX_HEIGHT / height;
+            height = MAX_HEIGHT;
+          }
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        const compressedBase64 = canvas.toDataURL('image/jpeg', 0.82);
+        setPhotoUrl(compressedBase64);
+      };
+      img.src = uploadEvent.target.result;
+    };
+    reader.readAsDataURL(file);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -22,7 +65,8 @@ const ReviewModal = ({ isOpen, onClose, appointment, onReviewSubmitted }) => {
       const res = await axios.post(`${API_URL}/reviews`, {
         appointment_id: appointment.id || appointment._id,
         rating,
-        comment
+        comment,
+        photo_url: photoUrl
       });
       if (res.data.success) {
         if (onReviewSubmitted) onReviewSubmitted(res.data.message);
@@ -128,12 +172,70 @@ const ReviewModal = ({ isOpen, onClose, appointment, onReviewSubmitted }) => {
             />
           </div>
 
+          {/* Photo Upload Section */}
+          <div style={{ margin: '1.25rem 0' }}>
+            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '0.5rem' }}>
+              📸 Attach Photo of Finished Look (Optional)
+            </label>
+            {photoUrl ? (
+              <div style={{ position: 'relative', display: 'inline-block', borderRadius: '12px', overflow: 'hidden', border: '2px solid var(--primary)' }}>
+                <img src={photoUrl} alt="Review look" style={{ width: '120px', height: '120px', objectFit: 'cover', display: 'block' }} />
+                <button
+                  type="button"
+                  onClick={() => setPhotoUrl('')}
+                  style={{
+                    position: 'absolute',
+                    top: '6px',
+                    right: '6px',
+                    background: 'rgba(0,0,0,0.7)',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '50%',
+                    width: '24px',
+                    height: '24px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            ) : (
+              <label style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '0.5rem',
+                padding: '1rem',
+                border: '2px dashed var(--border-color)',
+                borderRadius: '12px',
+                cursor: 'pointer',
+                background: 'var(--surface-color)',
+                color: 'var(--text-muted)',
+                fontSize: '0.875rem',
+                fontWeight: 500,
+                transition: 'all 0.2s ease'
+              }}>
+                <Camera size={20} color="var(--primary)" />
+                <span>Upload a photo of your hair, nails, or style</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageChange}
+                  style={{ display: 'none' }}
+                />
+              </label>
+            )}
+          </div>
+
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1.5rem' }}>
             <button type="button" onClick={onClose} className="btn btn-secondary">
               Cancel
             </button>
             <button type="submit" disabled={submitting} className="btn btn-primary">
-              {submitting ? 'Submitting...' : 'Submit Review'}
+              {submitting ? 'Submitting...' : 'Submit Verified Review'}
             </button>
           </div>
         </form>

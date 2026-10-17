@@ -23,12 +23,17 @@ import {
   Award,
   Bell,
   Trash2,
-  Star
+  Star,
+  MessageSquare,
+  Download,
+  Calendar
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import BookingWizardModal from '../components/BookingWizardModal';
 import ReviewModal from '../components/ReviewModal';
+import AppointmentChatModal from '../components/AppointmentChatModal';
 import ToastContainer from '../components/ToastContainer';
+import { getGoogleCalendarUrl, downloadIcsFile } from '../utils/calendar';
 
 import { API_URL } from '../config/api';
 
@@ -48,6 +53,7 @@ const Dashboard = () => {
   const [filterStatus, setFilterStatus] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedAppointment, setSelectedAppointment] = useState(null);
+  const [chatAppointment, setChatAppointment] = useState(null);
 
   // Toast System
   const [toasts, setToasts] = useState([]);
@@ -423,7 +429,30 @@ const Dashboard = () => {
                         </div>
                       </div>
 
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setChatAppointment(app);
+                          }}
+                          style={{
+                            background: 'rgba(99, 102, 241, 0.1)',
+                            border: '1px solid rgba(99, 102, 241, 0.25)',
+                            color: 'var(--primary)',
+                            padding: '0.35rem 0.65rem',
+                            borderRadius: '8px',
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.35rem',
+                            fontSize: '0.78rem',
+                            fontWeight: 600
+                          }}
+                          title="Message Stylist"
+                        >
+                          <MessageSquare size={13} /> Chat
+                        </button>
                         <span className={`status-badge status-${app.status}`}>
                           {app.status}
                         </span>
@@ -603,9 +632,45 @@ const Dashboard = () => {
                     <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--text-main)' }}>{selectedAppointment.notes}</p>
                   </div>
                 )}
+
+                {/* Calendar Sync Options */}
+                <div style={{ borderTop: '1px solid var(--border-light)', paddingTop: '0.85rem' }}>
+                  <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', display: 'block', marginBottom: '0.5rem' }}>
+                    📅 Sync to Calendar (with 30m reminder)
+                  </span>
+                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    <a
+                      href={getGoogleCalendarUrl(selectedAppointment)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn btn-secondary"
+                      style={{ fontSize: '0.8rem', padding: '0.4rem 0.8rem', display: 'inline-flex', alignItems: 'center', gap: '0.4rem', textDecoration: 'none' }}
+                    >
+                      <Calendar size={14} color="var(--primary)" /> Google Calendar
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => downloadIcsFile(selectedAppointment)}
+                      className="btn btn-secondary"
+                      style={{ fontSize: '0.8rem', padding: '0.4rem 0.8rem', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
+                    >
+                      <Download size={14} color="var(--secondary)" /> Apple / Outlook (.ics)
+                    </button>
+                  </div>
+                </div>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setChatAppointment(selectedAppointment);
+                  }}
+                  className="btn btn-secondary"
+                  style={{ background: 'rgba(99, 102, 241, 0.1)', color: 'var(--primary)', borderColor: 'rgba(99, 102, 241, 0.3)', fontWeight: 600 }}
+                >
+                  <MessageSquare size={16} /> Chat with Expert
+                </button>
                 {selectedAppointment.status === 'completed' && selectedAppointment.paymentStatus !== 'paid' && (
                   <button 
                     onClick={() => handlePayAppointment(selectedAppointment.id || selectedAppointment._id)}
@@ -664,6 +729,13 @@ const Dashboard = () => {
           </div>
         )}
       </AnimatePresence>
+
+      {/* IN-APP CHAT MODAL */}
+      <AppointmentChatModal
+        isOpen={Boolean(chatAppointment)}
+        onClose={() => setChatAppointment(null)}
+        appointment={chatAppointment}
+      />
 
     </div>
   );
