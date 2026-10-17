@@ -18,20 +18,33 @@ const bookAppointment = async (req, res, next) => {
 
         const cleanServiceId = service_id._id || service_id;
 
-        // Check if slot is taken for that date, time, and service
-        const existing = await Appointment.findOne({ date, time, service_id: cleanServiceId, status: { $ne: 'cancelled' } });
-        if (existing) {
-            return res.status(400).json({ success: false, message: 'This date and time slot is already booked for this service.' });
+        const User = require('../models/User');
+        const mongoose = require('mongoose');
+
+        let service = null;
+        if (cleanServiceId && mongoose.Types.ObjectId.isValid(cleanServiceId)) {
+            service = await Service.findById(cleanServiceId);
         }
 
-        const User = require('../models/User');
-        const service = await Service.findById(cleanServiceId);
         const targetStylistId = stylist_id || (service ? service.stylist_id : null);
+
+        // Check if slot is taken for that date, time, and specialist
+        const conflictQuery = { date, time, status: { $ne: 'cancelled' } };
+        if (targetStylistId) {
+            conflictQuery.stylist_id = targetStylistId;
+        } else if (cleanServiceId) {
+            conflictQuery.service_id = cleanServiceId;
+        }
+
+        const existing = await Appointment.findOne(conflictQuery);
+        if (existing) {
+            return res.status(400).json({ success: false, message: 'This date and time slot is already booked for this specialist.' });
+        }
 
         if (targetStylistId) {
             const specialist = await User.findById(targetStylistId);
             const matricRegex = /^LCU\/UG\/\d{2}\/\d{4,5}$/i;
-            if (!specialist || !specialist.matricNo || !matricRegex.test(specialist.matricNo)) {
+            if (!specialist || !specialist.matricNo || !matricRegex.test(specialist.matricNo.trim())) {
                 return res.status(403).json({
                     success: false,
                     message: 'Access Denied: Unverified specialist credentials or invalid Lead City University Matriculation Number.'
@@ -40,7 +53,7 @@ const bookAppointment = async (req, res, next) => {
         }
 
         // Book appointment
-        const apt = await Appointment.create({ user_id, service_id: cleanServiceId, date, time, notes, stylist_id: targetStylistId });
+        const apt = await Appointment.create({ user_id, service_id: (service ? service._id : cleanServiceId), date, time, notes, stylist_id: targetStylistId });
 
         // Mark slot as unavailable
         await TimeSlot.markUnavailable(date, time);
@@ -264,11 +277,28 @@ const getAllSlots = async (req, res, next) => {
     }
 };
 
+const DEFAULT_SLOTS = [
+    '09:00 AM', '10:00 AM', '11:00 AM', 
+    '01:00 PM', '02:30 PM', '04:00 PM', '05:30 PM'
+];
+
 const getAvailableSlots = async (req, res, next) => {
     try {
-        const { date } = req.query;
-        const slots = await TimeSlot.getAvailableByDate(date);
-        res.status(200).json({ success: true, data: slots });
+        const { date, stylist_id } = req.query;
+        if (!date) {
+            return res.status(200).json({ success: true, availableSlots: DEFAULT_SLOTS, data: DEFAULT_SLOTS });
+        }
+
+        const query = { date, status: { $ne: 'cancelled' } };
+        if (stylist_id) {
+            query.stylist_id = stylist_id;
+        }
+
+        const bookedAppointments = await Appointment.find(query).select('time');
+        const bookedTimes = bookedAppointments.map(a => a.time);
+
+        const available = DEFAULT_SLOTS.filter(slot => !bookedTimes.includes(slot));
+        res.status(200).json({ success: true, availableSlots: available, data: available });
     } catch (error) {
         next(error);
     }
@@ -386,6 +416,42 @@ const deleteAppointment = async (req, res, next) => {
 
         if (req.user.role !== 'admin' && appointmentUserId !== userId && stylistId !== userId) {
             return res.status(403).json({ success: false, message: 'Not authorized to delete this appointment' });
+        }
+
+        // If appointment was paid and not completed, issue wallet refund to client before deleting
+        if (appointment.paymentStatus === 'paid' && appointment.status !== 'completed') {
+            const refundAmount = appointment.amountPaid || 0;
+            const User = require('../models/User');
+            if (appointment.user_id && refundAmount > 0) {
+                const clientUser = await User.findById(appointment.user_id);
+                if (clientUser) {
+                    clientUser.walletBalance = (clientUser.walletBalance || 0) + refundAmount;
+                    clientUser.transactions.push({
+                        type: 'refund',
+                        amount: refundAmount,
+                        description: `100% Refund for deleted booking: ${appointment.service_id?.name || 'Service'}`,
+                        reference_id: `REFUND-DEL-${appointment._id}`
+                    });
+                    await clientUser.save();
+                }
+            }
+
+            // Reverse expert payout if already credited
+            const expertId = appointment.stylist_id;
+            const expertPayoutToReverse = appointment.expertPayout || Math.round(refundAmount * 0.9);
+            if (expertId && expertPayoutToReverse > 0) {
+                const expertUser = await User.findById(expertId);
+                if (expertUser) {
+                    expertUser.walletBalance = Math.max(0, (expertUser.walletBalance || 0) - expertPayoutToReverse);
+                    expertUser.transactions.push({
+                        type: 'refund_deduction',
+                        amount: expertPayoutToReverse,
+                        description: `Payout reversed for deleted booking: ${appointment.service_id?.name || 'Service'}`,
+                        reference_id: `REV-DEL-${appointment._id}`
+                    });
+                    await expertUser.save();
+                }
+            }
         }
 
         // Release slot if booking was active

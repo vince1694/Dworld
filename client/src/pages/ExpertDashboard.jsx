@@ -112,7 +112,35 @@ const ExpertDashboard = () => {
   const [savingAvailability, setSavingAvailability] = useState(false);
   const [chatAppointment, setChatAppointment] = useState(null);
 
-  useEffect(() => { fetchData(); fetchWallet(); }, []);
+  useEffect(() => { 
+    fetchData(); 
+    fetchWallet(); 
+
+    // Handle return from Paystack activation
+    const reference = searchParams.get('reference') || searchParams.get('trxref');
+    const isActParam = searchParams.get('activated');
+    if (reference) {
+      axios.post(`${API_URL}/payments/verify`, { reference })
+        .then(res => {
+          if (res.data.success) {
+            addToast('Congratulations! Your Expert profile is now fully activated 🎉', 'success');
+            setShowActivationModal(false);
+            setActivationDismissed(false);
+            if (refreshUser) refreshUser();
+            fetchData();
+            fetchWallet();
+            navigate('/expert', { replace: true });
+          }
+        })
+        .catch(err => {
+          console.warn('Activation verify notice:', err);
+        });
+    } else if (isActParam) {
+      if (refreshUser) refreshUser();
+      fetchData();
+      navigate('/expert', { replace: true });
+    }
+  }, [searchParams]);
 
   const fetchWallet = async () => {
     try {

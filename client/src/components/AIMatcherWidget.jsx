@@ -11,10 +11,12 @@ const AIMatcherWidget = ({ onSelectService }) => {
   const [matches, setMatches] = useState(null);
 
   const samplePrompts = [
-    "I need a haircut and grooming before graduation",
-    "Looking for someone to fix my laptop hardware",
-    "Need academic research & thesis consultation",
-    "I need help with my career resume & interview"
+    "Need clean haircut and beard razor line-up",
+    "Looking for acrylic nail extensions & custom nail art",
+    "Need knotless braids or cornrows on campus",
+    "Need frontal wig melt and closure installation",
+    "Looking for classic lash extensions or lash lift",
+    "Want refreshing manicure and exfoliating pedicure"
   ];
 
   const handleMatch = async (customPrompt) => {

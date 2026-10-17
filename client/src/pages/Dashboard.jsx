@@ -72,8 +72,22 @@ const Dashboard = () => {
     fetchData();
     const bookParam = searchParams.get('book');
     if (bookParam) {
-      setPreselectedServiceId(bookParam);
-      setIsWizardOpen(true);
+      navigate(`/book?serviceId=${bookParam}`);
+    }
+
+    const reference = searchParams.get('reference') || searchParams.get('trxref');
+    if (reference) {
+      axios.post(`${API_URL}/payments/verify`, { reference })
+        .then(res => {
+          if (res.data.success) {
+            addToast(res.data.message || 'Payment confirmed successfully! 🎉', 'success');
+            fetchData();
+            navigate('/dashboard', { replace: true });
+          }
+        })
+        .catch(err => {
+          console.warn('Payment verify notice:', err);
+        });
     }
   }, [searchParams]);
 

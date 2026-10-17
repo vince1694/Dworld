@@ -85,11 +85,14 @@ const initializePayment = async (req, res, next) => {
         }
 
         const clientUrl = process.env.CLIENT_URL || 'https://dworld.ink';
-        const callbackUrl = purpose === 'appointment_pay'
-            ? `${clientUrl}/dashboard?tab=appointments&paid=1`
-            : purpose === 'expert_activation'
-            ? `${clientUrl}/expert?activated=1`
-            : `${clientUrl}/dashboard?tab=wallet&status=success`;
+        let callbackUrl = req.body.callback_url;
+        if (!callbackUrl) {
+            callbackUrl = purpose === 'appointment_pay'
+                ? `${clientUrl}/book?aptId=${appointment_id || ''}`
+                : purpose === 'expert_activation'
+                ? `${clientUrl}/expert?activated=1`
+                : `${clientUrl}/dashboard?tab=wallet&status=success`;
+        }
 
         const payload = {
             email: email.trim().toLowerCase(),
@@ -178,6 +181,26 @@ const verifyPayment = async (req, res, next) => {
                 reference_id: reference
             });
             await user.save();
+
+            // Ensure single specialty service is attached to expert
+            try {
+                const Service = require('../models/Service');
+                const existingSvc = await Service.findOne({ stylist_id: user._id });
+                if (!existingSvc) {
+                    await Service.create({
+                        name: user.specialty || 'Barber',
+                        description: `${user.name}'s verified campus specialty service.`,
+                        price: 3500,
+                        duration: 45,
+                        type: 'single',
+                        category: 'Single Services',
+                        location: user.address || user.location || 'Lead City University Campus',
+                        stylist_id: user._id
+                    });
+                }
+            } catch (svcErr) {
+                console.warn('Service auto-link on activation notice:', svcErr.message);
+            }
 
             await Notification.create({
                 user_id: user._id,

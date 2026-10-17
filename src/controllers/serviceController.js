@@ -103,13 +103,6 @@ const matchRequestWithAI = async (req, res, next) => {
         const pLower = prompt.toLowerCase();
         const queryTerms = pLower.split(/\s+/).filter(t => t.length > 2);
 
-        // Detect Tier Intent from Prompt
-        let targetTier = null;
-        if (pLower.match(/single|one|only|just/i)) targetTier = 'single';
-        else if (pLower.match(/double|two|2|combo|\+|and/i)) targetTier = 'double';
-        else if (pLower.match(/triple|three|3|trio/i)) targetTier = 'triple';
-        else if (pLower.match(/premium|full glam|bridal|complete|special occasion|quad/i)) targetTier = 'premium';
-
         // Score Services & Match ONLY Verified Activated Experts
         const scoredServices = [];
         for (const srv of services) {
@@ -117,36 +110,27 @@ const matchRequestWithAI = async (req, res, next) => {
             if (!assignedExpert) continue; // Skip any service not owned by an activated verified expert
 
             let score = 0;
-            const text = `${srv.name} ${srv.description} ${srv.category || ''} ${srv.location || ''} ${assignedExpert.specialty || ''}`.toLowerCase();
+            const text = `${srv.name} ${srv.description} ${srv.category || ''} ${srv.location || ''} ${assignedExpert.specialty || ''} ${assignedExpert.address || ''}`.toLowerCase();
             
             queryTerms.forEach(term => {
                 if (text.includes(term)) score += 30;
             });
 
-            // Tier Intent Match Bonus
-            if (targetTier && srv.type === targetTier) {
-                score += 50;
-            }
+            // Domain specific matching bonuses for the 6 approved services
+            if (pLower.match(/nail|manicure|pedicure|acrylic/i) && text.match(/nail|manicure|pedicure|acrylic/i)) score += 45;
+            if (pLower.match(/lash|extension|eyelash|lift/i) && text.match(/lash/i)) score += 45;
+            if (pLower.match(/braid|cornrow|twist/i) && text.match(/braid|cornrow/i)) score += 45;
+            if (pLower.match(/wig|frontal|closure|melt/i) && text.match(/wig|frontal|closure/i)) score += 45;
+            if (pLower.match(/barber|cut|haircut|fade|beard|grooming/i) && text.match(/barber|cut|fade|beard/i)) score += 45;
+            if (pLower.match(/body|skin|manicure|pedicure|scrub/i) && text.match(/body|pedicure|manicure/i)) score += 45;
 
-            // Domain specific matching bonuses
-            if (pLower.match(/nail|manicure|pedicure/i) && text.match(/nail|manicure|pedicure/i)) score += 40;
-            if (pLower.match(/lash|extension|eyelash/i) && text.match(/lash/i)) score += 40;
-            if (pLower.match(/hair|braid|wig|frontal|tint/i) && text.match(/hair|wig|braid|frontal|tint/i)) score += 40;
-            if (pLower.match(/barber|cut|grooming|beard/i) && text.match(/barber|cut|beard|grooming/i)) score += 40;
-            if (pLower.match(/makeup|glam|face/i) && text.match(/makeup|glam/i)) score += 40;
-
-            const matchPercentage = Math.min(99, Math.max(72, Math.floor(score + 45)));
-
-            const tierLabel = srv.type === 'single' ? '🟢 Single Service' :
-                              srv.type === 'double' ? '🔵 Double Service' :
-                              srv.type === 'triple' ? '🟣 Triple Package' : '👑 Premium Package';
-
-            const reason = `AI matched verified & activated specialist ${assignedExpert.name} (₦3,000 Verified) for "${srv.name}" (${matchPercentage}% relevance).`;
+            const matchPercentage = Math.min(99, Math.max(72, Math.floor(score + 50)));
+            const reason = `Verified specialist ${assignedExpert.name} at ${assignedExpert.address || assignedExpert.location || 'Lead City University'} matches "${srv.name}" (${matchPercentage}% match).`;
 
             scoredServices.push({
                 service: {
                     ...srv.toObject(),
-                    tierLabel,
+                    tierLabel: '⚡ Verified Specialty',
                     expert: assignedExpert
                 },
                 score: matchPercentage,
