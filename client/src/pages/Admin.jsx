@@ -26,7 +26,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import ToastContainer from '../components/ToastContainer';
+
 
 import { API_URL } from '../config/api';
 
@@ -180,7 +180,7 @@ const Admin = () => {
   return (
     <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
       
-      <ToastContainer toasts={toasts} removeToast={(id) => setToasts(t => t.filter(x => x.id !== id))} />
+
 
       <style>{`
         .admin-kpi-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.85rem; }

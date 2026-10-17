@@ -35,7 +35,7 @@ import {
   Settings
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import ToastContainer from '../components/ToastContainer';
+
 import AppointmentChatModal from '../components/AppointmentChatModal';
 import ExpertActivationModal from '../components/ExpertActivationModal';
 import WalletModal from '../components/WalletModal';
@@ -122,9 +122,9 @@ const ExpertDashboard = () => {
       if (appRes.data.success) setAppointments(appRes.data.data.appointments);
       if (srvRes.data.success) setServices(srvRes.data.data);
       const userRes = await axios.get(`${API_URL}/auth/me`);
-      if (userRes.data.success && userRes.data.data) {
-        if (userRes.data.data.workingDays) setWorkingDays(userRes.data.data.workingDays);
-        if (userRes.data.data.workingHours) setWorkingHours(userRes.data.data.workingHours);
+      if (userRes.data.success && userRes.data.user) {
+        if (userRes.data.user.workingDays) setWorkingDays(userRes.data.user.workingDays);
+        if (userRes.data.user.workingHours) setWorkingHours(userRes.data.user.workingHours);
       }
     } catch (err) { console.error('Error fetching expert data', err); }
     finally { setLoading(false); }
@@ -321,7 +321,7 @@ const ExpertDashboard = () => {
         .activation-pulse { animation: softPulse 2.5s ease-in-out infinite; }
       `}</style>
 
-      <ToastContainer toasts={toasts} removeToast={(id) => setToasts(t => t.filter(x => x.id !== id))} />
+
 
       <div className="expert-shell">
 

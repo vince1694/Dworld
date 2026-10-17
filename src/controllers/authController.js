@@ -220,9 +220,9 @@ const login = async (req, res, next) => {
                 email: user.email,
                 role: user.role,
                 isActivated: user.role === 'expert' ? Boolean(user.isActivated) : true,
-                matricNo: user.matricNo || 'LCU/UG/22/04192',
-                department: user.department || 'Cosmetology & Campus Styling',
-                phone: user.phone || '+234 803 555 0199'
+                matricNo: user.matricNo || '',
+                department: user.department || '',
+                phone: user.phone || ''
             },
         });
     } catch (error) {
@@ -437,7 +437,7 @@ const topupWallet = async (req, res, next) => {
         user.transactions.push({
             type: 'deposit',
             amount: depositAmount,
-            description: `Deposited test wallet funds`,
+            description: `Wallet top-up via Paystack`,
             reference_id: `DEP-${Date.now()}`
         });
 
@@ -445,7 +445,7 @@ const topupWallet = async (req, res, next) => {
 
         res.json({
             success: true,
-            message: `Successfully topped up $${depositAmount}!`,
+            message: `Wallet topped up successfully! ₦${depositAmount.toLocaleString()} added.`,
             walletBalance: user.walletBalance
         });
     } catch (error) {

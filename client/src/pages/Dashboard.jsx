@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNotify } from '../context/NotificationContext';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { 
   CalendarPlus, 
@@ -33,13 +33,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 import BookingWizardModal from '../components/BookingWizardModal';
 import ReviewModal from '../components/ReviewModal';
 import AppointmentChatModal from '../components/AppointmentChatModal';
-import ToastContainer from '../components/ToastContainer';
 import { getGoogleCalendarUrl, downloadIcsFile } from '../utils/calendar';
 
 import { API_URL } from '../config/api';
 
 const Dashboard = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get('tab') || 'overview';
 
@@ -293,9 +293,6 @@ const Dashboard = () => {
 
   return (
     <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-      
-      {/* Toast Alert System */}
-      <ToastContainer toasts={toasts} removeToast={(id) => setToasts(t => t.filter(x => x.id !== id))} />
 
       {/* Booking Wizard Modal */}
       <BookingWizardModal 
