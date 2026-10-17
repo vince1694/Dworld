@@ -1,0 +1,306 @@
+const https = require('https');
+const crypto = require('crypto');
+const User = require('../models/User');
+const Appointment = require('../models/Appointment');
+const Notification = require('../models/Notification');
+
+// Helper to make HTTPS requests to Paystack API
+const paystackRequest = (endpoint, method = 'GET', data = null) => {
+    return new Promise((resolve, reject) => {
+        const options = {
+            hostname: 'api.paystack.co',
+            port: 443,
+            path: endpoint,
+            method: method,
+            headers: {
+                Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+                'Content-Type': 'application/json'
+            }
+        };
+
+        const req = https.request(options, (res) => {
+            let body = '';
+            res.on('data', (chunk) => (body += chunk));
+            res.on('end', () => {
+                try {
+                    const parsed = JSON.parse(body);
+                    resolve(parsed);
+                } catch (e) {
+                    reject(new Error(`Failed to parse Paystack response: ${body}`));
+                }
+            });
+        });
+
+        req.on('error', (e) => reject(e));
+
+        if (data) {
+            req.write(JSON.stringify(data));
+        }
+        req.end();
+    });
+};
+
+// @desc    Get public key for frontend checkout
+// @route   GET /api/payments/config
+// @access  Public
+const getPaymentConfig = async (req, res) => {
+    res.status(200).json({
+        success: true,
+        publicKey: process.env.PAYSTACK_PUBLIC_KEY || ''
+    });
+};
+
+// @desc    Initialize a transaction with Paystack
+// @route   POST /api/payments/initialize
+// @access  Private
+const initializePayment = async (req, res, next) => {
+    try {
+        const { amount, purpose, appointment_id } = req.body;
+        const user = req.user;
+
+        if (!amount || Number(amount) <= 0) {
+            return res.status(400).json({ success: false, message: 'Please provide a valid amount in Naira' });
+        }
+
+        const numericAmount = Number(amount);
+        const amountInKobo = Math.round(numericAmount * 100);
+
+        const payload = {
+            email: user.email,
+            amount: amountInKobo,
+            currency: 'NGN',
+            metadata: {
+                user_id: user.id || user._id,
+                user_name: user.name,
+                purpose: purpose || 'wallet_topup',
+                appointment_id: appointment_id || null
+            }
+        };
+
+        const response = await paystackRequest('/transaction/initialize', 'POST', payload);
+
+        if (!response.status) {
+            return res.status(400).json({ 
+                success: false, 
+                message: response.message || 'Paystack payment initialization failed' 
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            data: {
+                authorization_url: response.data.authorization_url,
+                access_code: response.data.access_code,
+                reference: response.data.reference
+            }
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+// @desc    Verify Paystack transaction and credit wallet or settle appointment
+// @route   POST /api/payments/verify
+// @access  Private
+const verifyPayment = async (req, res, next) => {
+    try {
+        const { reference } = req.body;
+        const currentUserId = req.user.id || req.user._id;
+
+        if (!reference) {
+            return res.status(400).json({ success: false, message: 'Transaction reference is required' });
+        }
+
+        const response = await paystackRequest(`/transaction/verify/${encodeURIComponent(reference)}`, 'GET');
+
+        if (!response.status || response.data.status !== 'success') {
+            return res.status(400).json({
+                success: false,
+                message: response.message || 'Payment verification failed or transaction not completed'
+            });
+        }
+
+        const data = response.data;
+        const amountPaidNaira = data.amount / 100;
+        const metadata = data.metadata || {};
+        const purpose = metadata.purpose || 'wallet_topup';
+
+        // Check if this reference has already been credited to prevent duplicate deposits
+        const user = await User.findById(currentUserId);
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'User account not found' });
+        }
+
+        const alreadyProcessed = user.transactions && user.transactions.some(t => t.reference_id === reference);
+        if (alreadyProcessed) {
+            return res.status(200).json({
+                success: true,
+                message: 'Transaction already credited.',
+                walletBalance: user.walletBalance
+            });
+        }
+
+        if (purpose === 'expert_activation') {
+            user.isActivated = true;
+            user.activatedAt = new Date();
+            user.activationReference = reference;
+            user.transactions.push({
+                type: 'payment',
+                amount: amountPaidNaira,
+                description: 'Expert Account Activation Fee (₦3,000)',
+                reference_id: reference
+            });
+            await user.save();
+
+            await Notification.create({
+                user_id: user._id,
+                title: 'Expert Account Activated! 🎉',
+                message: 'Your D.WORLD expert profile is now active! You can now manage your services, set working hours, and receive client bookings.',
+                type: 'system'
+            });
+
+            return res.status(200).json({
+                success: true,
+                message: 'Congratulations! Your expert account is now active and unlocked.',
+                isActivated: true,
+                walletBalance: user.walletBalance
+            });
+        }
+
+        if (purpose === 'appointment_pay' && metadata.appointment_id) {
+            // Settle appointment payment
+            const appointment = await Appointment.findById(metadata.appointment_id).populate('service_id');
+            if (appointment) {
+                appointment.paymentStatus = 'paid';
+                await appointment.save();
+
+                // Record payment on user
+                user.transactions.push({
+                    type: 'payment',
+                    amount: amountPaidNaira,
+                    description: `Direct Paystack Card/Bank payment for ${appointment.service_id?.name || 'Appointment'}`,
+                    reference_id: reference
+                });
+                await user.save();
+
+                // Credit the expert
+                let expertId = appointment.stylist_id || appointment.service_id?.stylist_id;
+                if (expertId) {
+                    const expert = await User.findById(expertId);
+                    if (expert) {
+                        expert.walletBalance = (expert.walletBalance || 0) + amountPaidNaira;
+                        expert.transactions.push({
+                            type: 'earning',
+                            amount: amountPaidNaira,
+                            description: `Earned from ${user.name} for ${appointment.service_id?.name || 'Service'} (Paystack Direct)`,
+                            reference_id: `EARN-${reference}`
+                        });
+                        await expert.save();
+
+                        // Notify expert
+                        await Notification.create({
+                            user_id: expertId,
+                            title: 'Payment Received! 💰',
+                            message: `You received ₦${amountPaidNaira.toLocaleString()} from ${user.name} for "${appointment.service_id?.name || 'Service'}".`,
+                            type: 'payment'
+                        });
+                    }
+                }
+
+                return res.status(200).json({
+                    success: true,
+                    message: `Payment of ₦${amountPaidNaira.toLocaleString()} confirmed via Paystack!`,
+                    walletBalance: user.walletBalance
+                });
+            }
+        }
+
+        // Default purpose: Wallet Top-Up
+        user.walletBalance = (user.walletBalance || 0) + amountPaidNaira;
+        user.transactions.push({
+            type: 'deposit',
+            amount: amountPaidNaira,
+            description: `Paystack Live Deposit (${data.channel || 'Card/Bank'})`,
+            reference_id: reference
+        });
+        await user.save();
+
+        // Create in-app notification for the user
+        await Notification.create({
+            user_id: user._id,
+            title: 'Wallet Funded! 💳',
+            message: `₦${amountPaidNaira.toLocaleString()} has been successfully deposited into your D.WORLD wallet via Paystack.`,
+            type: 'payment'
+        });
+
+        res.status(200).json({
+            success: true,
+            message: `₦${amountPaidNaira.toLocaleString()} deposited into your wallet successfully!`,
+            walletBalance: user.walletBalance
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+// @desc    Paystack Webhook Listener for real-time background confirmation
+// @route   POST /api/payments/webhook
+// @access  Public
+const paystackWebhook = async (req, res) => {
+    try {
+        const secret = process.env.PAYSTACK_SECRET_KEY;
+        const hash = crypto.createHmac('sha512', secret).update(JSON.stringify(req.body)).digest('hex');
+
+        if (hash !== req.headers['x-paystack-signature']) {
+            return res.status(400).send('Invalid webhook signature');
+        }
+
+        const event = req.body;
+        if (event.event === 'charge.success') {
+            const data = event.data;
+            const reference = data.reference;
+            const amountPaidNaira = data.amount / 100;
+            const metadata = data.metadata || {};
+            const userId = metadata.user_id;
+
+            if (userId) {
+                const user = await User.findById(userId);
+                if (user && !user.transactions.some(t => t.reference_id === reference)) {
+                    if (metadata.purpose === 'expert_activation') {
+                        user.isActivated = true;
+                        user.activatedAt = new Date();
+                        user.activationReference = reference;
+                        user.transactions.push({
+                            type: 'payment',
+                            amount: amountPaidNaira,
+                            description: 'Expert Account Activation Fee (₦3,000)',
+                            reference_id: reference
+                        });
+                        await user.save();
+                    } else {
+                        user.walletBalance = (user.walletBalance || 0) + amountPaidNaira;
+                        user.transactions.push({
+                            type: 'deposit',
+                            amount: amountPaidNaira,
+                            description: `Paystack Deposit (${data.channel})`,
+                            reference_id: reference
+                        });
+                        await user.save();
+                    }
+                }
+            }
+        }
+
+        res.status(200).send('Webhook received');
+    } catch (err) {
+        console.error('Webhook error:', err);
+        res.status(500).send('Webhook processing error');
+    }
+};
+
+module.exports = {
+    getPaymentConfig,
+    initializePayment,
+    verifyPayment,
+    paystackWebhook
+};

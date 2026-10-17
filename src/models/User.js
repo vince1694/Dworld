@@ -32,6 +32,10 @@ const userSchema = new mongoose.Schema({
     start: { type: String, default: '09:00' },
     end: { type: String, default: '18:00' }
   },
+  isActivated: { type: Boolean, default: false },
+  activationFee: { type: Number, default: 3000 },
+  activatedAt: { type: Date, default: null },
+  activationReference: { type: String, default: null },
   transactions: [transactionSchema]
 }, { timestamps: true });
 

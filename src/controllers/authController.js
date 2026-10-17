@@ -37,9 +37,20 @@ const register = async (req, res, next) => {
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
 
-        // Create user with verified status for specialists
-        const isVerified = (role === 'expert' || role === 'stylist' || role === 'admin') ? true : true;
-        const userResult = await User.create({ name, email, password: hashedPassword, role, state, matricNo, isVerified });
+        // Create user with verified status for specialists and activation gate
+        const isExpert = (role === 'expert' || role === 'stylist');
+        const isActivated = !isExpert; // Experts must complete ₦3,000 activation
+        const userResult = await User.create({ 
+            name, 
+            email, 
+            password: hashedPassword, 
+            role, 
+            state, 
+            matricNo, 
+            isVerified: true,
+            isActivated,
+            activationFee: 3000 
+        });
         const stylist_id = userResult._id;
 
         // Enforce 1 Expert = 1 Single Service
@@ -80,7 +91,8 @@ const register = async (req, res, next) => {
                 name: userResult.name,
                 email: userResult.email,
                 role: userResult.role,
-                state: userResult.state
+                state: userResult.state,
+                isActivated: userResult.isActivated
             }
         });
     } catch (error) {
@@ -125,6 +137,7 @@ const login = async (req, res, next) => {
                 name: user.name,
                 email: user.email,
                 role: user.role,
+                isActivated: user.role === 'expert' ? Boolean(user.isActivated) : true,
                 matricNo: user.matricNo || 'LCU/UG/22/04192',
                 department: user.department || 'Cosmetology & Campus Styling',
                 phone: user.phone || '+234 803 555 0199'
@@ -295,6 +308,8 @@ const getMe = async (req, res, next) => {
             name: user.name,
             email: user.email,
             role: user.role,
+            isActivated: user.role === 'expert' ? Boolean(user.isActivated) : true,
+            activationFee: user.activationFee || 3000,
             phone: user.phone,
             bio: user.bio,
             specialty: user.specialty,

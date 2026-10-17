@@ -31,12 +31,14 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import ToastContainer from '../components/ToastContainer';
 import AppointmentChatModal from '../components/AppointmentChatModal';
+import ExpertActivationModal from '../components/ExpertActivationModal';
 import { getGoogleCalendarUrl, downloadIcsFile } from '../utils/calendar';
 
 import { API_URL } from '../config/api';
 
 const ExpertDashboard = () => {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
+  const [showActivationModal, setShowActivationModal] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get('tab') || 'appointments';
   
@@ -279,6 +281,44 @@ const ExpertDashboard = () => {
           </div>
         </div>
       </div>
+
+      {/* EXPERT ACCOUNT ACTIVATION BANNER */}
+      {user?.role === 'expert' && user?.isActivated === false && (
+        <div style={{
+          background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.12), rgba(239, 68, 68, 0.08))',
+          border: '1px solid rgba(245, 158, 11, 0.35)',
+          borderRadius: '16px',
+          padding: '1.25rem 1.5rem',
+          marginBottom: '1.5rem',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '1rem'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+            <div style={{ padding: '0.6rem', background: '#fef3c7', borderRadius: '12px', color: '#b45309' }}>
+              <Clock size={22} />
+            </div>
+            <div>
+              <h4 style={{ margin: 0, fontSize: '1rem', color: '#b45309', fontFamily: 'Outfit' }}>
+                Action Required: ₦3,000 Provider Account Activation
+              </h4>
+              <p style={{ margin: '0.2rem 0 0', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                Your provider workspace is pending activation. Pay the one-time ₦3,000 verification fee via Paystack to unlock client bookings.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowActivationModal(true)}
+            className="btn btn-primary"
+            style={{ background: '#d97706', borderColor: '#b45309', padding: '0.65rem 1.35rem', fontSize: '0.875rem', fontWeight: 700 }}
+          >
+            Activate Now (₦3,000)
+          </button>
+        </div>
+      )}
 
       {/* KPI Stats Grid - Bento */}
       <div className="bento-grid">
@@ -885,6 +925,17 @@ const ExpertDashboard = () => {
         isOpen={Boolean(chatAppointment)}
         onClose={() => setChatAppointment(null)}
         appointment={chatAppointment}
+      />
+
+      {/* EXPERT PAYSTACK ACTIVATION MODAL (₦3,000) */}
+      <ExpertActivationModal
+        isOpen={user?.role === 'expert' && (!user?.isActivated || showActivationModal)}
+        user={user}
+        onActivated={() => {
+          setShowActivationModal(false);
+          if (refreshUser) refreshUser();
+          addToast('Account activated successfully! Your workspace is unlocked.', 'success');
+        }}
       />
 
     </div>

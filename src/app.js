@@ -20,14 +20,15 @@ app.use(helmet({
     contentSecurityPolicy: {
         directives: {
             "default-src": ["'self'"],
-            "script-src": ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com"],
+            "script-src": ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com", "https://js.paystack.co"],
             "style-src": ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://cdnjs.cloudflare.com"],
             "font-src": ["'self'", "https://fonts.gstatic.com", "https://cdnjs.cloudflare.com", "data:"],
             "img-src": ["'self'", "data:", "https:"],
-            "connect-src": ["'self'", "https:", "http:"]
+            "frame-src": ["'self'", "https://checkout.paystack.com", "https://api.paystack.co"],
+            "connect-src": ["'self'", "https:", "http:", "https://api.paystack.co", "https://checkout.paystack.com"]
         }
     }
-})); // Security headers with relaxed CSP for CDNs
+})); // Security headers with relaxed CSP for CDNs & Paystack
 app.use(morgan('dev')); // Request logging
 app.use(cors());
 app.use(express.json());
@@ -40,6 +41,7 @@ app.use('/api/appointments', appointmentRoutes);
 app.use('/api/reviews', require('./routes/reviewRoutes'));
 app.use('/api/notifications', require('./routes/notificationRoutes'));
 app.use('/api/contact', require('./routes/contactRoutes'));
+app.use('/api/payments', require('./routes/paymentRoutes'));
 
 // Serve frontend
 if (process.env.NODE_ENV === 'production') {

@@ -39,6 +39,60 @@ const WalletModal = ({ isOpen, onClose, onWalletUpdated }) => {
     try {
       setSubmitting(true);
       setMessage('');
+
+      // Check if Paystack inline is loaded
+      if (typeof window.PaystackPop !== 'undefined') {
+        let publicKey = 'pk_live_060e4958254697673bb978c4a4df3694fae9099b';
+        try {
+          const configRes = await axios.get(`${API_URL}/payments/config`);
+          if (configRes.data.success && configRes.data.publicKey) {
+            publicKey = configRes.data.publicKey;
+          }
+        } catch (e) {
+          // fallback to live key
+        }
+
+        const userRes = await axios.get(`${API_URL}/auth/me`);
+        const userEmail = userRes.data?.user?.email || 'client@dworld.com';
+        const userName = userRes.data?.user?.name || 'Client';
+
+        const handler = window.PaystackPop.setup({
+          key: publicKey,
+          email: userEmail,
+          amount: Math.round(Number(topupAmount) * 100),
+          currency: 'NGN',
+          ref: 'WAL-' + Date.now() + '-' + Math.floor(Math.random() * 1000),
+          metadata: {
+            purpose: 'wallet_topup',
+            user_name: userName
+          },
+          callback: async (response) => {
+            try {
+              const verifyRes = await axios.post(`${API_URL}/payments/verify`, {
+                reference: response.reference
+              });
+              if (verifyRes.data.success) {
+                setMessage({ text: `₦${Number(topupAmount).toLocaleString()} deposited into your wallet via Paystack!`, type: 'success' });
+                setWalletBalance(verifyRes.data.walletBalance);
+                fetchWallet();
+                if (onWalletUpdated) onWalletUpdated(verifyRes.data.walletBalance);
+              }
+            } catch (err) {
+              setMessage({ text: err.response?.data?.message || 'Payment verification failed', type: 'error' });
+            } finally {
+              setSubmitting(false);
+            }
+          },
+          onClose: () => {
+            setSubmitting(false);
+          }
+        });
+
+        handler.openIframe();
+        return;
+      }
+
+      // Fallback dev topup
       const res = await axios.post(`${API_URL}/auth/wallet/topup`, { amount: topupAmount });
       if (res.data.success) {
         setMessage({ text: res.data.message, type: 'success' });
