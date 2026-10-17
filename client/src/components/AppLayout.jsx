@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { 
   LayoutDashboard, 
   CalendarRange, 
+  CalendarPlus,
   PackagePlus, 
   User, 
   LogOut, 
@@ -15,7 +16,10 @@ import {
   Briefcase,
   UserCheck,
   Wallet,
-  Bell
+  Bell,
+  Sparkles,
+  HelpCircle,
+  Plus
 } from 'lucide-react';
 import WalletModal from './WalletModal';
 import axios from 'axios';
@@ -90,7 +94,7 @@ const AppLayout = ({ children }) => {
     navigate('/login');
   };
 
-  // Define sidebar links with query params
+  // Define full left-side navigation items
   const getNavItems = () => {
     if (user.role === 'admin') {
       return [
@@ -107,12 +111,14 @@ const AppLayout = ({ children }) => {
         { name: 'Profile Settings', path: '/expert?tab=profile', tab: 'profile', icon: <User size={18} /> },
       ];
     } else {
-      // Customer
+      // Customer / Student navigation
       return [
-        { name: 'Dashboard', path: '/dashboard?tab=overview', tab: 'overview', icon: <LayoutDashboard size={18} /> },
-        { name: 'Book Appointment', path: '/book', icon: <CalendarRange size={18} /> },
-        { name: 'Services & Experts', path: '/services', icon: <UserCheck size={18} /> },
-        { name: 'Profile Settings', path: '/dashboard?tab=profile', tab: 'profile', icon: <User size={18} /> },
+        { name: 'Dashboard Overview', path: '/dashboard?tab=overview', tab: 'overview', icon: <LayoutDashboard size={18} /> },
+        { name: 'Book Appointment', path: '/book', icon: <CalendarPlus size={18} /> },
+        { name: 'Campus Stylists', path: '/services', icon: <Sparkles size={18} /> },
+        { name: 'Student Wallet', action: 'wallet', icon: <Wallet size={18} />, badge: `₦${walletBalance.toLocaleString()}` },
+        { name: 'Profile & Settings', path: '/dashboard?tab=profile', tab: 'profile', icon: <User size={18} /> },
+        { name: 'Campus Support', path: '/contact', icon: <HelpCircle size={18} /> },
       ];
     }
   };
@@ -122,7 +128,7 @@ const AppLayout = ({ children }) => {
   const getWorkspaceTitle = () => {
     if (user.role === 'admin') return 'System Console';
     if (['expert', 'stylist'].includes(user.role)) return 'Expert Workspace';
-    return 'Client Dashboard';
+    return 'Customer Dashboard';
   };
 
   const getRoleBadgeColor = () => {
@@ -139,11 +145,12 @@ const AppLayout = ({ children }) => {
 
   // Check active tab via search query parameter
   const checkActive = (item, idx) => {
+    if (item.action === 'wallet') return false;
     const params = new URLSearchParams(location.search);
     const currentTab = params.get('tab');
     
     // Exact path match
-    const basePath = item.path.split('?')[0];
+    const basePath = item.path?.split('?')[0];
     if (location.pathname !== basePath) return false;
 
     // Tab parameter match
@@ -151,7 +158,6 @@ const AppLayout = ({ children }) => {
       return item.tab === currentTab;
     }
 
-    // Default to first item if no tab query is present
     return idx === 0;
   };
 
@@ -162,13 +168,19 @@ const AppLayout = ({ children }) => {
         <div className="sidebar-brand-wrapper">
           <Link to="/" className="sidebar-brand-link">
             <span className="brand-dot"></span>
-            {!collapsed && <span className="brand-text">D.WORLD</span>}
+            {!collapsed && (
+              <div>
+                <span className="brand-text">D.WORLD</span>
+                <span className="brand-subtext">LCU Campus</span>
+              </div>
+            )}
           </Link>
-          <button className="collapse-btn" onClick={() => setCollapsed(!collapsed)}>
+          <button className="collapse-btn" onClick={() => setCollapsed(!collapsed)} title={collapsed ? "Expand menu" : "Collapse menu"}>
             {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
           </button>
         </div>
 
+        {/* User Profile Card */}
         <div className="user-profile-summary">
           <div className="user-avatar-circle">
             {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
@@ -176,30 +188,87 @@ const AppLayout = ({ children }) => {
           {!collapsed && (
             <div className="user-details">
               <span className="user-name-label">{user.name}</span>
-              <span className="user-role-label" style={{ backgroundColor: getRoleBadgeColor(), color: getRoleTextColor() }}>
-                {user.role.toUpperCase()}
-              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+                <span className="user-role-label" style={{ backgroundColor: getRoleBadgeColor(), color: getRoleTextColor() }}>
+                  {user.role === 'user' ? 'STUDENT' : user.role.toUpperCase()}
+                </span>
+                {user.matricNo && (
+                  <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
+                    {user.matricNo}
+                  </span>
+                )}
+              </div>
             </div>
           )}
         </div>
 
+        {/* Quick Wallet Widget in Sidebar */}
+        {!collapsed && user.role === 'user' && (
+          <div className="sidebar-wallet-card">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
+              <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>CAMPUS WALLET</span>
+              <span style={{ fontSize: '0.68rem', color: '#10b981', fontWeight: 700 }}>● Active</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <strong style={{ fontSize: '1.05rem', color: 'var(--text-main)', fontFamily: 'Outfit' }}>
+                ₦{walletBalance.toLocaleString()}
+              </strong>
+              <button 
+                type="button"
+                onClick={() => setIsWalletOpen(true)}
+                className="sidebar-topup-btn"
+                title="Top up wallet balance"
+              >
+                <Plus size={12} /> Top Up
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Full Navigation List */}
         <nav className="sidebar-nav">
+          <div className="nav-group-title">{!collapsed && 'MENU NAVIGATION'}</div>
           {navItems.map((item, idx) => {
             const isActive = checkActive(item, idx);
+            if (item.action === 'wallet') {
+              return (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => setIsWalletOpen(true)}
+                  className="sidebar-nav-item"
+                  style={{ width: '100%', textAlign: 'left', background: 'transparent', cursor: 'pointer' }}
+                >
+                  <div className="nav-item-icon">{item.icon}</div>
+                  {!collapsed && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                      <span className="nav-item-label">{item.name}</span>
+                      {item.badge && <span className="nav-badge-pill">{item.badge}</span>}
+                    </div>
+                  )}
+                </button>
+              );
+            }
+
             return (
               <Link 
                 key={idx}
                 to={item.path}
                 className={`sidebar-nav-item ${isActive ? 'active' : ''}`}
-                onClick={() => setMobileOpen(false)}
               >
                 <div className="nav-item-icon">{item.icon}</div>
-                {!collapsed && <span className="nav-item-label">{item.name}</span>}
+                {!collapsed && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                    <span className="nav-item-label">{item.name}</span>
+                    {item.badge && <span className="nav-badge-pill">{item.badge}</span>}
+                  </div>
+                )}
               </Link>
             );
           })}
         </nav>
 
+        {/* Sidebar Footer with Sign Out */}
         <div className="sidebar-footer">
           <button onClick={handleLogout} className="sidebar-logout-btn">
             <LogOut size={18} />
@@ -211,9 +280,16 @@ const AppLayout = ({ children }) => {
       {/* Topbar and Content Panel */}
       <div className="app-main-panel">
         <header className="app-topbar">
-          <button className="mobile-menu-toggle" onClick={() => setMobileOpen(!mobileOpen)}>
-            {mobileOpen ? <X size={20} /> : <Menu size={20} />}
+          <button 
+            type="button"
+            className="mobile-menu-toggle" 
+            onClick={() => setMobileOpen(true)}
+            aria-label="Open Left Navigation Menu"
+          >
+            <Menu size={20} />
+            <span style={{ fontSize: '0.825rem', fontWeight: 700 }}>Menu</span>
           </button>
+
           <div className="topbar-title-wrapper">
             <h2>{getWorkspaceTitle()}</h2>
           </div>
@@ -225,18 +301,18 @@ const AppLayout = ({ children }) => {
                 background: 'linear-gradient(135deg, var(--primary), var(--secondary))',
                 color: 'white',
                 border: 'none',
-                padding: '0.4rem 0.85rem',
+                padding: '0.45rem 0.9rem',
                 borderRadius: '10px',
                 fontWeight: 700,
                 fontSize: '0.85rem',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '0.4rem',
+                gap: '0.45rem',
                 cursor: 'pointer',
                 boxShadow: '0 4px 12px rgba(79, 70, 229, 0.25)'
               }}
             >
-              <Wallet size={16} /> Wallet: ₦{walletBalance.toLocaleString()}
+              <Wallet size={16} /> <span>₦{walletBalance.toLocaleString()}</span>
             </button>
 
             {/* Notification Bell Button */}
@@ -282,10 +358,9 @@ const AppLayout = ({ children }) => {
               {/* Notification Dropdown Drawer */}
               {isNotifOpen && (
                 <>
-                  {/* Transparent click backdrop for mobile/desktop */}
                   <div 
                     onClick={() => setIsNotifOpen(false)} 
-                    style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zindex: 2400 }}
+                    style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 2400 }}
                   />
                   <div style={{
                     position: 'absolute',
@@ -301,7 +376,7 @@ const AppLayout = ({ children }) => {
                     overflow: 'hidden'
                   }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', borderBottom: '1px solid var(--border-light)', paddingBottom: '0.5rem' }}>
-                      <strong style={{ fontSize: '0.9rem', color: 'var(--text-main)', fontFamily: 'Outfit' }}>Activity Notifications</strong>
+                      <strong style={{ fontSize: '0.9rem', color: 'var(--text-main)', fontFamily: 'Outfit' }}>Notifications</strong>
                       {unreadCount > 0 && (
                         <button
                           onClick={markAllNotificationsRead}
@@ -339,12 +414,8 @@ const AppLayout = ({ children }) => {
               )}
             </div>
 
-            <div className="system-status-pill desktop-only">
-              <span className="pulse-dot"></span>
-              <span className="status-label">Operational</span>
-            </div>
             <div className="topbar-divider desktop-only"></div>
-            <span className="topbar-welcome desktop-only">Logged in: <strong>{user.email}</strong></span>
+            <span className="topbar-welcome desktop-only">Logged in: <strong>{user.name || user.email}</strong></span>
 
             {/* VISIBLE LOGOUT BUTTON */}
             <button
@@ -371,23 +442,94 @@ const AppLayout = ({ children }) => {
         </main>
       </div>
 
-      {/* Mobile Drawer Navigation */}
+      {/* Mobile Drawer Left-Side Navigation (Replaces Bottom Panel) */}
       {mobileOpen && (
         <div className="mobile-nav-overlay" onClick={() => setMobileOpen(false)}>
           <aside className="mobile-sidebar" onClick={(e) => e.stopPropagation()}>
             <div className="mobile-brand-wrapper">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
                 <span className="brand-dot"></span>
-                <span className="brand-text">D.WORLD</span>
+                <div>
+                  <span className="brand-text">D.WORLD</span>
+                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block' }}>LCU Campus</span>
+                </div>
               </div>
-              <button className="mobile-close-btn" onClick={() => setMobileOpen(false)}>
-                <X size={20} />
+              <button className="mobile-close-btn" onClick={() => setMobileOpen(false)} aria-label="Close Navigation">
+                <X size={22} />
               </button>
             </div>
             
-            <nav className="sidebar-nav" style={{ padding: '2rem 1.5rem' }}>
+            {/* Mobile User Profile Summary */}
+            <div className="user-profile-summary">
+              <div className="user-avatar-circle">
+                {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
+              </div>
+              <div className="user-details">
+                <span className="user-name-label">{user.name}</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+                  <span className="user-role-label" style={{ backgroundColor: getRoleBadgeColor(), color: getRoleTextColor() }}>
+                    {user.role === 'user' ? 'STUDENT' : user.role.toUpperCase()}
+                  </span>
+                  {user.matricNo && (
+                    <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
+                      {user.matricNo}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Mobile Wallet Quick Top-Up Card */}
+            {user.role === 'user' && (
+              <div className="sidebar-wallet-card" style={{ margin: '1rem 1.25rem 0.5rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>CAMPUS WALLET</span>
+                  <span style={{ fontSize: '0.68rem', color: '#10b981', fontWeight: 700 }}>● Active</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <strong style={{ fontSize: '1.05rem', color: 'var(--text-main)', fontFamily: 'Outfit' }}>
+                    ₦{walletBalance.toLocaleString()}
+                  </strong>
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      setMobileOpen(false);
+                      setIsWalletOpen(true);
+                    }}
+                    className="sidebar-topup-btn"
+                  >
+                    <Plus size={12} /> Top Up
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Mobile Navigation List */}
+            <nav className="sidebar-nav" style={{ padding: '1rem 1rem' }}>
+              <div className="nav-group-title">MENU NAVIGATION</div>
               {navItems.map((item, idx) => {
                 const isActive = checkActive(item, idx);
+                if (item.action === 'wallet') {
+                  return (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => {
+                        setMobileOpen(false);
+                        setIsWalletOpen(true);
+                      }}
+                      className="sidebar-nav-item"
+                      style={{ width: '100%', textAlign: 'left', background: 'transparent', cursor: 'pointer' }}
+                    >
+                      <div className="nav-item-icon">{item.icon}</div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                        <span className="nav-item-label">{item.name}</span>
+                        {item.badge && <span className="nav-badge-pill">{item.badge}</span>}
+                      </div>
+                    </button>
+                  );
+                }
+
                 return (
                   <Link 
                     key={idx}
@@ -396,7 +538,10 @@ const AppLayout = ({ children }) => {
                     onClick={() => setMobileOpen(false)}
                   >
                     <div className="nav-item-icon">{item.icon}</div>
-                    <span className="nav-item-label">{item.name}</span>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                      <span className="nav-item-label">{item.name}</span>
+                      {item.badge && <span className="nav-badge-pill">{item.badge}</span>}
+                    </div>
                   </Link>
                 );
               })}
@@ -411,46 +556,6 @@ const AppLayout = ({ children }) => {
           </aside>
         </div>
       )}
-
-      {/* Mobile Bottom Dock for Native-like Navigation */}
-      <nav className="mobile-bottom-dock">
-        {navItems.map((item, idx) => {
-          const isActive = checkActive(item, idx);
-          return (
-            <Link 
-              key={idx}
-              to={item.path}
-              className={`bottom-dock-item ${isActive ? 'active' : ''}`}
-            >
-              <div className="dock-icon-wrapper">
-                {item.icon}
-              </div>
-              <span className="dock-label">{item.name.split(' ')[0]}</span>
-            </Link>
-          );
-        })}
-        <button
-          type="button"
-          onClick={() => setIsWalletOpen(true)}
-          className="bottom-dock-item"
-        >
-          <div className="dock-icon-wrapper">
-            <Wallet size={18} />
-          </div>
-          <span className="dock-label">Wallet</span>
-        </button>
-        <button
-          type="button"
-          onClick={handleLogout}
-          className="bottom-dock-item"
-          style={{ color: '#ef4444' }}
-        >
-          <div className="dock-icon-wrapper" style={{ color: '#ef4444' }}>
-            <LogOut size={18} />
-          </div>
-          <span className="dock-label" style={{ color: '#ef4444', fontWeight: 700 }}>Exit</span>
-        </button>
-      </nav>
 
       {/* Styled Block for AppShell Layout */}
       <style>{`
@@ -832,18 +937,88 @@ const AppLayout = ({ children }) => {
           align-items: center;
         }
 
-        .mobile-bottom-dock {
+        .mobile-menu-toggle {
           display: none;
+          align-items: center;
+          gap: 0.45rem;
+          background: rgba(255, 255, 255, 0.05);
+          border: 1px solid var(--border-light);
+          padding: 0.45rem 0.75rem;
+          border-radius: 10px;
+          color: var(--text-main);
+          font-weight: 700;
+          font-size: 0.85rem;
+          cursor: pointer;
+          transition: background 0.15s ease;
+        }
+
+        .mobile-menu-toggle:active {
+          background: rgba(255, 255, 255, 0.1);
+        }
+
+        .brand-subtext {
+          font-size: 0.65rem;
+          color: var(--text-muted);
+          display: block;
+          text-transform: uppercase;
+          letter-spacing: 0.08em;
+          margin-top: -2px;
+        }
+
+        .sidebar-wallet-card {
+          margin: 1rem 1rem 0.5rem;
+          padding: 0.85rem 1rem;
+          background: linear-gradient(135deg, rgba(79, 70, 229, 0.1), rgba(124, 58, 237, 0.12));
+          border: 1px solid rgba(79, 70, 229, 0.25);
+          border-radius: 12px;
+        }
+
+        .sidebar-topup-btn {
+          background: var(--primary);
+          color: white;
+          border: none;
+          padding: 0.3rem 0.65rem;
+          border-radius: 8px;
+          font-size: 0.75rem;
+          font-weight: 700;
+          cursor: pointer;
+          display: inline-flex;
+          align-items: center;
+          gap: 0.25rem;
+          transition: opacity 0.15s;
+        }
+
+        .sidebar-topup-btn:hover {
+          opacity: 0.9;
+        }
+
+        .nav-group-title {
+          font-size: 0.65rem;
+          font-weight: 800;
+          letter-spacing: 0.1em;
+          color: var(--text-subtle);
+          padding: 0.5rem 0.75rem 0.25rem;
+          text-transform: uppercase;
+        }
+
+        .nav-badge-pill {
+          background: rgba(79, 70, 229, 0.12);
+          color: var(--primary);
+          font-size: 0.7rem;
+          font-weight: 800;
+          padding: 0.15rem 0.5rem;
+          border-radius: 9999px;
+          border: 1px solid rgba(79, 70, 229, 0.2);
         }
 
         /* --- Responsive Styles --- */
         @media (max-width: 992px) {
           .app-sidebar {
-            display: none;
+            display: none !important;
           }
 
           .mobile-menu-toggle {
-            display: block;
+            display: inline-flex !important;
           }
 
           .desktop-only {
@@ -862,71 +1037,9 @@ const AppLayout = ({ children }) => {
           .topbar-actions-wrapper {
             gap: 0.5rem;
           }
-
-          .wallet-label-full {
-            display: none;
-          }
         }
 
         @media (max-width: 768px) {
-          .mobile-bottom-dock {
-            display: flex;
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            height: 62px;
-            background: var(--nav-bg);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border-top: 1px solid var(--border-light);
-            justify-content: space-around;
-            align-items: center;
-            z-index: 999;
-            padding: 0 0.5rem;
-            padding-bottom: env(safe-area-inset-bottom, 0px);
-            box-shadow: 0 -4px 25px rgba(0, 0, 0, 0.2);
-          }
-
-          .app-workspace-content {
-            padding-bottom: 5.5rem !important;
-          }
-
-          .bottom-dock-item {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 0.2rem;
-            color: var(--text-muted);
-            text-decoration: none;
-            font-size: 0.68rem;
-            font-weight: 600;
-            background: transparent;
-            border: none;
-            cursor: pointer;
-            padding: 0.25rem 0.5rem;
-            border-radius: 8px;
-            transition: color 0.15s;
-          }
-
-          .bottom-dock-item.active {
-            color: var(--primary);
-            font-weight: 700;
-          }
-
-          .dock-icon-wrapper {
-            padding: 0.15rem 0.5rem;
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-          }
-
-          .bottom-dock-item.active .dock-icon-wrapper {
-            background: rgba(99, 102, 241, 0.15);
-          }
-
           .topbar-logout-btn .logout-text {
             display: none;
           }
@@ -939,27 +1052,32 @@ const AppLayout = ({ children }) => {
           }
         }
 
-        /* --- Mobile Overlay Navigation --- */
+        /* --- Mobile Overlay Navigation (Left Drawer) --- */
         .mobile-nav-overlay {
           position: fixed;
           top: 0; left: 0; right: 0; bottom: 0;
           background: rgba(0, 0, 0, 0.75);
-          backdrop-filter: blur(4px);
-          z-index: 1000;
+          backdrop-filter: blur(6px);
+          -webkit-backdrop-filter: blur(6px);
+          z-index: 2600;
+          display: flex;
         }
 
         .mobile-sidebar {
-          width: 290px;
+          width: 300px;
+          max-width: 85vw;
           height: 100vh;
           background: var(--nav-bg);
           border-right: 1px solid var(--border-light);
           display: flex;
           flex-direction: column;
-          animation: slide-in 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+          animation: slide-in 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+          box-shadow: 10px 0 35px rgba(0, 0, 0, 0.5);
+          overflow-y: auto;
         }
 
         .mobile-brand-wrapper {
-          padding: 1.5rem;
+          padding: 1.25rem 1.5rem;
           display: flex;
           align-items: center;
           justify-content: space-between;
@@ -967,14 +1085,25 @@ const AppLayout = ({ children }) => {
         }
 
         .mobile-close-btn {
-          background: transparent;
-          border: none;
+          background: rgba(255, 255, 255, 0.05);
+          border: 1px solid var(--border-light);
           color: var(--text-muted);
+          width: 34px;
+          height: 34px;
+          border-radius: 8px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
           cursor: pointer;
         }
 
+        .mobile-close-btn:hover {
+          color: var(--text-main);
+          background: rgba(255, 255, 255, 0.1);
+        }
+
         .mobile-sidebar-footer {
-          padding: 1.5rem;
+          padding: 1.25rem 1.5rem;
           border-top: 1px solid var(--border-light);
           margin-top: auto;
         }

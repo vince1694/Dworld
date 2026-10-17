@@ -27,7 +27,8 @@ import {
   Star,
   MessageSquare,
   Download,
-  Calendar
+  Calendar,
+  Share2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import BookingWizardModal from '../components/BookingWizardModal';
@@ -621,6 +622,36 @@ const Dashboard = () => {
                 );
               })}
             </div>
+
+            {/* Campus Share / Referral Card */}
+            <div style={{
+              margin: '1rem',
+              padding: '1.25rem',
+              borderRadius: '16px',
+              background: 'linear-gradient(135deg, rgba(79, 70, 229, 0.08), rgba(124, 58, 237, 0.08))',
+              border: '1px solid rgba(79, 70, 229, 0.2)'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginBottom: '0.4rem' }}>
+                <span style={{ fontSize: '1.25rem' }}>🤝</span>
+                <strong style={{ fontSize: '0.95rem', color: 'var(--text-main)', fontFamily: 'Outfit' }}>
+                  Invite LCU Course Mates
+                </strong>
+              </div>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '0 0 0.85rem', lineHeight: 1.5 }}>
+                Share D.WORLD with friends in your department or hostel for fast, cashless campus styling.
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard.writeText(window.location.origin);
+                  addToast('Invite link copied! Share with your course mates on WhatsApp 🚀', 'success');
+                }}
+                className="btn btn-secondary"
+                style={{ fontSize: '0.78rem', width: '100%', justifyContent: 'center', gap: '0.4rem', padding: '0.55rem' }}
+              >
+                <Share2 size={13} /> Copy Campus Invite Link
+              </button>
+            </div>
           </div>
 
         </div>
@@ -758,6 +789,18 @@ const Dashboard = () => {
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                {selectedAppointment.service_id?.stylist_id?.phone && (
+                  <a
+                    href={`https://wa.me/${selectedAppointment.service_id.stylist_id.phone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Hello! I have a booking on D.WORLD for ${selectedAppointment.service_id?.name || 'styling'} on ${selectedAppointment.date} at ${selectedAppointment.time}.`)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn btn-secondary"
+                    style={{ background: 'rgba(34, 197, 94, 0.1)', color: '#16a34a', borderColor: 'rgba(34, 197, 94, 0.3)', fontWeight: 600, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                  >
+                    💬 WhatsApp Stylist
+                  </a>
+                )}
+
                 <button
                   type="button"
                   onClick={() => {
@@ -766,8 +809,24 @@ const Dashboard = () => {
                   className="btn btn-secondary"
                   style={{ background: 'rgba(99, 102, 241, 0.1)', color: 'var(--primary)', borderColor: 'rgba(99, 102, 241, 0.3)', fontWeight: 600 }}
                 >
-                  <MessageSquare size={16} /> Chat with Expert
+                  <MessageSquare size={16} /> Live Chat
                 </button>
+
+                {(selectedAppointment.status === 'completed' || selectedAppointment.status === 'cancelled') && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const sId = selectedAppointment.service_id?._id || selectedAppointment.service_id?.id;
+                      setSelectedAppointment(null);
+                      openBookingForService(sId);
+                    }}
+                    className="btn btn-primary"
+                    style={{ fontWeight: 600 }}
+                  >
+                    <CalendarPlus size={16} /> Rebook Service
+                  </button>
+                )}
+
                 {(selectedAppointment.status === 'approved' || selectedAppointment.status === 'completed') && selectedAppointment.paymentStatus !== 'paid' && (
                   <button 
                     disabled={paying}

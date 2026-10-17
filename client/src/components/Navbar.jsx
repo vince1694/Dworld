@@ -9,8 +9,8 @@ const Navbar = () => {
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // Hide global navbar on dashboard and admin portal pages
-  const isExcludedRoute = ['/dashboard', '/expert', '/admin'].some(prefix => location.pathname.startsWith(prefix));
+  // Hide global navbar on dashboard, book appointment, and admin portal pages
+  const isExcludedRoute = ['/dashboard', '/expert', '/admin', '/book'].some(prefix => location.pathname.startsWith(prefix));
   if (isExcludedRoute) return null;
 
   const handleLogout = () => {
