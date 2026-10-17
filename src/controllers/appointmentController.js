@@ -1,0 +1,364 @@
+const Appointment = require('../models/Appointment');
+const TimeSlot = require('../models/TimeSlot');
+const Service = require('../models/Service');
+const { createNotificationHelper } = require('./notificationController');
+
+const bookAppointment = async (req, res, next) => {
+    try {
+        let { service_id, date, time, notes, stylist_id } = req.body;
+        const user_id = req.user?.id;
+
+        if (!user_id) {
+            return res.status(401).json({ success: false, message: 'Please log in to complete your booking.' });
+        }
+
+        if (!service_id || !date || !time) {
+            return res.status(400).json({ success: false, message: 'Please select a service, date, and time slot.' });
+        }
+
+        const cleanServiceId = service_id._id || service_id;
+
+        // Check if slot is taken for that date, time, and service
+        const existing = await Appointment.findOne({ date, time, service_id: cleanServiceId, status: { $ne: 'cancelled' } });
+        if (existing) {
+            return res.status(400).json({ success: false, message: 'This date and time slot is already booked for this service.' });
+        }
+
+        const User = require('../models/User');
+        const service = await Service.findById(cleanServiceId);
+        const targetStylistId = stylist_id || (service ? service.stylist_id : null);
+
+        if (targetStylistId) {
+            const specialist = await User.findById(targetStylistId);
+            const matricRegex = /^LCU\/UG\/\d{2}\/\d{4,5}$/i;
+            if (!specialist || !specialist.matricNo || !matricRegex.test(specialist.matricNo)) {
+                return res.status(403).json({
+                    success: false,
+                    message: 'Access Denied: Unverified specialist credentials or invalid Lead City University Matriculation Number.'
+                });
+            }
+        }
+
+        // Book appointment
+        const apt = await Appointment.create({ user_id, service_id: cleanServiceId, date, time, notes, stylist_id: targetStylistId });
+
+        // Mark slot as unavailable
+        await TimeSlot.markUnavailable(date, time);
+
+        // Send notification to expert
+        if (targetStylistId) {
+            const clientUser = await User.findById(user_id);
+            await createNotificationHelper(
+                targetStylistId,
+                'New Booking Request 📅',
+                `${clientUser ? clientUser.name : 'A client'} booked "${service ? service.name : 'a service'}" for ${date} at ${time}.`,
+                'booking'
+            );
+        }
+
+        res.status(201).json({ success: true, message: 'Appointment booked successfully', data: apt });
+    } catch (error) {
+        console.error('Booking Error:', error);
+        res.status(500).json({ success: false, message: error.message || 'Booking failed. Please try again.' });
+    }
+};
+
+const getUserAppointments = async (req, res, next) => {
+    try {
+        const appointments = await Appointment.getByUser(req.user.id);
+        res.status(200).json({ success: true, data: appointments });
+    } catch (error) {
+        next(error);
+    }
+};
+
+const getStylistDashboardData = async (req, res, next) => {
+    try {
+        const stylistId = req.user.id;
+        if (!stylistId) {
+            return res.status(400).json({ success: false, message: 'User ID missing from token' });
+        }
+
+        const appointments = await Appointment.getByStylist(stylistId);
+
+        // Calculate basic stats
+        const totalBookings = appointments.length;
+        const pendingRequests = appointments.filter(a => a.status === 'pending').length;
+        const totalEarnings = appointments
+            .filter(a => a.status === 'approved')
+            .reduce((sum, a) => sum + parseFloat(a.price || 0), 0);
+
+        res.status(200).json({
+            success: true,
+            data: {
+                appointments: appointments || [],
+                stats: {
+                    totalBookings: totalBookings || 0,
+                    pendingRequests: pendingRequests || 0,
+                    totalEarnings: totalEarnings || 0
+                }
+            }
+        });
+    } catch (error) {
+        console.error('Stylist Dashboard Controller Error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Internal server error while fetching dashboard data',
+            error: error.message
+        });
+    }
+};
+
+const getAllAppointments = async (req, res, next) => {
+    try {
+        const appointments = await Appointment.getAll();
+        res.status(200).json({ success: true, data: appointments });
+    } catch (error) {
+        next(error);
+    }
+};
+
+const updateAppointmentStatus = async (req, res, next) => {
+    try {
+        const { status } = req.body;
+        const appointmentId = req.params.id;
+        const user = req.user;
+
+        // Get appointment details with service info to verify ownership
+        const appointment = await Appointment.findById(appointmentId).populate('service_id');
+
+        if (!appointment) {
+            return res.status(404).json({ success: false, message: 'Appointment not found' });
+        }
+
+        const service_stylist_id = appointment.service_id ? appointment.service_id.stylist_id : null;
+
+        // Authorization Check: Only the assigned stylist, service owner, an admin, or the client can update
+        const allowedRoles = ['admin', 'stylist', 'expert'];
+        
+        let isStylist = false;
+        if (appointment.stylist_id && appointment.stylist_id.toString() === user.id) isStylist = true;
+        if (service_stylist_id && service_stylist_id.toString() === user.id) isStylist = true;
+        
+        const appointmentUserId = appointment.user_id?._id ? appointment.user_id._id.toString() : appointment.user_id?.toString();
+        const isClient = appointmentUserId === user.id;
+
+        if (!allowedRoles.includes(user.role) && !isStylist && !isClient) {
+            return res.status(403).json({ success: false, message: 'Not authorized to manage this appointment' });
+        }
+
+        if (isClient && !allowedRoles.includes(user.role) && !isStylist) {
+           if (status !== 'cancelled') {
+               return res.status(403).json({ success: false, message: 'Clients can only cancel their appointments' });
+           }
+           // Clients can only cancel appointments that are still pending
+           if (appointment.status !== 'pending') {
+               return res.status(403).json({ 
+                   success: false, 
+                   message: `This appointment has been ${appointment.status} by the expert and can no longer be cancelled.` 
+               });
+           }
+        }
+
+        if (status === 'cancelled') {
+            await TimeSlot.markAvailable(appointment.date, appointment.time);
+        }
+
+        await Appointment.updateStatus(appointmentId, status);
+
+        // Send notification to Client
+        const clientUserId = appointment.user_id?._id || appointment.user_id;
+        if (clientUserId) {
+            let notifTitle = `Appointment Updated 📋`;
+            let notifType = 'approval';
+            if (status === 'approved') notifTitle = `Appointment Approved! ✅`;
+            if (status === 'completed') { notifTitle = `Service Completed! 🎉`; notifType = 'completion'; }
+            if (status === 'cancelled') notifTitle = `Appointment Cancelled ⚠️`;
+
+            await createNotificationHelper(
+                clientUserId,
+                notifTitle,
+                `Your appointment for "${appointment.service_id?.name || 'Service'}" on ${appointment.date} has been marked as ${status}.`,
+                notifType
+            );
+        }
+
+        res.status(200).json({ success: true, message: `Appointment ${status}` });
+    } catch (error) {
+        next(error);
+    }
+};
+
+const createTimeSlot = async (req, res, next) => {
+    try {
+        const { date, time } = req.body;
+        await TimeSlot.create(date, time);
+        res.status(201).json({ success: true, message: 'Time slot created' });
+    } catch (error) {
+        next(error);
+    }
+};
+
+const getAllSlots = async (req, res, next) => {
+    try {
+        const slots = await TimeSlot.getAll();
+        res.status(200).json({ success: true, data: slots });
+    } catch (error) {
+        next(error);
+    }
+};
+
+const getAvailableSlots = async (req, res, next) => {
+    try {
+        const { date } = req.query;
+        const slots = await TimeSlot.getAvailableByDate(date);
+        res.status(200).json({ success: true, data: slots });
+    } catch (error) {
+        next(error);
+    }
+};
+
+const deleteTimeSlot = async (req, res, next) => {
+    try {
+        await TimeSlot.delete(req.params.id);
+        res.status(200).json({ success: true, message: 'Slot deleted' });
+    } catch (error) {
+        next(error);
+    }
+};
+
+const payAppointment = async (req, res, next) => {
+    try {
+        const appointmentId = req.params.id;
+        const clientId = req.user.id;
+
+        const User = require('../models/User');
+        const appointment = await Appointment.findById(appointmentId).populate('service_id');
+
+        if (!appointment) {
+            return res.status(404).json({ success: false, message: 'Appointment not found' });
+        }
+
+        if (appointment.paymentStatus === 'paid') {
+            return res.status(400).json({ success: false, message: 'Appointment has already been paid for' });
+        }
+
+        const amount = parseFloat(appointment.service_id?.price || 0);
+
+        // Fetch Client User
+        const clientUser = await User.findById(clientId);
+        if (!clientUser) {
+            return res.status(404).json({ success: false, message: 'Client account not found' });
+        }
+
+        if ((clientUser.walletBalance || 0) < amount) {
+            return res.status(400).json({ 
+                success: false, 
+                message: `Insufficient wallet balance (₦${(clientUser.walletBalance || 0).toLocaleString()}). Please top up at least ₦${(amount - (clientUser.walletBalance || 0)).toLocaleString()}.` 
+            });
+        }
+
+        // Deduct from Client Wallet
+        clientUser.walletBalance -= amount;
+        clientUser.transactions.push({
+            type: 'payment',
+            amount: amount,
+            description: `Payment for ${appointment.service_id?.name || 'Appointment'}`,
+            reference_id: `PAY-${appointment._id}`
+        });
+
+        // Credit to Expert Wallet
+        let expertId = appointment.stylist_id || appointment.service_id?.stylist_id;
+        if (expertId) {
+            const expertUser = await User.findById(expertId);
+            if (expertUser) {
+                expertUser.walletBalance = (expertUser.walletBalance || 0) + amount;
+                expertUser.transactions.push({
+                    type: 'earning',
+                    amount: amount,
+                    description: `Earned from ${clientUser.name} for ${appointment.service_id?.name || 'Service'}`,
+                    reference_id: `EARN-${appointment._id}`
+                });
+                await expertUser.save();
+
+                // Send notification to expert
+                await createNotificationHelper(
+                    expertId,
+                    'Payment Received! 💰',
+                    `You received ₦${amount.toLocaleString()} from ${clientUser.name} for "${appointment.service_id?.name || 'Service'}".`,
+                    'payment'
+                );
+            }
+        }
+
+        appointment.paymentStatus = 'paid';
+        await appointment.save();
+        await clientUser.save();
+
+        res.status(200).json({
+            success: true,
+            message: `Payment of ₦${amount.toLocaleString()} successfully released to expert!`,
+            clientWalletBalance: clientUser.walletBalance
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+const deleteAppointment = async (req, res, next) => {
+    try {
+        const appointmentId = req.params.id;
+        const userId = req.user.id;
+
+        const appointment = await Appointment.findById(appointmentId);
+        if (!appointment) {
+            return res.status(404).json({ success: false, message: 'Appointment record not found' });
+        }
+
+        const appointmentUserId = appointment.user_id?.toString();
+        const stylistId = appointment.stylist_id?.toString();
+
+        if (req.user.role !== 'admin' && appointmentUserId !== userId && stylistId !== userId) {
+            return res.status(403).json({ success: false, message: 'Not authorized to delete this appointment' });
+        }
+
+        await Appointment.findByIdAndDelete(appointmentId);
+        res.status(200).json({ success: true, message: 'Appointment history record deleted' });
+    } catch (error) {
+        next(error);
+    }
+};
+
+const clearBookingHistory = async (req, res, next) => {
+    try {
+        const userId = req.user.id;
+        const role = req.user.role;
+
+        if (role === 'admin') {
+            await Appointment.deleteMany({ status: { $in: ['completed', 'cancelled'] } });
+        } else if (role === 'expert' || role === 'stylist') {
+            await Appointment.deleteMany({ stylist_id: userId, status: { $in: ['completed', 'cancelled'] } });
+        } else {
+            await Appointment.deleteMany({ user_id: userId, status: { $in: ['completed', 'cancelled'] } });
+        }
+
+        res.status(200).json({ success: true, message: 'Booking history cleared successfully' });
+    } catch (error) {
+        next(error);
+    }
+};
+
+module.exports = {
+    bookAppointment,
+    getUserAppointments,
+    getAllAppointments,
+    getStylistDashboardData,
+    updateAppointmentStatus,
+    createTimeSlot,
+    getAvailableSlots,
+    getAllSlots,
+    deleteTimeSlot,
+    payAppointment,
+    deleteAppointment,
+    clearBookingHistory
+};

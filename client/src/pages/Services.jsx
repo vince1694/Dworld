@@ -1,0 +1,428 @@
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import axios from 'axios';
+import { motion } from 'framer-motion';
+import { 
+  Search, 
+  Sparkles, 
+  Clock, 
+  MapPin, 
+  User, 
+  CalendarPlus, 
+  Filter, 
+  X, 
+  UserCheck, 
+  Star, 
+  Award, 
+  MessageSquare, 
+  ChevronDown, 
+  ChevronUp, 
+  Grid, 
+  Users 
+} from 'lucide-react';
+import BookingWizardModal from '../components/BookingWizardModal';
+import AIMatcherWidget from '../components/AIMatcherWidget';
+import VerifiedBadge from '../components/VerifiedBadge';
+
+import { API_URL } from '../config/api';
+
+const Services = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get('tab') || 'services'; // 'services' or 'experts'
+  
+  const [services, setServices] = useState([]);
+  const [experts, setExperts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  
+  // Search & Filters
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('All');
+  const [typeFilter, setTypeFilter] = useState('all'); // 'all', 'single', 'package'
+  
+  // Review Drawer state for experts
+  const [activeReviewsExpertId, setActiveReviewsExpertId] = useState(null);
+  const [reviewsMap, setReviewsMap] = useState({});
+
+  // Booking Modal
+  const [isWizardOpen, setIsWizardOpen] = useState(false);
+  const [preselectedServiceId, setPreselectedServiceId] = useState(null);
+  
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const [servicesRes, expertsRes] = await Promise.all([
+        axios.get(`${API_URL}/services`),
+        axios.get(`${API_URL}/auth/experts`)
+      ]);
+
+      if (servicesRes.data.success) setServices(servicesRes.data.data);
+      if (expertsRes.data.success) setExperts(expertsRes.data.data);
+    } catch (err) {
+      console.error('Failed to fetch services and experts', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleBookService = (serviceId) => {
+    setPreselectedServiceId(serviceId);
+    setIsWizardOpen(true);
+  };
+
+  const toggleReviews = async (expertId) => {
+    if (activeReviewsExpertId === expertId) {
+      setActiveReviewsExpertId(null);
+      return;
+    }
+
+    setActiveReviewsExpertId(expertId);
+    if (!reviewsMap[expertId]) {
+      try {
+        const res = await axios.get(`${API_URL}/reviews/expert/${expertId}`);
+        if (res.data.success) {
+          setReviewsMap(prev => ({ ...prev, [expertId]: res.data.data }));
+        }
+      } catch (err) {
+        console.error('Failed to fetch expert reviews', err);
+      }
+    }
+  };
+
+  // Filtered Services
+  const filteredServices = services.filter(srv => {
+    // Search query filter
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      const matchName = (srv.name || '').toLowerCase().includes(q);
+      const matchDesc = (srv.description || '').toLowerCase().includes(q);
+      const matchCat = (srv.category || '').toLowerCase().includes(q);
+      if (!matchName && !matchDesc && !matchCat) return false;
+    }
+
+    // Category Filter
+    if (selectedCategory !== 'All') {
+      const name = (srv.name || '').toLowerCase();
+      const cat = (srv.category || '').toLowerCase();
+
+      if (selectedCategory === 'Hair' && !(cat.includes('hair') || name.includes('hair') || name.includes('wig') || name.includes('frontal') || name.includes('braid'))) return false;
+      if (selectedCategory === 'Nails' && !(cat.includes('nail') || name.includes('nail') || name.includes('manicure') || name.includes('pedicure'))) return false;
+      if (selectedCategory === 'Lashes' && !(cat.includes('lash') || name.includes('lash'))) return false;
+      if (selectedCategory === 'Makeup' && !(cat.includes('makeup') || name.includes('makeup') || name.includes('eyebrow'))) return false;
+      if (selectedCategory === 'Barbering' && !(cat.includes('barber') || name.includes('barber') || name.includes('haircut') || name.includes('male'))) return false;
+      if (selectedCategory === 'Skincare' && !(cat.includes('skincare') || name.includes('facial') || name.includes('waxing') || name.includes('treatment'))) return false;
+      if (selectedCategory === 'Wellness' && !(cat.includes('wellness') || name.includes('massage') || name.includes('pedicure'))) return false;
+    }
+
+    return true;
+  });
+
+  // Filtered Experts
+  const filteredExperts = experts.filter(exp => {
+    return exp.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+           (exp.specialty && exp.specialty.toLowerCase().includes(searchQuery.toLowerCase())) ||
+           (exp.bio && exp.bio.toLowerCase().includes(searchQuery.toLowerCase()));
+  });
+
+  return (
+    <div className="page-wrapper container animate-fade-in">
+      
+      {/* Booking Wizard Modal */}
+      <BookingWizardModal 
+        isOpen={isWizardOpen}
+        onClose={() => setIsWizardOpen(false)}
+        preselectedServiceId={preselectedServiceId}
+        onBookingSuccess={() => {
+          navigate('/dashboard');
+        }}
+      />
+
+      {/* AI SMART LIVE MATCHER WIDGET */}
+      <AIMatcherWidget onSelectService={handleBookService} />
+
+      {/* HEADER SECTION */}
+      <header style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
+        <h1 style={{ fontSize: '2.5rem', marginBottom: '0.75rem', color: 'var(--text-main)', letterSpacing: '-0.02em', fontFamily: 'Outfit' }}>
+          What do you want done?
+        </h1>
+        <p style={{ color: 'var(--text-muted)', fontSize: '1.05rem', maxWidth: '680px', margin: '0 auto 2rem' }}>
+          Choose your service tier below. You can specify your exact hairstyle, nail design, or lash preference during booking!
+        </p>
+
+        {/* MASTER VIEW TOGGLE SWITCH (SERVICES VS EXPERTS) */}
+        <div style={{ display: 'inline-flex', background: '#f1f5f9', padding: '0.35rem', borderRadius: '9999px', border: '1px solid var(--border-light)', gap: '0.35rem' }}>
+          <button
+            onClick={() => setSearchParams({ tab: 'services' })}
+            style={{
+              padding: '0.5rem 1.5rem',
+              borderRadius: '9999px',
+              border: 'none',
+              background: activeTab === 'services' ? 'var(--primary)' : 'transparent',
+              color: activeTab === 'services' ? 'white' : 'var(--text-muted)',
+              fontSize: '0.875rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.4rem',
+              boxShadow: activeTab === 'services' ? '0 4px 12px rgba(79, 70, 229, 0.25)' : 'none',
+              transition: 'all 0.2s ease'
+            }}
+          >
+            <Grid size={16} /> Services Catalog ({services.length})
+          </button>
+
+          <button
+            onClick={() => setSearchParams({ tab: 'experts' })}
+            style={{
+              padding: '0.5rem 1.5rem',
+              borderRadius: '9999px',
+              border: 'none',
+              background: activeTab === 'experts' ? 'var(--secondary)' : 'transparent',
+              color: activeTab === 'experts' ? 'white' : 'var(--text-muted)',
+              fontSize: '0.875rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.4rem',
+              boxShadow: activeTab === 'experts' ? '0 4px 12px rgba(124, 58, 237, 0.25)' : 'none',
+              transition: 'all 0.2s ease'
+            }}
+          >
+            <Users size={16} /> Specialist Experts ({experts.length})
+          </button>
+        </div>
+      </header>
+
+      {/* ================= TAB 1: SERVICES CATALOG ================= */}
+      {activeTab === 'services' && (
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+          
+          {/* Service Category Chips */}
+          <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center', flexWrap: 'wrap', marginBottom: '2rem' }}>
+            {['All', 'Hair', 'Nails', 'Lashes', 'Makeup', 'Barbering', 'Skincare', 'Wellness'].map(cat => (
+              <button
+                key={cat}
+                onClick={() => setSelectedCategory(cat)}
+                style={{
+                  padding: '0.4rem 0.85rem',
+                  borderRadius: '9999px',
+                  border: selectedCategory === cat ? '1px solid var(--primary)' : '1px solid var(--border-light)',
+                  background: selectedCategory === cat ? 'rgba(79, 70, 229, 0.1)' : '#ffffff',
+                  color: selectedCategory === cat ? 'var(--primary)' : 'var(--text-muted)',
+                  fontSize: '0.8rem',
+                  fontWeight: 700,
+                  cursor: 'pointer'
+                }}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+
+          {loading ? (
+            <div style={{ padding: '4rem', textAlign: 'center', color: 'var(--text-muted)' }}>Loading services...</div>
+          ) : filteredServices.length === 0 ? (
+            <div style={{ padding: '4rem', textAlign: 'center', color: 'var(--text-muted)', background: '#ffffff', borderRadius: '20px', border: '1px solid var(--border-light)' }}>
+              <h3>No services match your query</h3>
+              <button onClick={() => { setSearchQuery(''); setSelectedCategory('All'); }} className="btn btn-secondary" style={{ marginTop: '1rem' }}>
+                Reset Search Filters
+              </button>
+            </div>
+          ) : (
+            <div className="grid-layout grid-cols-1 md:grid-cols-2 lg:grid-cols-3" style={{ gap: '1.5rem' }}>
+              {filteredServices.map((srv, idx) => {
+                const srvId = String(srv._id || srv.id);
+                return (
+                  <motion.div 
+                    key={srvId}
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: idx * 0.04 }}
+                    onClick={() => handleBookService(srvId)}
+                    className="app-card hover-card-select"
+                    style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', cursor: 'pointer' }}
+                  >
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+                        <div style={{ width: '42px', height: '42px', background: 'rgba(79, 70, 229, 0.1)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary)' }}>
+                          <Sparkles size={22} />
+                        </div>
+                        <span style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--secondary)', fontFamily: 'Outfit' }}>
+                          ₦{srv.price?.toLocaleString()}
+                        </span>
+                      </div>
+                      <h3 style={{ fontSize: '1.2rem', marginBottom: '0.5rem', fontFamily: 'Outfit' }}>{srv.name}</h3>
+                      <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', lineHeight: 1.5, marginBottom: '1.25rem' }}>
+                        {srv.description}
+                      </p>
+                    </div>
+
+                    <div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', borderTop: '1px solid var(--border-light)', paddingTop: '0.85rem', marginBottom: '1.25rem', fontSize: '0.8rem', color: 'var(--text-subtle)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                          <Clock size={14} color="var(--primary)" /> <span>Duration: <strong>{srv.duration} mins</strong></span>
+                        </div>
+                        {srv.location && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                            <MapPin size={14} color="var(--secondary)" /> <span>Location: <strong>{srv.location}</strong></span>
+                          </div>
+                        )}
+                      </div>
+
+                      <button className="btn btn-primary" style={{ width: '100%', justifyContent: 'center' }}>
+                        <CalendarPlus size={16} /> Book Service
+                      </button>
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </div>
+          )}
+        </motion.div>
+      )}
+
+      {/* ================= TAB 2: SPECIALIST EXPERTS DIRECTORY ================= */}
+      {activeTab === 'experts' && (
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+          {loading ? (
+            <div style={{ padding: '4rem', textAlign: 'center', color: 'var(--text-muted)' }}>Loading specialists...</div>
+          ) : filteredExperts.length === 0 ? (
+            <div style={{ padding: '4rem', textAlign: 'center', color: 'var(--text-muted)', background: '#ffffff', borderRadius: '20px', border: '1px solid var(--border-light)' }}>
+              <h3>No experts match your query</h3>
+              <button onClick={() => setSearchQuery('')} className="btn btn-secondary" style={{ marginTop: '1rem' }}>Clear Search</button>
+            </div>
+          ) : (
+            <div className="grid-layout grid-cols-1 md:grid-cols-2 lg:grid-cols-3" style={{ gap: '1.5rem' }}>
+              {filteredExperts.map((exp, idx) => {
+                const expId = String(exp._id || exp.id);
+                return (
+                  <motion.div
+                    key={expId}
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: idx * 0.04 }}
+                    className="app-card"
+                    style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}
+                  >
+                    <div>
+                      {/* Expert Header */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.25rem' }}>
+                        <div style={{
+                          width: '54px',
+                          height: '54px',
+                          borderRadius: '16px',
+                          background: 'linear-gradient(135deg, var(--primary), var(--secondary))',
+                          color: 'white',
+                          fontWeight: 800,
+                          fontSize: '1.25rem',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          boxShadow: '0 6px 16px rgba(79, 70, 229, 0.25)'
+                        }}>
+                          {exp.name ? exp.name.charAt(0).toUpperCase() : 'E'}
+                        </div>
+
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.2rem', flexWrap: 'wrap' }}>
+                            <h3 style={{ margin: 0, fontSize: '1.15rem', fontFamily: 'Outfit' }}>{exp.name}</h3>
+                            <VerifiedBadge size="small" text="OFFICIAL LCU SPECIALIST" />
+                          </div>
+                          <span style={{ fontSize: '0.8rem', color: 'var(--primary)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                            <Award size={13} /> {exp.specialty || 'General Specialist'}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Rating & Review Toggle */}
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#f8fafc', padding: '0.4rem 0.75rem', borderRadius: '8px', border: '1px solid var(--border-light)' }}>
+                          <Star size={14} color="#f59e0b" fill="#f59e0b" />
+                          <strong style={{ fontSize: '0.85rem' }}>{exp.rating || 4.9} / 5.0</strong>
+                          <span style={{ fontSize: '0.75rem', color: 'var(--text-subtle)' }}>(Verified)</span>
+                        </div>
+
+                        <button
+                          onClick={() => toggleReviews(expId)}
+                          style={{ background: 'none', border: 'none', color: 'var(--primary)', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+                        >
+                          <MessageSquare size={13} /> Reviews {activeReviewsExpertId === expId ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                        </button>
+                      </div>
+
+                      {/* Reviews Drawer */}
+                      {activeReviewsExpertId === expId && (
+                        <div style={{ background: '#f8fafc', borderRadius: '12px', padding: '0.85rem', marginBottom: '1rem', border: '1px solid var(--border-light)', maxHeight: '160px', overflowY: 'auto' }}>
+                          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', display: 'block', marginBottom: '0.5rem' }}>
+                            CLIENT REVIEWS & FEEDBACK
+                          </span>
+                          {reviewsMap[expId] && reviewsMap[expId].length > 0 ? (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                              {reviewsMap[expId].map(rev => (
+                                <div key={rev._id} style={{ background: '#ffffff', padding: '0.5rem 0.75rem', borderRadius: '8px', border: '1px solid var(--border-light)' }}>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.2rem' }}>
+                                    <strong style={{ fontSize: '0.8rem', color: 'var(--text-main)' }}>{rev.client_id?.name || 'Client'}</strong>
+                                    <span style={{ fontSize: '0.75rem', color: '#f59e0b', fontWeight: 700 }}>{'⭐'.repeat(rev.rating)}</span>
+                                  </div>
+                                  {rev.comment && <p style={{ margin: 0, fontSize: '0.775rem', color: 'var(--text-muted)' }}>"{rev.comment}"</p>}
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <span style={{ fontSize: '0.775rem', color: 'var(--text-subtle)' }}>No reviews written yet for this expert.</span>
+                          )}
+                        </div>
+                      )}
+
+                      <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', lineHeight: 1.5, marginBottom: '1.25rem' }}>
+                        {exp.bio || 'Experienced specialist offering high quality appointment services.'}
+                      </p>
+
+                      {/* Offered Services List */}
+                      <div style={{ borderTop: '1px solid var(--border-light)', paddingTop: '1rem', marginBottom: '1.25rem' }}>
+                        <span style={{ fontSize: '0.775rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', fontWeight: 700, display: 'block', marginBottom: '0.65rem' }}>
+                          SERVICES OFFERED BY {exp.name.split(' ')[0].toUpperCase()}
+                        </span>
+
+                        {exp.services && exp.services.length > 0 ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                            {exp.services.map(srv => {
+                              const srvId = String(srv._id || srv.id);
+                              return (
+                                <div 
+                                  key={srvId}
+                                  onClick={() => handleBookService(srvId)}
+                                  style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem 0.85rem', borderRadius: '10px', background: '#f8fafc', border: '1px solid var(--border-light)', cursor: 'pointer', fontSize: '0.85rem' }}
+                                  className="hover-card-select"
+                                >
+                                  <span style={{ fontWeight: 600, color: 'var(--text-main)' }}>{srv.name}</span>
+                                  <span style={{ fontWeight: 700, color: 'var(--secondary)' }}>₦{srv.price?.toLocaleString()}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <span style={{ fontSize: '0.8rem', color: 'var(--text-subtle)' }}>No custom services listed yet.</span>
+                        )}
+                      </div>
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </div>
+          )}
+        </motion.div>
+      )}
+
+    </div>
+  );
+};
+
+export default Services;
