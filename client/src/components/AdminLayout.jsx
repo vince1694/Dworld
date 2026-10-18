@@ -161,6 +161,45 @@ const AdminLayout = ({ children }) => {
             <span className="admin-hide-mobile">Public Site</span>
           </Link>
 
+          {/* Admin Profile Avatar */}
+          <button
+            type="button"
+            onClick={() => navigate('/admin?tab=profile')}
+            title={`Admin profile: ${user?.name || 'Admin'}`}
+            style={{
+              width: '38px',
+              height: '38px',
+              borderRadius: '50%',
+              overflow: 'hidden',
+              border: '2px solid rgba(239, 68, 68, 0.6)',
+              boxShadow: '0 0 0 3px rgba(239, 68, 68, 0.15)',
+              cursor: 'pointer',
+              background: 'linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#fff',
+              fontWeight: 800,
+              fontSize: '0.9rem',
+              fontFamily: 'Outfit, sans-serif',
+              flexShrink: 0,
+              padding: 0,
+              transition: 'box-shadow 0.2s, transform 0.2s'
+            }}
+            onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 0 0 4px rgba(239,68,68,0.35)'; e.currentTarget.style.transform = 'scale(1.07)'; }}
+            onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 0 0 3px rgba(239,68,68,0.15)'; e.currentTarget.style.transform = 'scale(1)'; }}
+          >
+            {user?.avatar ? (
+              <img
+                src={user.avatar}
+                alt={user.name || 'Admin'}
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              />
+            ) : (
+              <span>{user?.name ? user.name.charAt(0).toUpperCase() : 'A'}</span>
+            )}
+          </button>
+
           <button
             type="button"
             onClick={handleLogout}

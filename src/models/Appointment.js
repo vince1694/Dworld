@@ -16,6 +16,13 @@ const appointmentSchema = new mongoose.Schema({
   reminderSent: { type: Boolean, default: false }
 }, { timestamps: true });
 
+// ── Performance indexes ────────────────────────────────────────────────────────
+appointmentSchema.index({ user_id: 1, createdAt: -1 });      // getByUser
+appointmentSchema.index({ stylist_id: 1, createdAt: -1 });   // getByStylist
+appointmentSchema.index({ status: 1 });                       // status filter
+appointmentSchema.index({ date: 1, time: 1 });                // date/time conflict checks
+
+
 appointmentSchema.statics.create = async function(appointmentData) {
   let { user_id, service_id, date, time, notes, stylist_id } = appointmentData;
   if (!stylist_id) {

@@ -11,6 +11,11 @@ const serviceSchema = new mongoose.Schema({
   stylist_id: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null }
 }, { timestamps: true });
 
+// ── Performance index ──────────────────────────────────────────────────────────
+serviceSchema.index({ stylist_id: 1 });   // batched service lookups by expert
+serviceSchema.index({ category: 1 });     // category filter queries
+
+
 serviceSchema.statics.getAll = function() {
   return this.find().populate('stylist_id', 'name email role phone specialty bio rating portfolio workingDays workingHours');
 };

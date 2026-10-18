@@ -179,10 +179,14 @@ const ExpertsDirectory = () => {
             >
               <div>
                 {/* Avatar & Header */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.25rem' }}>
+                <div 
+                  onClick={() => navigate(`/expert/${exp.id || exp._id}`)}
+                  style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.25rem', cursor: 'pointer' }}
+                  title={`View ${exp.name}'s Professional Page & Works`}
+                >
                   <div style={{
-                    width: '54px',
-                    height: '54px',
+                    width: '56px',
+                    height: '56px',
                     borderRadius: '16px',
                     background: 'linear-gradient(135deg, var(--primary), var(--secondary))',
                     color: 'white',
@@ -191,9 +195,15 @@ const ExpertsDirectory = () => {
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    boxShadow: '0 6px 16px rgba(79, 70, 229, 0.25)'
+                    boxShadow: '0 6px 16px rgba(79, 70, 229, 0.25)',
+                    overflow: 'hidden',
+                    flexShrink: 0
                   }}>
-                    {exp.name ? exp.name.charAt(0).toUpperCase() : 'E'}
+                    {exp.avatar ? (
+                      <img src={exp.avatar} alt={exp.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : (
+                      exp.name ? exp.name.charAt(0).toUpperCase() : 'E'
+                    )}
                   </div>
 
                   <div>
@@ -360,19 +370,30 @@ const ExpertsDirectory = () => {
                 </div>
               </div>
 
-              <button 
-                onClick={() => {
-                  if (exp.services && exp.services.length > 0) {
-                    handleBookExpert(String(exp.services[0]._id || exp.services[0].id));
-                  } else {
-                    setIsWizardOpen(true);
-                  }
-                }}
-                className="btn btn-primary" 
-                style={{ width: '100%', justifyContent: 'center' }}
-              >
-                <CalendarPlus size={16} /> Book {exp.name.split(' ')[0]}
-              </button>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.65rem', marginTop: '0.75rem' }}>
+                <button 
+                  type="button"
+                  onClick={() => navigate(`/expert/${exp.id || exp._id}`)}
+                  className="btn btn-secondary"
+                  style={{ justifyContent: 'center', fontSize: '0.85rem', borderRadius: '12px', fontWeight: 700 }}
+                >
+                  <Images size={15} /> View Works
+                </button>
+                <button 
+                  type="button"
+                  onClick={() => {
+                    if (exp.services && exp.services.length > 0) {
+                      handleBookExpert(String(exp.services[0]._id || exp.services[0].id));
+                    } else {
+                      setIsWizardOpen(true);
+                    }
+                  }}
+                  className="btn btn-primary" 
+                  style={{ justifyContent: 'center', fontSize: '0.85rem', borderRadius: '12px', fontWeight: 700 }}
+                >
+                  <CalendarPlus size={15} /> Book
+                </button>
+              </div>
             </motion.div>
           ))}
         </div>

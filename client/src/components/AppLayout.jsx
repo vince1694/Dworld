@@ -46,15 +46,19 @@ const AppLayout = ({ children }) => {
       fetchWallet();
       fetchNotifications();
 
-      // Background polling every 30 seconds for dynamic unread badge and balance
+      // Poll every 90s (reduced from 30s — cuts server load 3x)
+      // Pauses automatically when tab is hidden via Page Visibility API
       const pollTimer = setInterval(() => {
-        fetchNotifications();
-        fetchWallet();
-      }, 30000);
+        if (!document.hidden) {
+          fetchNotifications();
+          fetchWallet();
+        }
+      }, 90000);
 
       return () => clearInterval(pollTimer);
     }
   }, [user]);
+
 
   const fetchWallet = async () => {
     try {
@@ -453,6 +457,52 @@ const AppLayout = ({ children }) => {
                 </>
               )}
             </div>
+
+            {/* Profile Avatar in Topbar */}
+            <button
+              type="button"
+              onClick={() => {
+                const profilePath = user.role === 'admin'
+                  ? '/admin?tab=profile'
+                  : ['expert', 'stylist'].includes(user.role)
+                  ? '/expert?tab=profile'
+                  : '/dashboard?tab=profile';
+                navigate(profilePath);
+              }}
+              title={`View profile: ${user.name || user.email}`}
+              style={{
+                width: '38px',
+                height: '38px',
+                borderRadius: '50%',
+                overflow: 'hidden',
+                border: '2px solid var(--primary)',
+                boxShadow: '0 0 0 3px rgba(79, 70, 229, 0.18)',
+                cursor: 'pointer',
+                background: 'linear-gradient(135deg, var(--primary), var(--secondary))',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#fff',
+                fontWeight: 800,
+                fontSize: '0.9rem',
+                fontFamily: 'Outfit, sans-serif',
+                flexShrink: 0,
+                padding: 0,
+                transition: 'box-shadow 0.2s, transform 0.2s'
+              }}
+              onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 0 0 4px rgba(79,70,229,0.35)'; e.currentTarget.style.transform = 'scale(1.07)'; }}
+              onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 0 0 3px rgba(79,70,229,0.18)'; e.currentTarget.style.transform = 'scale(1)'; }}
+            >
+              {user.avatar ? (
+                <img
+                  src={user.avatar}
+                  alt={user.name || 'Profile'}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
+              ) : (
+                <span>{user.name ? user.name.charAt(0).toUpperCase() : 'U'}</span>
+              )}
+            </button>
 
             <div className="topbar-divider desktop-only"></div>
             <span className="topbar-welcome desktop-only">Logged in: <strong>{user.name || user.email}</strong></span>

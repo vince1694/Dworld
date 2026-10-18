@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
+const compression = require('compression');
 require('dotenv').config();
 const connectDB = require('./config/db');
 
@@ -14,6 +15,9 @@ const appointmentRoutes = require('./routes/appointmentRoutes');
 const { errorHandler } = require('./middleware/errorMiddleware');
 
 const app = express();
+
+// ── Gzip compress all responses (saves 60-80% bandwidth) ─────────────────────
+app.use(compression());
 
 // Global Middleware
 app.use(helmet({
@@ -28,12 +32,21 @@ app.use(helmet({
             "connect-src": ["'self'", "https:", "http:", "https://api.paystack.co", "https://checkout.paystack.com"]
         }
     }
-})); // Security headers with relaxed CSP for CDNs & Paystack
-app.use(morgan('dev')); // Request logging
+}));
+
+// Only log requests in development (morgan adds overhead per request)
+if (process.env.NODE_ENV !== 'production') {
+    app.use(morgan('dev'));
+}
+
 app.use(cors());
-app.use(express.json({ limit: '15mb' }));
-app.use(express.urlencoded({ extended: true, limit: '15mb' }));
+// Cloudinary avatar uploads use base64 — keep 10mb for /auth/avatar only, 2mb elsewhere
+app.use('/api/auth/avatar', express.json({ limit: '10mb' }));
+app.use('/api/auth/portfolio', express.json({ limit: '10mb' }));
+app.use(express.json({ limit: '2mb' }));
+app.use(express.urlencoded({ extended: true, limit: '2mb' }));
 const path = require('path');
+
 
 // Routes
 app.use('/api/auth', authRoutes);

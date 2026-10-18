@@ -476,24 +476,94 @@ const Dashboard = () => {
         }}
       />
 
-      {/* LIGHT MODE BENTO HERO BANNER */}
+      {/* LIGHT MODE BENTO HERO BANNER WITH PROFILE PICTURE */}
       <div className="bento-card" style={{ padding: '1.75rem', background: 'linear-gradient(135deg, rgba(79, 70, 229, 0.08), rgba(124, 58, 237, 0.08), rgba(2, 132, 199, 0.06))', borderColor: 'rgba(79, 70, 229, 0.15)' }}>
+        {/* Hidden input for changing profile photo directly from dashboard banner */}
+        <input 
+          type="file"
+          ref={avatarInputRef}
+          accept="image/*"
+          onChange={handleAvatarFileSelect}
+          style={{ display: 'none' }}
+        />
+
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', minWidth: 0 }}>
-            <div style={{ 
-              width: '50px', 
-              height: '50px', 
-              borderRadius: '14px', 
-              background: 'linear-gradient(135deg, var(--primary), var(--secondary))', 
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'center',
-              color: 'white',
-              boxShadow: '0 6px 18px rgba(79, 70, 229, 0.25)',
-              flexShrink: 0
-            }}>
-              <Sparkles size={24} />
+            {/* Topbar User Profile Picture Avatar */}
+            <div style={{ position: 'relative', flexShrink: 0 }}>
+              <div 
+                onClick={() => {
+                  if (user?.avatar) {
+                    openLightbox(user.avatar, user?.name || 'My Profile', 'Verified D.WORLD Member Photo');
+                  } else {
+                    avatarInputRef.current?.click();
+                  }
+                }}
+                style={{ 
+                  width: '58px', 
+                  height: '58px', 
+                  borderRadius: '16px', 
+                  background: 'linear-gradient(135deg, var(--primary), var(--secondary))', 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'center',
+                  color: 'white',
+                  boxShadow: '0 8px 22px rgba(79, 70, 229, 0.28)',
+                  overflow: 'hidden',
+                  cursor: 'pointer',
+                  border: '2.5px solid #ffffff',
+                  outline: '2px solid rgba(79, 70, 229, 0.25)',
+                  transition: 'transform 0.2s ease, box-shadow 0.2s ease'
+                }}
+                title={user?.avatar ? "Tap to view profile photo in full HD" : "Tap to upload profile photo"}
+                onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.05)'}
+                onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+              >
+                {avatarUploading ? (
+                  <span style={{ fontSize: '0.72rem', fontWeight: 700 }}>...</span>
+                ) : user?.avatar ? (
+                  <img 
+                    src={user.avatar} 
+                    alt={user.name || 'User Avatar'} 
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                  />
+                ) : (
+                  <span style={{ fontSize: '1.45rem', fontWeight: 800, fontFamily: 'Outfit' }}>
+                    {user?.name ? user.name.charAt(0).toUpperCase() : 'U'}
+                  </span>
+                )}
+              </div>
+
+              {/* Fast Camera Upload Badge */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  avatarInputRef.current?.click();
+                }}
+                style={{
+                  position: 'absolute',
+                  bottom: '-4px',
+                  right: '-4px',
+                  width: '24px',
+                  height: '24px',
+                  borderRadius: '50%',
+                  background: 'var(--primary)',
+                  color: '#ffffff',
+                  border: '2px solid #ffffff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  padding: 0,
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
+                }}
+                title="Change or upload profile picture"
+              >
+                <Camera size={12} />
+              </button>
             </div>
+
             <div style={{ minWidth: 0 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginBottom: '0.15rem', flexWrap: 'wrap' }}>
                 <h1 style={{ fontSize: 'clamp(1.25rem, 4vw, 1.75rem)', margin: 0, fontFamily: 'Outfit', lineHeight: 1.1 }}>
@@ -840,19 +910,17 @@ const Dashboard = () => {
                       }}
                       className="hover-card-select"
                     >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0 }}>
-                        {/* Expert Avatar with click to lightbox */}
+                      <div 
+                        onClick={() => navigate(`/expert/${expertId}`)}
+                        style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0, cursor: 'pointer' }}
+                        title={`View ${expert.name}'s Professional Page & Works`}
+                      >
+                        {/* Expert Avatar with click to professional page */}
                         <div 
-                          onClick={(e) => {
-                            if (expert.avatar) {
-                              e.stopPropagation();
-                              openLightbox(expert.avatar, expert.name, `${expert.specialty || 'Campus Specialist'} • Verified Specialist`);
-                            }
-                          }}
                           style={{
-                            width: 44,
-                            height: 44,
-                            borderRadius: '12px',
+                            width: 46,
+                            height: 46,
+                            borderRadius: '13px',
                             background: 'linear-gradient(135deg, rgba(79, 70, 229, 0.2), rgba(168, 85, 247, 0.2))',
                             color: 'var(--primary)',
                             display: 'flex',
@@ -863,10 +931,8 @@ const Dashboard = () => {
                             flexShrink: 0,
                             overflow: 'hidden',
                             border: '1.5px solid rgba(79, 70, 229, 0.3)',
-                            cursor: expert.avatar ? 'zoom-in' : 'default',
                             position: 'relative'
                           }}
-                          title={expert.avatar ? "Click to view full photo" : expert.name}
                         >
                           {expert.avatar ? (
                             <img 
@@ -881,7 +947,7 @@ const Dashboard = () => {
 
                         <div style={{ minWidth: 0 }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                            <h4 style={{ margin: 0, fontSize: '0.92rem', fontFamily: 'Outfit', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            <h4 style={{ margin: 0, fontSize: '0.92rem', fontFamily: 'Outfit', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text-main)' }}>
                               {expert.name}
                             </h4>
                             <ShieldCheck size={14} color="#10b981" title="Verified & ₦3,000 Activation Paid" />
@@ -895,9 +961,9 @@ const Dashboard = () => {
                               From ₦{price.toLocaleString()} ({duration}m)
                             </span>
                           </div>
-                          {expert.location && (
-                            <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: '2px' }}>
-                              📍 {expert.location}
+                          {(expert.address || expert.location) && (
+                            <span style={{ fontSize: '0.68rem', color: '#059669', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: '2px', fontWeight: 600 }}>
+                              📍 {expert.address || expert.location}
                             </span>
                           )}
                         </div>

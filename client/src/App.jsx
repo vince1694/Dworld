@@ -20,6 +20,7 @@ import ForgotPassword from './pages/ForgotPassword';
 import BookAppointment from './pages/BookAppointment';
 import WalletPage from './pages/WalletPage';
 import Chat from './pages/Chat';
+import ExpertProfilePage from './pages/ExpertProfilePage';
 
 const ProtectedRoute = ({ children, allowedRoles, redirectTo = '/login' }) => {
   const { user, loading } = useAuth();
@@ -54,6 +55,13 @@ function App() {
               </ProtectedRoute>
             } />
             <Route path="/experts" element={<Navigate to="/services?tab=experts" replace />} />
+            <Route path="/expert/:id" element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <ExpertProfilePage />
+                </AppLayout>
+              </ProtectedRoute>
+            } />
             <Route path="/contact" element={
               <ProtectedRoute>
                 <Contact />

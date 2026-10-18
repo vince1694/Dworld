@@ -368,12 +368,14 @@ const resetPassword = async (req, res, next) => {
 
 const updateProfile = async (req, res, next) => {
     try {
-        const { name, phone, bio, specialty, avatar } = req.body;
+        const { name, phone, bio, specialty, avatar, address, location } = req.body;
         const updateData = {};
         if (name !== undefined) updateData.name = name;
         if (phone !== undefined) updateData.phone = phone;
         if (bio !== undefined) updateData.bio = bio;
         if (specialty !== undefined) updateData.specialty = specialty;
+        if (address !== undefined) updateData.address = address;
+        if (location !== undefined) updateData.location = location;
 
         if (avatar && typeof avatar === 'string' && avatar.trim()) {
             const avatarUrl = await uploadImage(avatar, 'dworld_avatars');
@@ -385,6 +387,8 @@ const updateProfile = async (req, res, next) => {
             updateData,
             { new: true }
         ).select('-password');
+
+        invalidateExpertsCache();
 
         res.json({ success: true, message: 'Profile updated successfully', user });
     } catch (error) {
@@ -405,6 +409,8 @@ const uploadAvatar = async (req, res, next) => {
             { avatar: avatarUrl },
             { new: true }
         ).select('-password');
+
+        invalidateExpertsCache();
 
         res.json({
             success: true,
@@ -523,9 +529,22 @@ const topupWallet = async (req, res, next) => {
     }
 };
 
+// ── Simple in-memory cache for getExperts (60s TTL) ──────────────────────────
+let _expertsCache = null;
+let _expertsCacheTime = 0;
+const EXPERTS_CACHE_TTL = 60 * 1000; // 60 seconds
+
 const getExperts = async (req, res, next) => {
     try {
         const { location: locationQuery } = req.query;
+
+        // Only use cache when there's no location filter (general listing)
+        const useCache = !locationQuery;
+        const now = Date.now();
+        if (useCache && _expertsCache && (now - _expertsCacheTime) < EXPERTS_CACHE_TTL) {
+            return res.json({ success: true, data: _expertsCache, cached: true });
+        }
+
         let queryFilter = { 
             role: { $in: ['expert', 'stylist'] }, 
             isVerified: true, 
@@ -541,34 +560,52 @@ const getExperts = async (req, res, next) => {
             ];
         }
 
-        const experts = await User.find(queryFilter).select('-password');
+        // Select only needed fields — exclude heavy arrays like transactions, resetOtp
+        const experts = await User.find(queryFilter).select(
+            'name email role phone address location state matricNo department bio specialty ' +
+            'workingDays workingHours rating avatar portfolio isVerified isActivated'
+        ).lean();
+
+        if (!experts || experts.length === 0) {
+            return res.json({ success: true, data: [] });
+        }
+
         const Service = require('../models/Service');
+        const expertIds = experts.map(e => e._id);
 
-        // Populate services for each verified expert (auto-seeding default services if none exist)
-        const expertsWithServices = await Promise.all(experts.map(async (exp) => {
-            let services = await Service.find({ 
-                $or: [
-                    { stylist_id: exp._id }, 
-                    { stylist_id: String(exp._id) }
-                ] 
-            });
+        // ── Single batched query for ALL experts' services ────────────────────
+        const allServices = await Service.find({ stylist_id: { $in: expertIds } }).lean();
 
-            // If an expert has no services listed yet, create their single specialty service
-            if (!services || services.length === 0) {
-                const spec = exp.specialty || 'Barber';
-                const defaultSingle = await Service.create({
-                    name: spec,
-                    description: `${exp.name}'s professional campus service.`,
-                    price: 3500,
-                    duration: 45,
-                    type: 'single',
-                    category: 'Single Services',
-                    location: exp.address || exp.location || 'Lead City University Campus',
-                    stylist_id: exp._id
-                });
-                services = [defaultSingle];
+        // Group services by stylist_id string for O(1) lookup
+        const servicesByExpert = {};
+        for (const svc of allServices) {
+            const key = String(svc.stylist_id);
+            if (!servicesByExpert[key]) servicesByExpert[key] = [];
+            servicesByExpert[key].push(svc);
+        }
+
+        // Collect experts that have zero services — create defaults in one batch
+        const expertsWithoutServices = experts.filter(e => !servicesByExpert[String(e._id)]?.length);
+        if (expertsWithoutServices.length > 0) {
+            const defaults = expertsWithoutServices.map(exp => ({
+                name: exp.specialty || 'Barber',
+                description: `${exp.name}'s professional campus service.`,
+                price: 3500,
+                duration: 45,
+                type: 'single',
+                category: 'Single Services',
+                location: exp.address || exp.location || 'Lead City University Campus',
+                stylist_id: exp._id
+            }));
+            const created = await Service.insertMany(defaults, { ordered: false }).catch(() => []);
+            for (const svc of created) {
+                const key = String(svc.stylist_id);
+                servicesByExpert[key] = [svc];
             }
+        }
 
+        const expertsWithServices = experts.map(exp => {
+            const services = servicesByExpert[String(exp._id)] || [];
             return {
                 id: exp._id,
                 _id: exp._id,
@@ -590,13 +627,26 @@ const getExperts = async (req, res, next) => {
                 isVerified: true,
                 services
             };
-        }));
+        });
+
+        // Update cache
+        if (useCache) {
+            _expertsCache = expertsWithServices;
+            _expertsCacheTime = now;
+        }
 
         res.json({ success: true, data: expertsWithServices });
     } catch (error) {
         next(error);
     }
 };
+
+// Invalidate experts cache when an expert updates their profile
+const invalidateExpertsCache = () => {
+    _expertsCache = null;
+    _expertsCacheTime = 0;
+};
+
 
 const addPortfolioItem = async (req, res, next) => {
     try {
@@ -608,6 +658,13 @@ const addPortfolioItem = async (req, res, next) => {
         const user = await User.findById(req.user.id);
         if (!user) {
             return res.status(404).json({ success: false, message: 'Expert account not found.' });
+        }
+
+        if (user.portfolio && user.portfolio.length >= 3) {
+            return res.status(400).json({
+                success: false,
+                message: 'Your professional lookbook allows a maximum of 3 highlight pictures. Please remove an existing photo first to upload a new one.'
+            });
         }
 
         const uploadedUrl = await uploadImage(imageUrl, 'dworld_portfolio');
@@ -623,6 +680,7 @@ const addPortfolioItem = async (req, res, next) => {
         if (!user.portfolio) user.portfolio = [];
         user.portfolio.unshift(newItem);
         await user.save();
+        invalidateExpertsCache();
 
         res.status(201).json({
             success: true,
@@ -644,11 +702,67 @@ const deletePortfolioItem = async (req, res, next) => {
 
         user.portfolio = (user.portfolio || []).filter(item => String(item._id) !== String(itemId));
         await user.save();
+        invalidateExpertsCache();
 
         res.status(200).json({
             success: true,
             message: 'Lookbook item removed.',
             data: user.portfolio
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+const getExpertById = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const expert = await User.findOne({
+            _id: id,
+            role: { $in: ['expert', 'stylist'] }
+        }).select('-password -resetOtp -resetOtpExpires -transactions').lean();
+
+        if (!expert) {
+            return res.status(404).json({ success: false, message: 'Specialist profile not found.' });
+        }
+
+        let services = await Service.find({ stylist_id: expert._id }).lean();
+        if (!services.length) {
+            services = [{
+                _id: 'default-' + expert._id,
+                name: expert.specialty || 'General Specialist',
+                description: `${expert.name}'s professional campus service.`,
+                price: 3500,
+                duration: 45,
+                category: 'Single Services',
+                location: expert.address || expert.location || 'Lead City University Campus',
+                stylist_id: expert._id
+            }];
+        }
+
+        res.json({
+            success: true,
+            data: {
+                id: expert._id,
+                _id: expert._id,
+                name: expert.name,
+                email: expert.email,
+                phone: expert.phone || '',
+                address: expert.address || expert.location || '',
+                location: expert.location || expert.address || 'Lead City University Campus',
+                matricNo: expert.matricNo || '',
+                department: expert.department || 'Cosmetology & Campus Styling',
+                bio: expert.bio || 'Verified campus specialist.',
+                specialty: expert.specialty || 'General Specialist',
+                rating: expert.rating || 5.0,
+                avatar: expert.avatar || '',
+                workingDays: expert.workingDays || ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
+                workingHours: expert.workingHours || { start: '09:00', end: '18:00' },
+                portfolio: (expert.portfolio || []).slice(0, 3),
+                isVerified: expert.isVerified !== false,
+                isActivated: Boolean(expert.isActivated),
+                services
+            }
         });
     } catch (error) {
         next(error);
@@ -776,6 +890,7 @@ module.exports = {
     getWallet, 
     topupWallet, 
     getExperts,
+    getExpertById,
     addPortfolioItem,
     deletePortfolioItem,
     getAllUsersForAdmin,

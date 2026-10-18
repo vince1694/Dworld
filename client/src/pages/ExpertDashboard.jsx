@@ -39,7 +39,9 @@ import {
   Eye,
   ImageOff,
   Camera,
-  ZoomIn
+  ZoomIn,
+  MapPin,
+  ExternalLink
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -62,12 +64,12 @@ const statusBg = (s) => {
 };
 
 const NAV_ITEMS = [
-  { key: 'appointments', label: 'Schedule',  icon: CalendarRange },
-  { key: 'services',     label: 'Services',  icon: Briefcase },
-  { key: 'availability', label: 'Hours',     icon: Clock },
-  { key: 'lookbook',     label: 'Lookbook',  icon: Images },
-  { key: 'wallet',       label: 'Wallet',    icon: Wallet },
-  { key: 'profile',      label: 'Profile',   icon: User },
+  { key: 'appointments', label: 'Schedule',          icon: CalendarRange },
+  { key: 'professional', label: 'Professional Page', icon: Sparkles },
+  { key: 'services',     label: 'Services',          icon: Briefcase },
+  { key: 'availability', label: 'Hours',             icon: Clock },
+  { key: 'wallet',       label: 'Wallet',            icon: Wallet },
+  { key: 'profile',      label: 'Profile',           icon: User },
 ];
 
 const ExpertDashboard = () => {
@@ -187,8 +189,26 @@ const ExpertDashboard = () => {
     reader.readAsDataURL(file);
   };
 
-  const [profileForm, setProfileForm] = useState({ name: user?.name || '', phone: user?.phone || '' });
+  const [profileForm, setProfileForm] = useState({ 
+    name: user?.name || '', 
+    phone: user?.phone || '',
+    address: user?.address || user?.location || '',
+    bio: user?.bio || '',
+    specialty: user?.specialty || ''
+  });
   const [savingProfile, setSavingProfile] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      setProfileForm({
+        name: user.name || '',
+        phone: user.phone || '',
+        address: user.address || user.location || '',
+        bio: user.bio || '',
+        specialty: user.specialty || ''
+      });
+    }
+  }, [user]);
 
   const ALL_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
   const [workingDays, setWorkingDays] = useState(
@@ -351,6 +371,10 @@ const ExpertDashboard = () => {
   const handleAddPortfolioItem = async (e) => {
     e.preventDefault();
     if (!portfolioForm.imageUrl.trim()) { addToast('Please select a photo from your photo library or files.', 'warning'); return; }
+    if (portfolio.length >= 3) {
+      addToast('Your professional lookbook allows a maximum of 3 highlight pictures. Please remove an existing photo first.', 'warning');
+      return;
+    }
     try {
       setPortfolioSubmitting(true);
       const res = await axios.post(`${API_URL}/auth/portfolio`, portfolioForm);
@@ -695,6 +719,47 @@ const ExpertDashboard = () => {
                   ⚡ Activate (₦3,000)
                 </button>
               )}
+
+              {/* Profile Avatar in Header */}
+              <button
+                type="button"
+                onClick={() => {
+                  if (user?.avatar) {
+                    openLightbox(user.avatar, user?.name || 'Specialist Profile', 'Verified D.WORLD Specialist Photo');
+                  } else {
+                    setSearchParams({ tab: 'profile' });
+                  }
+                }}
+                title={user?.avatar ? `Tap to view photo: ${user.name}` : `View Profile Settings`}
+                style={{
+                  width: '38px',
+                  height: '38px',
+                  borderRadius: '50%',
+                  overflow: 'hidden',
+                  border: '2px solid var(--secondary)',
+                  boxShadow: '0 0 0 3px rgba(168, 85, 247, 0.2)',
+                  cursor: 'pointer',
+                  background: 'linear-gradient(135deg, var(--secondary), var(--primary))',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#fff',
+                  fontWeight: 800,
+                  fontSize: '0.9rem',
+                  fontFamily: 'Outfit, sans-serif',
+                  flexShrink: 0,
+                  padding: 0,
+                  transition: 'transform 0.2s, box-shadow 0.2s'
+                }}
+                onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.07)'; e.currentTarget.style.boxShadow = '0 0 0 4px rgba(168, 85, 247, 0.35)'; }}
+                onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(168, 85, 247, 0.2)'; }}
+              >
+                {user?.avatar ? (
+                  <img src={user.avatar} alt={user.name || 'Expert'} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : (
+                  <span>{initials}</span>
+                )}
+              </button>
 
               {/* Sign-out button — always visible in top bar */}
               <button
@@ -1140,277 +1205,507 @@ const ExpertDashboard = () => {
                     </div>
                   )}
 
-                  {/* ─── LOOKBOOK ─── */}
-                  {activeTab === 'lookbook' && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                  {/* ─── PROFESSIONAL PAGE & LOOKBOOK ─── */}
+                  {(activeTab === 'professional' || activeTab === 'lookbook') && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
 
-                      {/* Upload Form */}
+                      {/* 1. Public Profile Preview Banner */}
+                      <div className="bento-card" style={{
+                        padding: '1.75rem',
+                        background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.08), rgba(99, 102, 241, 0.08), rgba(2, 132, 199, 0.05))',
+                        border: '1px solid rgba(168, 85, 247, 0.25)',
+                        borderRadius: '20px'
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', minWidth: 0 }}>
+                            <div 
+                              onClick={() => user?.avatar && openLightbox(user.avatar, user?.name, 'Specialist Profile Photo')}
+                              style={{
+                                width: '64px',
+                                height: '64px',
+                                borderRadius: '18px',
+                                background: 'linear-gradient(135deg, var(--secondary), var(--primary))',
+                                color: '#fff',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: '1.6rem',
+                                fontWeight: 800,
+                                fontFamily: 'Outfit',
+                                flexShrink: 0,
+                                overflow: 'hidden',
+                                border: '2.5px solid #fff',
+                                boxShadow: '0 8px 22px rgba(168, 85, 247, 0.28)',
+                                cursor: user?.avatar ? 'zoom-in' : 'default'
+                              }}
+                              title={user?.avatar ? "Tap to view in full HD" : user?.name}
+                            >
+                              {user?.avatar ? (
+                                <img src={user.avatar} alt={user?.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                              ) : (
+                                initials
+                              )}
+                            </div>
+
+                            <div style={{ minWidth: 0 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap', marginBottom: '0.2rem' }}>
+                                <h2 style={{ margin: 0, fontSize: '1.35rem', fontFamily: 'Outfit', fontWeight: 800 }}>
+                                  {user?.name || 'Expert Specialist'}
+                                </h2>
+                                <span style={{
+                                  fontSize: '0.72rem',
+                                  fontWeight: 800,
+                                  padding: '0.2rem 0.6rem',
+                                  borderRadius: '9999px',
+                                  background: user?.isActivated ? '#dcfce7' : '#fef3c7',
+                                  color: user?.isActivated ? '#15803d' : '#d97706',
+                                  border: `1px solid ${user?.isActivated ? '#bbf7d0' : '#fde68a'}`,
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '0.3rem'
+                                }}>
+                                  <Shield size={12} /> {user?.isActivated ? 'Verified & Activated' : 'Pending Activation'}
+                                </span>
+                              </div>
+                              <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--secondary)', fontWeight: 700 }}>
+                                {user?.specialty || 'Campus Styling Specialist'}
+                              </p>
+                              <p style={{ margin: '0.25rem 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                                This is your live profile customers see on D.WORLD before booking an appointment.
+                              </p>
+                            </div>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => navigate(`/expert/${user?.id || user?._id}`)}
+                            className="btn btn-primary"
+                            style={{ padding: '0.7rem 1.35rem', fontSize: '0.875rem', fontWeight: 700, borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '0.45rem', flexShrink: 0 }}
+                          >
+                            <ExternalLink size={16} /> View Live Public Page
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* 2. Campus Address & Location Setting */}
                       <div className="app-card">
                         <div className="card-header">
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-                            <Images size={20} color="var(--secondary)" />
+                            <div style={{ width: 34, height: 34, borderRadius: '10px', background: 'rgba(16, 185, 129, 0.12)', color: '#059669', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                              <MapPin size={18} />
+                            </div>
                             <div>
-                              <h3 style={{ margin: 0 }}>My Style Lookbook</h3>
-                              <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-muted)' }}>Share your best work — students see this before booking</p>
+                              <h3 style={{ margin: 0 }}>Specialist Physical Campus Address</h3>
+                              <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                                Exact campus location or salon room where customers meet you for styling
+                              </p>
                             </div>
                           </div>
-                          <span style={{ fontSize: '0.78rem', padding: '0.3rem 0.75rem', borderRadius: '9999px', background: 'rgba(168,85,247,0.1)', color: 'var(--secondary)', fontWeight: 700 }}>
-                            {portfolio.length} photos
-                          </span>
                         </div>
+
                         <div className="card-body">
-                          <form onSubmit={handleAddPortfolioItem} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                            {/* Hidden file input triggered by tapping upload box */}
-                            <input 
-                              type="file"
-                              ref={lookbookFileInputRef}
-                              accept="image/*"
-                              onChange={handleLookbookFileSelect}
-                              style={{ display: 'none' }}
-                            />
-
-                            {!portfolioPreview ? (
-                              <div
-                                onClick={() => lookbookFileInputRef.current && lookbookFileInputRef.current.click()}
-                                style={{
-                                  border: '2px dashed rgba(168, 85, 247, 0.4)',
-                                  borderRadius: '16px',
-                                  padding: '2rem 1.5rem',
-                                  background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.04), rgba(99, 102, 241, 0.04))',
-                                  textAlign: 'center',
-                                  cursor: 'pointer',
-                                  transition: 'all 0.2s ease',
-                                  display: 'flex',
-                                  flexDirection: 'column',
-                                  alignItems: 'center',
-                                  gap: '0.65rem'
-                                }}
-                                onMouseEnter={e => {
-                                  e.currentTarget.style.borderColor = 'var(--secondary)';
-                                  e.currentTarget.style.background = 'rgba(168, 85, 247, 0.08)';
-                                }}
-                                onMouseLeave={e => {
-                                  e.currentTarget.style.borderColor = 'rgba(168, 85, 247, 0.4)';
-                                  e.currentTarget.style.background = 'linear-gradient(135deg, rgba(168, 85, 247, 0.04), rgba(99, 102, 241, 0.04))';
-                                }}
-                              >
-                                <div style={{
-                                  width: '52px',
-                                  height: '52px',
-                                  borderRadius: '16px',
-                                  background: 'linear-gradient(135deg, var(--secondary), var(--primary))',
-                                  color: '#fff',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  boxShadow: '0 6px 16px rgba(168, 85, 247, 0.3)'
-                                }}>
-                                  <Camera size={26} />
-                                </div>
-                                <div>
-                                  <strong style={{ fontSize: '1rem', color: 'var(--text-main)', display: 'block', fontFamily: 'Outfit' }}>
-                                    Choose from Photo Library or Files
-                                  </strong>
-                                  <p style={{ margin: '0.25rem 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                                    Tap to select styling photos directly from your device gallery, library, or camera
-                                  </p>
-                                </div>
-                                <span style={{
-                                  marginTop: '0.25rem',
-                                  fontSize: '0.75rem',
-                                  fontWeight: 700,
-                                  padding: '0.35rem 0.85rem',
-                                  borderRadius: '20px',
-                                  background: 'rgba(168, 85, 247, 0.15)',
-                                  color: 'var(--secondary)'
-                                }}>
-                                  ☁️ Cloudinary Auto-Storage
-                                </span>
-                              </div>
-                            ) : (
-                              /* Live preview card with change/remove actions */
-                              <div style={{
-                                borderRadius: '16px',
-                                overflow: 'hidden',
-                                border: '1px solid rgba(168, 85, 247, 0.35)',
-                                background: 'rgba(168, 85, 247, 0.04)',
-                                padding: '1rem',
-                                display: 'flex',
-                                flexDirection: 'column',
-                                alignItems: 'center',
-                                gap: '0.85rem'
-                              }}>
-                                <div 
-                                  onClick={() => openLightbox(portfolioPreview, portfolioForm.title || 'Selected Photo Preview', 'Tap to view full resolution')}
-                                  style={{
-                                    position: 'relative',
-                                    borderRadius: '12px',
-                                    overflow: 'hidden',
-                                    maxWidth: '100%',
-                                    maxHeight: '260px',
-                                    boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
-                                    cursor: 'zoom-in'
-                                  }}
-                                  title="Click to zoom in lightbox mode"
-                                >
-                                  <img
-                                    src={portfolioPreview}
-                                    alt="Selected lookbook preview"
-                                    style={{ maxWidth: '100%', maxHeight: '260px', objectFit: 'contain', display: 'block' }}
-                                  />
-                                  <span style={{
-                                    position: 'absolute',
-                                    bottom: '0.5rem',
-                                    right: '0.5rem',
-                                    background: 'rgba(0,0,0,0.65)',
-                                    color: '#fff',
-                                    fontSize: '0.7rem',
-                                    fontWeight: 700,
-                                    padding: '0.25rem 0.6rem',
-                                    borderRadius: '8px',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '0.3rem',
-                                    backdropFilter: 'blur(4px)'
-                                  }}>
-                                    <ZoomIn size={12} /> Tap to zoom
-                                  </span>
-                                </div>
-
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', width: '100%', justifyContent: 'center' }}>
-                                  <button
-                                    type="button"
-                                    onClick={() => lookbookFileInputRef.current && lookbookFileInputRef.current.click()}
-                                    className="btn btn-secondary"
-                                    style={{ fontSize: '0.8rem', padding: '0.45rem 0.95rem' }}
-                                  >
-                                    Change Photo
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setPortfolioForm(prev => ({ ...prev, imageUrl: '' }));
-                                      setPortfolioPreview(null);
-                                    }}
-                                    className="btn btn-outline"
-                                    style={{ fontSize: '0.8rem', padding: '0.45rem 0.95rem', color: '#ef4444', borderColor: 'rgba(239,68,68,0.3)' }}
-                                  >
-                                    Remove
-                                  </button>
-                                </div>
-                              </div>
-                            )}
-
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                              <div className="input-group" style={{ marginBottom: 0 }}>
-                                <label>Title (optional)</label>
-                                <input
-                                  type="text"
-                                  placeholder="e.g. Ghana Braids"
-                                  value={portfolioForm.title}
-                                  onChange={e => setPortfolioForm({ ...portfolioForm, title: e.target.value })}
-                                />
-                              </div>
-                              <div className="input-group" style={{ marginBottom: 0 }}>
-                                <label>Category</label>
-                                <select
-                                  value={portfolioForm.category}
-                                  onChange={e => setPortfolioForm({ ...portfolioForm, category: e.target.value })}
-                                  style={{ padding: '0.75rem 1rem', borderRadius: '10px', border: '1px solid var(--border-light)', width: '100%', background: 'var(--bg-input, var(--bg-card))' }}
-                                >
-                                  {['Hair Styling', 'Braids & Twists', 'Nails & Manicure', 'Lash Extensions', 'Makeup & Glam', 'Male Grooming', 'Other'].map(c => (
-                                    <option key={c} value={c}>{c}</option>
-                                  ))}
-                                </select>
-                              </div>
-                            </div>
-
-                            <div className="input-group" style={{ marginBottom: 0 }}>
-                              <label>Caption / Description (optional)</label>
-                              <textarea
-                                rows="2"
-                                placeholder="Describe this style, technique used, products, etc."
-                                value={portfolioForm.description}
-                                onChange={e => setPortfolioForm({ ...portfolioForm, description: e.target.value })}
+                          <form onSubmit={submitProfile} style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+                            <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                              <input
+                                type="text"
+                                placeholder="e.g. Lead City University Campus, Hostel A, Room 12 / Salon Suite 3"
+                                value={profileForm.address}
+                                onChange={e => setProfileForm({ ...profileForm, address: e.target.value })}
+                                style={{ flex: 1, minWidth: '240px', padding: '0.75rem 1rem', borderRadius: '10px', border: '1px solid var(--border-light)', fontSize: '0.875rem', background: 'var(--bg-input, var(--bg-card))' }}
                               />
+                              <button
+                                type="submit"
+                                disabled={savingProfile}
+                                className="btn btn-primary"
+                                style={{ padding: '0.75rem 1.35rem', fontSize: '0.85rem', fontWeight: 700, flexShrink: 0 }}
+                              >
+                                {savingProfile ? 'Saving...' : 'Save Address'}
+                              </button>
                             </div>
 
-                            <button
-                              type="submit"
-                              disabled={portfolioSubmitting || !portfolioForm.imageUrl.trim()}
-                              className="btn btn-primary"
-                              style={{ alignSelf: 'flex-start', background: 'linear-gradient(135deg, var(--secondary), var(--primary))', borderColor: 'transparent', padding: '0.65rem 1.5rem' }}
-                            >
-                              {portfolioSubmitting ? 'Uploading to Cloudinary...' : <><Images size={15} /> Upload to Lookbook</>}
-                            </button>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#ecfdf5', padding: '0.55rem 0.85rem', borderRadius: '8px', border: '1px solid #a7f3d0' }}>
+                              <MapPin size={14} color="#059669" />
+                              <span style={{ fontSize: '0.78rem', color: '#065f46', fontWeight: 600 }}>
+                                Current Address: <strong>{profileForm.address || user?.address || user?.location || 'Lead City University Campus, Ibadan'}</strong>
+                              </span>
+                            </div>
                           </form>
                         </div>
                       </div>
 
-                      {/* Gallery Grid */}
-                      {portfolio.length === 0 ? (
-                        <div style={{ textAlign: 'center', padding: '4rem 2rem', background: 'var(--bg-card)', borderRadius: '18px', border: '1px dashed var(--border-light)' }}>
-                          <ImageOff size={40} style={{ opacity: 0.2, marginBottom: '1rem' }} />
-                          <p style={{ fontWeight: 700, color: 'var(--text-main)', fontSize: '1rem' }}>No lookbook photos yet</p>
-                          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '0.25rem' }}>Add your first style photo above — students will see these when booking you.</p>
+                      {/* 3. Services Offered During Registration */}
+                      <div className="app-card">
+                        <div className="card-header">
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                            <div style={{ width: 34, height: 34, borderRadius: '10px', background: 'rgba(79, 70, 229, 0.12)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                              <Briefcase size={18} />
+                            </div>
+                            <div>
+                              <h3 style={{ margin: 0 }}>Services Offered On Your Page</h3>
+                              <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                                Services registered during onboarding and available for student bookings
+                              </p>
+                            </div>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => setSearchParams({ tab: 'services' })}
+                            className="btn btn-secondary"
+                            style={{ fontSize: '0.78rem', padding: '0.35rem 0.85rem', borderRadius: '8px' }}
+                          >
+                            + Manage Services
+                          </button>
                         </div>
-                      ) : (
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '1rem' }}>
-                          {portfolio.map((item) => (
-                            <div
-                              key={String(item._id)}
-                              style={{
-                                borderRadius: '16px',
-                                overflow: 'hidden',
-                                background: 'var(--bg-card)',
-                                border: '1px solid var(--border-light)',
-                                position: 'relative',
-                                transition: 'transform 0.18s ease, box-shadow 0.18s ease',
-                                cursor: 'default'
-                              }}
-                              onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 10px 28px rgba(0,0,0,0.15)'; }}
-                              onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = ''; }}
-                            >
-                              <div 
-                                onClick={() => openLightbox(item.imageUrl, item.title || 'Lookbook Style', `${item.category} • Style Photo`)}
-                                style={{ position: 'relative', paddingBottom: '75%', background: 'rgba(168,85,247,0.06)', cursor: 'zoom-in' }}
-                                title="Click to view full photo in lightbox"
-                              >
-                                <img
-                                  src={item.imageUrl}
-                                  alt={item.title || 'Lookbook'}
-                                  loading="lazy"
-                                  style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
-                                  onError={e => { e.target.style.opacity = '0.3'; }}
-                                />
-                                {/* Category badge */}
-                                <span style={{ position: 'absolute', top: '0.5rem', left: '0.5rem', background: 'rgba(0,0,0,0.65)', color: '#fff', fontSize: '0.6rem', fontWeight: 700, padding: '0.2rem 0.5rem', borderRadius: '6px', backdropFilter: 'blur(4px)', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
-                                  {item.category}
-                                </span>
-                                {/* Delete button */}
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleDeletePortfolioItem(String(item._id));
+
+                        <div className="card-body">
+                          {services.length > 0 ? (
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '0.85rem' }}>
+                              {services.map(srv => (
+                                <div
+                                  key={srv._id || srv.id}
+                                  style={{
+                                    padding: '1rem',
+                                    borderRadius: '12px',
+                                    background: 'rgba(255, 255, 255, 0.02)',
+                                    border: '1px solid var(--border-light)',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: '0.4rem'
                                   }}
-                                  title="Remove from lookbook"
-                                  style={{ position: 'absolute', top: '0.5rem', right: '0.5rem', background: 'rgba(239,68,68,0.85)', border: 'none', borderRadius: '8px', width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', cursor: 'pointer', backdropFilter: 'blur(4px)', transition: 'background 0.15s' }}
-                                  onMouseEnter={e => e.currentTarget.style.background = '#ef4444'}
-                                  onMouseLeave={e => e.currentTarget.style.background = 'rgba(239,68,68,0.85)'}
                                 >
-                                  <Trash2 size={13} />
-                                </button>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem' }}>
+                                    <strong style={{ fontSize: '0.92rem', color: 'var(--text-main)', fontFamily: 'Outfit' }}>
+                                      {srv.name}
+                                    </strong>
+                                    <span style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--secondary)' }}>
+                                      ₦{Number(srv.price || 0).toLocaleString()}
+                                    </span>
+                                  </div>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                    <span>{srv.category || 'Specialist Service'}</span>
+                                    <span>•</span>
+                                    <span>{srv.duration || 45} mins</span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
+                              <Briefcase size={32} style={{ opacity: 0.3, marginBottom: '0.5rem' }} />
+                              <p style={{ margin: 0, fontWeight: 600 }}>No services listed yet</p>
+                              <button
+                                type="button"
+                                onClick={() => setSearchParams({ tab: 'services' })}
+                                className="btn btn-primary"
+                                style={{ marginTop: '0.75rem', fontSize: '0.8rem', padding: '0.45rem 1rem' }}
+                              >
+                                Add Your First Service
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* 4. Professional Lookbook (Max 3 Pictures) */}
+                      <div className="app-card">
+                        <div className="card-header">
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                            <div style={{ width: 34, height: 34, borderRadius: '10px', background: 'rgba(168, 85, 247, 0.12)', color: 'var(--secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                              <Images size={18} />
+                            </div>
+                            <div>
+                              <h3 style={{ margin: 0 }}>Lookbook Showcase Works (Max 3 Pictures)</h3>
+                              <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                                High-res photos of your hairstyles and finished client appointments
+                              </p>
+                            </div>
+                          </div>
+
+                          <span style={{
+                            fontSize: '0.78rem',
+                            fontWeight: 800,
+                            padding: '0.3rem 0.75rem',
+                            borderRadius: '9999px',
+                            background: portfolio.length >= 3 ? 'rgba(239, 68, 68, 0.1)' : 'rgba(168, 85, 247, 0.1)',
+                            color: portfolio.length >= 3 ? '#ef4444' : 'var(--secondary)',
+                            border: `1px solid ${portfolio.length >= 3 ? 'rgba(239, 68, 68, 0.3)' : 'rgba(168, 85, 247, 0.25)'}`
+                          }}>
+                            {portfolio.length} / 3 Works Uploaded
+                          </span>
+                        </div>
+
+                        <div className="card-body">
+                          {/* File input for Cloudinary */}
+                          <input
+                            type="file"
+                            ref={lookbookFileInputRef}
+                            accept="image/*"
+                            onChange={handleLookbookFileSelect}
+                            style={{ display: 'none' }}
+                          />
+
+                          {portfolio.length >= 3 ? (
+                            /* Showcase is Full Banner */
+                            <div style={{
+                              padding: '1.25rem',
+                              borderRadius: '14px',
+                              background: 'rgba(16, 185, 129, 0.08)',
+                              border: '1px solid rgba(16, 185, 129, 0.25)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.85rem',
+                              marginBottom: '1.25rem'
+                            }}>
+                              <CheckCircle size={22} color="#10b981" style={{ flexShrink: 0 }} />
+                              <div>
+                                <strong style={{ fontSize: '0.9rem', color: 'var(--text-main)', display: 'block' }}>
+                                  Lookbook Showcase Full (3 / 3 Photos)
+                                </strong>
+                                <p style={{ margin: '0.2rem 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                                  Your professional page is fully equipped with 3 showcase works. To replace or add a new photo, please delete one of your existing works below.
+                                </p>
                               </div>
-                              {(item.title || item.description) && (
-                                <div style={{ padding: '0.75rem 0.9rem' }}>
-                                  {item.title && <p style={{ margin: 0, fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-main)', fontFamily: 'Outfit' }}>{item.title}</p>}
-                                  {item.description && <p style={{ margin: '0.2rem 0 0', fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>{item.description}</p>}
+                            </div>
+                          ) : (
+                            /* Upload Form */
+                            <form onSubmit={handleAddPortfolioItem} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.5rem' }}>
+                              {!portfolioPreview ? (
+                                <div
+                                  onClick={() => lookbookFileInputRef.current && lookbookFileInputRef.current.click()}
+                                  style={{
+                                    border: '2px dashed rgba(168, 85, 247, 0.4)',
+                                    borderRadius: '16px',
+                                    padding: '2rem 1.5rem',
+                                    background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.04), rgba(99, 102, 241, 0.04))',
+                                    textAlign: 'center',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s ease',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    alignItems: 'center',
+                                    gap: '0.65rem'
+                                  }}
+                                  onMouseEnter={e => {
+                                    e.currentTarget.style.borderColor = 'var(--secondary)';
+                                    e.currentTarget.style.background = 'rgba(168, 85, 247, 0.08)';
+                                  }}
+                                  onMouseLeave={e => {
+                                    e.currentTarget.style.borderColor = 'rgba(168, 85, 247, 0.4)';
+                                    e.currentTarget.style.background = 'linear-gradient(135deg, rgba(168, 85, 247, 0.04), rgba(99, 102, 241, 0.04))';
+                                  }}
+                                >
+                                  <div style={{
+                                    width: '52px',
+                                    height: '52px',
+                                    borderRadius: '16px',
+                                    background: 'linear-gradient(135deg, var(--secondary), var(--primary))',
+                                    color: '#fff',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    boxShadow: '0 6px 16px rgba(168, 85, 247, 0.3)'
+                                  }}>
+                                    <Camera size={26} />
+                                  </div>
+                                  <div>
+                                    <strong style={{ fontSize: '1rem', color: 'var(--text-main)', display: 'block', fontFamily: 'Outfit' }}>
+                                      Choose from Photo Library or Files
+                                    </strong>
+                                    <p style={{ margin: '0.25rem 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                                      Tap to pick a high-res photo from your phone/computer gallery to upload directly via Cloudinary
+                                    </p>
+                                  </div>
+                                  <span style={{
+                                    marginTop: '0.25rem',
+                                    fontSize: '0.75rem',
+                                    fontWeight: 700,
+                                    padding: '0.35rem 0.85rem',
+                                    borderRadius: '20px',
+                                    background: 'rgba(168, 85, 247, 0.15)',
+                                    color: 'var(--secondary)'
+                                  }}>
+                                    ☁️ Cloudinary Auto-Storage • Slot {portfolio.length + 1} of 3
+                                  </span>
+                                </div>
+                              ) : (
+                                <div style={{
+                                  borderRadius: '16px',
+                                  overflow: 'hidden',
+                                  border: '1px solid rgba(168, 85, 247, 0.35)',
+                                  background: 'rgba(168, 85, 247, 0.04)',
+                                  padding: '1rem',
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  alignItems: 'center',
+                                  gap: '0.85rem'
+                                }}>
+                                  <div 
+                                    onClick={() => openLightbox(portfolioPreview, portfolioForm.title || 'Selected Photo Preview', 'Tap to view full resolution')}
+                                    style={{
+                                      position: 'relative',
+                                      borderRadius: '12px',
+                                      overflow: 'hidden',
+                                      maxWidth: '100%',
+                                      maxHeight: '260px',
+                                      boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+                                      cursor: 'zoom-in'
+                                    }}
+                                  >
+                                    <img
+                                      src={portfolioPreview}
+                                      alt="Selected lookbook preview"
+                                      style={{ maxWidth: '100%', maxHeight: '260px', objectFit: 'contain', display: 'block' }}
+                                    />
+                                    <span style={{
+                                      position: 'absolute',
+                                      bottom: '0.5rem',
+                                      right: '0.5rem',
+                                      background: 'rgba(0,0,0,0.65)',
+                                      color: '#fff',
+                                      fontSize: '0.7rem',
+                                      fontWeight: 700,
+                                      padding: '0.25rem 0.6rem',
+                                      borderRadius: '8px',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      gap: '0.3rem'
+                                    }}>
+                                      <ZoomIn size={12} /> Tap to zoom
+                                    </span>
+                                  </div>
+
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', width: '100%', justifyContent: 'center' }}>
+                                    <button
+                                      type="button"
+                                      onClick={() => lookbookFileInputRef.current && lookbookFileInputRef.current.click()}
+                                      className="btn btn-secondary"
+                                      style={{ fontSize: '0.8rem', padding: '0.45rem 0.95rem' }}
+                                    >
+                                      Change Photo
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setPortfolioForm(prev => ({ ...prev, imageUrl: '' }));
+                                        setPortfolioPreview(null);
+                                      }}
+                                      className="btn btn-outline"
+                                      style={{ fontSize: '0.8rem', padding: '0.45rem 0.95rem', color: '#ef4444', borderColor: 'rgba(239,68,68,0.3)' }}
+                                    >
+                                      Remove
+                                    </button>
+                                  </div>
                                 </div>
                               )}
-                            </div>
-                          ))}
+
+                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                                <div className="input-group" style={{ marginBottom: 0 }}>
+                                  <label>Style Title (e.g. Knotless Braids, Skin Fade)</label>
+                                  <input
+                                    type="text"
+                                    placeholder="e.g. Knotless Braids"
+                                    value={portfolioForm.title}
+                                    onChange={e => setPortfolioForm({ ...portfolioForm, title: e.target.value })}
+                                  />
+                                </div>
+                                <div className="input-group" style={{ marginBottom: 0 }}>
+                                  <label>Category</label>
+                                  <select
+                                    value={portfolioForm.category}
+                                    onChange={e => setPortfolioForm({ ...portfolioForm, category: e.target.value })}
+                                    style={{ padding: '0.75rem 1rem', borderRadius: '10px', border: '1px solid var(--border-light)', width: '100%', background: 'var(--bg-input, var(--bg-card))' }}
+                                  >
+                                    {['Hair Styling', 'Braids & Twists', 'Nails & Manicure', 'Lash Extensions', 'Makeup & Glam', 'Male Grooming', 'Other'].map(c => (
+                                      <option key={c} value={c}>{c}</option>
+                                    ))}
+                                  </select>
+                                </div>
+                              </div>
+
+                              <button
+                                type="submit"
+                                disabled={portfolioSubmitting || !portfolioForm.imageUrl.trim()}
+                                className="btn btn-primary"
+                                style={{ alignSelf: 'flex-start', background: 'linear-gradient(135deg, var(--secondary), var(--primary))', borderColor: 'transparent', padding: '0.65rem 1.5rem' }}
+                              >
+                                {portfolioSubmitting ? 'Uploading to Cloudinary...' : <><Images size={15} /> Upload Work to Page</>}
+                              </button>
+                            </form>
+                          )}
+
+                          {/* 3-Photo Showcase Grid */}
+                          <div style={{ borderTop: '1px solid var(--border-light)', paddingTop: '1.25rem' }}>
+                            <span style={{ fontSize: '0.78rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', display: 'block', marginBottom: '0.85rem' }}>
+                              YOUR 3 HIGHLIGHT WORKS ON PROFESSIONAL PAGE
+                            </span>
+
+                            {portfolio.length === 0 ? (
+                              <div style={{ textAlign: 'center', padding: '3rem 1.5rem', background: 'rgba(255,255,255,0.02)', borderRadius: '14px', border: '1px dashed var(--border-light)' }}>
+                                <ImageOff size={36} style={{ opacity: 0.25, marginBottom: '0.5rem' }} />
+                                <p style={{ fontWeight: 700, margin: 0, color: 'var(--text-main)' }}>No lookbook works uploaded yet</p>
+                                <p style={{ margin: '0.25rem 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                                  Upload your top 3 pictures above so students can admire your work and book.
+                                </p>
+                              </div>
+                            ) : (
+                              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
+                                {portfolio.slice(0, 3).map((item, idx) => (
+                                  <div
+                                    key={String(item._id || idx)}
+                                    style={{
+                                      borderRadius: '16px',
+                                      overflow: 'hidden',
+                                      background: 'var(--bg-card)',
+                                      border: '1px solid var(--border-light)',
+                                      boxShadow: '0 4px 14px rgba(0,0,0,0.08)',
+                                      transition: 'transform 0.18s ease'
+                                    }}
+                                  >
+                                    <div
+                                      onClick={() => openLightbox(item.imageUrl, item.title || `Work Sample #${idx + 1}`, `${item.category} • Style Photo`)}
+                                      style={{ position: 'relative', height: '200px', background: 'rgba(168,85,247,0.06)', cursor: 'zoom-in' }}
+                                    >
+                                      <img
+                                        src={item.imageUrl}
+                                        alt={item.title || 'Lookbook'}
+                                        style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                                      />
+                                      <span style={{ position: 'absolute', top: '0.5rem', left: '0.5rem', background: 'rgba(0,0,0,0.65)', color: '#fff', fontSize: '0.62rem', fontWeight: 800, padding: '0.2rem 0.5rem', borderRadius: '6px', backdropFilter: 'blur(4px)', textTransform: 'uppercase' }}>
+                                        {item.category}
+                                      </span>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleDeletePortfolioItem(String(item._id));
+                                        }}
+                                        title="Delete photo"
+                                        style={{ position: 'absolute', top: '0.5rem', right: '0.5rem', background: 'rgba(239,68,68,0.85)', border: 'none', borderRadius: '8px', width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', cursor: 'pointer' }}
+                                      >
+                                        <Trash2 size={13} />
+                                      </button>
+                                      <span style={{ position: 'absolute', bottom: '0.4rem', right: '0.5rem', background: 'rgba(0,0,0,0.6)', color: '#fff', fontSize: '0.65rem', padding: '0.15rem 0.45rem', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                                        <ZoomIn size={11} /> Zoom
+                                      </span>
+                                    </div>
+                                    <div style={{ padding: '0.75rem 0.85rem' }}>
+                                      <strong style={{ fontSize: '0.88rem', color: 'var(--text-main)', display: 'block', fontFamily: 'Outfit' }}>
+                                        {item.title || `Work #${idx + 1}`}
+                                      </strong>
+                                      {item.description && (
+                                        <p style={{ margin: '0.2rem 0 0', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                          {item.description}
+                                        </p>
+                                      )}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      )}
+                      </div>
+
                     </div>
                   )}
 
@@ -1554,6 +1849,15 @@ const ExpertDashboard = () => {
                           <div className="input-group" style={{ marginBottom: 0 }}>
                             <label>Contact Phone</label>
                             <input type="text" value={profileForm.phone} onChange={e => setProfileForm({ ...profileForm, phone: e.target.value })} />
+                          </div>
+                          <div className="input-group" style={{ marginBottom: 0 }}>
+                            <label>Specialist Campus Address / Room</label>
+                            <input 
+                              type="text" 
+                              placeholder="e.g. Lead City University Campus, Hostel A, Room 12"
+                              value={profileForm.address} 
+                              onChange={e => setProfileForm({ ...profileForm, address: e.target.value })} 
+                            />
                           </div>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '0.5rem' }}>
                             <button type="submit" disabled={savingProfile} className="btn btn-primary">

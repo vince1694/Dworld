@@ -316,10 +316,14 @@ const Services = () => {
                   >
                     <div>
                       {/* Expert Header */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.25rem' }}>
+                      <div 
+                        onClick={() => navigate(`/expert/${expId}`)}
+                        style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.25rem', cursor: 'pointer' }}
+                        title={`View ${exp.name}'s Professional Page & Works`}
+                      >
                         <div style={{
-                          width: '54px',
-                          height: '54px',
+                          width: '56px',
+                          height: '56px',
                           borderRadius: '16px',
                           background: 'linear-gradient(135deg, var(--primary), var(--secondary))',
                           color: 'white',
@@ -328,9 +332,20 @@ const Services = () => {
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          boxShadow: '0 6px 16px rgba(79, 70, 229, 0.25)'
+                          boxShadow: '0 6px 16px rgba(79, 70, 229, 0.25)',
+                          overflow: 'hidden',
+                          flexShrink: 0,
+                          border: '2px solid rgba(79, 70, 229, 0.2)'
                         }}>
-                          {exp.name ? exp.name.charAt(0).toUpperCase() : 'E'}
+                          {exp.avatar ? (
+                            <img 
+                              src={exp.avatar} 
+                              alt={exp.name} 
+                              style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                            />
+                          ) : (
+                            exp.name ? exp.name.charAt(0).toUpperCase() : 'E'
+                          )}
                         </div>
 
                         <div>
@@ -433,13 +448,24 @@ const Services = () => {
                         )}
                       </div>
 
-                      <button
-                        onClick={() => navigate(`/book?expertId=${expId}`)}
-                        className="btn btn-primary"
-                        style={{ width: '100%', justifyContent: 'center', marginTop: '0.75rem', borderRadius: '12px', fontWeight: 700 }}
-                      >
-                        <CalendarPlus size={16} /> Book With {exp.name.split(' ')[0]}
-                      </button>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.65rem', marginTop: '0.75rem' }}>
+                        <button
+                          type="button"
+                          onClick={() => navigate(`/expert/${expId}`)}
+                          className="btn btn-secondary"
+                          style={{ justifyContent: 'center', borderRadius: '12px', fontWeight: 700, fontSize: '0.85rem' }}
+                        >
+                          <Images size={15} /> View Works
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => navigate(`/book?expertId=${expId}`)}
+                          className="btn btn-primary"
+                          style={{ justifyContent: 'center', borderRadius: '12px', fontWeight: 700, fontSize: '0.85rem' }}
+                        >
+                          <CalendarPlus size={15} /> Book
+                        </button>
+                      </div>
                     </div>
                   </motion.div>
                 );

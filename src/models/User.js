@@ -49,6 +49,11 @@ const userSchema = new mongoose.Schema({
   transactions: [transactionSchema]
 }, { timestamps: true });
 
+// ── Performance indexes ────────────────────────────────────────────────────────
+userSchema.index({ role: 1, isActivated: 1 });           // getExperts filter
+userSchema.index({ role: 1, isVerified: 1, isActivated: 1 }); // verified experts list
+
+
 userSchema.statics.create = async function(userData) {
   const user = new this(userData);
   return await user.save();

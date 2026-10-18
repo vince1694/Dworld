@@ -13,6 +13,7 @@ const {
   getWallet,
   topupWallet,
   getExperts,
+  getExpertById,
   addPortfolioItem,
   deletePortfolioItem,
   getAllUsersForAdmin,
@@ -45,6 +46,7 @@ router.get('/me', protect, getMe);
 router.get('/wallet', protect, getWallet);
 router.post('/wallet/topup', protect, topupWallet);
 router.get('/experts', getExperts);
+router.get('/experts/:id', getExpertById);
 
 router.post('/forgot-password', forgotPassword);
 router.post('/verify', verifyOtp);
