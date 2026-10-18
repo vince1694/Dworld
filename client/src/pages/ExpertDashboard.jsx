@@ -166,6 +166,27 @@ const ExpertDashboard = () => {
     reader.readAsDataURL(file);
   };
 
+  // Lookbook File Upload Ref & Handler
+  const lookbookFileInputRef = useRef(null);
+
+  const handleLookbookFileSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 15 * 1024 * 1024) {
+      addToast('Image size exceeds 15MB limit. Please choose a smaller photo.', 'warning');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const base64Data = reader.result;
+      setPortfolioForm(prev => ({ ...prev, imageUrl: base64Data }));
+      setPortfolioPreview(base64Data);
+    };
+    reader.readAsDataURL(file);
+  };
+
   const [profileForm, setProfileForm] = useState({ name: user?.name || '', phone: user?.phone || '' });
   const [savingProfile, setSavingProfile] = useState(false);
 
@@ -329,7 +350,7 @@ const ExpertDashboard = () => {
   // ── Portfolio handlers ──────────────────────────────────────────────────────
   const handleAddPortfolioItem = async (e) => {
     e.preventDefault();
-    if (!portfolioForm.imageUrl.trim()) { addToast('Please provide an image URL.', 'error'); return; }
+    if (!portfolioForm.imageUrl.trim()) { addToast('Please select a photo from your photo library or files.', 'warning'); return; }
     try {
       setPortfolioSubmitting(true);
       const res = await axios.post(`${API_URL}/auth/portfolio`, portfolioForm);
@@ -337,7 +358,7 @@ const ExpertDashboard = () => {
         setPortfolio(res.data.data);
         setPortfolioForm({ title: '', description: '', imageUrl: '', category: user?.specialty || 'Hair Styling' });
         setPortfolioPreview(null);
-        addToast('Lookbook style added! 🎨', 'success');
+        addToast('Lookbook style uploaded to Cloudinary! 🎨', 'success');
       }
     } catch (err) {
       addToast(err.response?.data?.message || 'Failed to add lookbook item.', 'error');
@@ -1139,31 +1160,144 @@ const ExpertDashboard = () => {
                         </div>
                         <div className="card-body">
                           <form onSubmit={handleAddPortfolioItem} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                            {/* Image URL input + live preview */}
-                            <div className="input-group" style={{ marginBottom: 0 }}>
-                              <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><LinkIcon size={13} /> Image URL (paste a direct image link)</label>
-                              <input
-                                type="url"
-                                placeholder="https://example.com/your-work-photo.jpg"
-                                value={portfolioForm.imageUrl}
-                                onChange={e => {
-                                  setPortfolioForm({ ...portfolioForm, imageUrl: e.target.value });
-                                  setPortfolioPreview(e.target.value.trim() || null);
-                                }}
-                                style={{ fontFamily: 'monospace', fontSize: '0.82rem' }}
-                              />
-                            </div>
+                            {/* Hidden file input triggered by tapping upload box */}
+                            <input 
+                              type="file"
+                              ref={lookbookFileInputRef}
+                              accept="image/*"
+                              onChange={handleLookbookFileSelect}
+                              style={{ display: 'none' }}
+                            />
 
-                            {/* Live preview */}
-                            {portfolioPreview && (
-                              <div style={{ borderRadius: '14px', overflow: 'hidden', border: '2px dashed rgba(168,85,247,0.3)', background: 'rgba(168,85,247,0.04)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '160px', position: 'relative' }}>
-                                <img
-                                  src={portfolioPreview}
-                                  alt="preview"
-                                  onError={() => setPortfolioPreview(null)}
-                                  style={{ maxWidth: '100%', maxHeight: '220px', objectFit: 'cover', borderRadius: '12px' }}
-                                />
-                                <span style={{ position: 'absolute', top: '0.5rem', right: '0.5rem', background: 'rgba(0,0,0,0.55)', color: '#fff', fontSize: '0.65rem', fontWeight: 700, padding: '0.2rem 0.5rem', borderRadius: '6px' }}>PREVIEW</span>
+                            {!portfolioPreview ? (
+                              <div
+                                onClick={() => lookbookFileInputRef.current && lookbookFileInputRef.current.click()}
+                                style={{
+                                  border: '2px dashed rgba(168, 85, 247, 0.4)',
+                                  borderRadius: '16px',
+                                  padding: '2rem 1.5rem',
+                                  background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.04), rgba(99, 102, 241, 0.04))',
+                                  textAlign: 'center',
+                                  cursor: 'pointer',
+                                  transition: 'all 0.2s ease',
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  alignItems: 'center',
+                                  gap: '0.65rem'
+                                }}
+                                onMouseEnter={e => {
+                                  e.currentTarget.style.borderColor = 'var(--secondary)';
+                                  e.currentTarget.style.background = 'rgba(168, 85, 247, 0.08)';
+                                }}
+                                onMouseLeave={e => {
+                                  e.currentTarget.style.borderColor = 'rgba(168, 85, 247, 0.4)';
+                                  e.currentTarget.style.background = 'linear-gradient(135deg, rgba(168, 85, 247, 0.04), rgba(99, 102, 241, 0.04))';
+                                }}
+                              >
+                                <div style={{
+                                  width: '52px',
+                                  height: '52px',
+                                  borderRadius: '16px',
+                                  background: 'linear-gradient(135deg, var(--secondary), var(--primary))',
+                                  color: '#fff',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  boxShadow: '0 6px 16px rgba(168, 85, 247, 0.3)'
+                                }}>
+                                  <Camera size={26} />
+                                </div>
+                                <div>
+                                  <strong style={{ fontSize: '1rem', color: 'var(--text-main)', display: 'block', fontFamily: 'Outfit' }}>
+                                    Choose from Photo Library or Files
+                                  </strong>
+                                  <p style={{ margin: '0.25rem 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                                    Tap to select styling photos directly from your device gallery, library, or camera
+                                  </p>
+                                </div>
+                                <span style={{
+                                  marginTop: '0.25rem',
+                                  fontSize: '0.75rem',
+                                  fontWeight: 700,
+                                  padding: '0.35rem 0.85rem',
+                                  borderRadius: '20px',
+                                  background: 'rgba(168, 85, 247, 0.15)',
+                                  color: 'var(--secondary)'
+                                }}>
+                                  ☁️ Cloudinary Auto-Storage
+                                </span>
+                              </div>
+                            ) : (
+                              /* Live preview card with change/remove actions */
+                              <div style={{
+                                borderRadius: '16px',
+                                overflow: 'hidden',
+                                border: '1px solid rgba(168, 85, 247, 0.35)',
+                                background: 'rgba(168, 85, 247, 0.04)',
+                                padding: '1rem',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                gap: '0.85rem'
+                              }}>
+                                <div 
+                                  onClick={() => openLightbox(portfolioPreview, portfolioForm.title || 'Selected Photo Preview', 'Tap to view full resolution')}
+                                  style={{
+                                    position: 'relative',
+                                    borderRadius: '12px',
+                                    overflow: 'hidden',
+                                    maxWidth: '100%',
+                                    maxHeight: '260px',
+                                    boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+                                    cursor: 'zoom-in'
+                                  }}
+                                  title="Click to zoom in lightbox mode"
+                                >
+                                  <img
+                                    src={portfolioPreview}
+                                    alt="Selected lookbook preview"
+                                    style={{ maxWidth: '100%', maxHeight: '260px', objectFit: 'contain', display: 'block' }}
+                                  />
+                                  <span style={{
+                                    position: 'absolute',
+                                    bottom: '0.5rem',
+                                    right: '0.5rem',
+                                    background: 'rgba(0,0,0,0.65)',
+                                    color: '#fff',
+                                    fontSize: '0.7rem',
+                                    fontWeight: 700,
+                                    padding: '0.25rem 0.6rem',
+                                    borderRadius: '8px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.3rem',
+                                    backdropFilter: 'blur(4px)'
+                                  }}>
+                                    <ZoomIn size={12} /> Tap to zoom
+                                  </span>
+                                </div>
+
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', width: '100%', justifyContent: 'center' }}>
+                                  <button
+                                    type="button"
+                                    onClick={() => lookbookFileInputRef.current && lookbookFileInputRef.current.click()}
+                                    className="btn btn-secondary"
+                                    style={{ fontSize: '0.8rem', padding: '0.45rem 0.95rem' }}
+                                  >
+                                    Change Photo
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setPortfolioForm(prev => ({ ...prev, imageUrl: '' }));
+                                      setPortfolioPreview(null);
+                                    }}
+                                    className="btn btn-outline"
+                                    style={{ fontSize: '0.8rem', padding: '0.45rem 0.95rem', color: '#ef4444', borderColor: 'rgba(239,68,68,0.3)' }}
+                                  >
+                                    Remove
+                                  </button>
+                                </div>
                               </div>
                             )}
 
@@ -1207,7 +1341,7 @@ const ExpertDashboard = () => {
                               className="btn btn-primary"
                               style={{ alignSelf: 'flex-start', background: 'linear-gradient(135deg, var(--secondary), var(--primary))', borderColor: 'transparent', padding: '0.65rem 1.5rem' }}
                             >
-                              {portfolioSubmitting ? 'Uploading...' : <><Images size={15} /> Add to Lookbook</>}
+                              {portfolioSubmitting ? 'Uploading to Cloudinary...' : <><Images size={15} /> Upload to Lookbook</>}
                             </button>
                           </form>
                         </div>
