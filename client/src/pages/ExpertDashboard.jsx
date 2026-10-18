@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNotify } from '../context/NotificationContext';
 import { useSearchParams, useNavigate } from 'react-router-dom';
@@ -37,7 +37,9 @@ import {
   Upload,
   Link as LinkIcon,
   Eye,
-  ImageOff
+  ImageOff,
+  Camera,
+  ZoomIn
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -45,6 +47,7 @@ import AppointmentChatModal from '../components/AppointmentChatModal';
 import ExpertActivationModal from '../components/ExpertActivationModal';
 import WalletModal from '../components/WalletModal';
 import ConfirmModal from '../components/ConfirmModal';
+import ImageLightboxModal from '../components/ImageLightboxModal';
 import { getGoogleCalendarUrl, downloadIcsFile } from '../utils/calendar';
 import { API_URL } from '../config/api';
 
@@ -68,7 +71,7 @@ const NAV_ITEMS = [
 ];
 
 const ExpertDashboard = () => {
-  const { user, logout, refreshUser } = useAuth();
+  const { user, setUser, logout, refreshUser } = useAuth();
   const navigate = useNavigate();
   const [showActivationModal, setShowActivationModal] = useState(false);
   const [activationDismissed, setActivationDismissed] = useState(false);
@@ -81,6 +84,18 @@ const ExpertDashboard = () => {
   const [walletBalance, setWalletBalance] = useState(0);
   const [walletTransactions, setWalletTransactions] = useState([]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Lightbox Modal State
+  const [lightbox, setLightbox] = useState({
+    isOpen: false,
+    imageUrl: '',
+    title: '',
+    subtitle: ''
+  });
+
+  // Avatar Upload State
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const avatarInputRef = useRef(null);
 
   // Service Modal State (Edit Only)
   const [isServiceModalOpen, setIsServiceModalOpen] = useState(false);
@@ -110,6 +125,45 @@ const ExpertDashboard = () => {
     else if (type === 'info') notify.info(message);
     else if (type === 'warning') notify.warning(message);
     else notify.success(message);
+  };
+
+  const openLightbox = (imageUrl, title = 'Specialist Photo', subtitle = '') => {
+    if (!imageUrl) return;
+    setLightbox({
+      isOpen: true,
+      imageUrl,
+      title,
+      subtitle
+    });
+  };
+
+  const handleAvatarFileSelect = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 10 * 1024 * 1024) {
+      addToast('Image exceeds 10MB limit. Please choose a smaller photo.', 'warning');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const base64Data = reader.result;
+      try {
+        setAvatarUploading(true);
+        const res = await axios.post(`${API_URL}/auth/avatar`, { avatar: base64Data });
+        if (res.data.success) {
+          const newAvatar = res.data.avatar;
+          setUser(prev => ({ ...prev, avatar: newAvatar }));
+          addToast('Specialist avatar updated successfully! 📸', 'success');
+        }
+      } catch (err) {
+        addToast(err.response?.data?.message || 'Failed to update avatar.', 'error');
+      } finally {
+        setAvatarUploading(false);
+      }
+    };
+    reader.readAsDataURL(file);
   };
 
   const [profileForm, setProfileForm] = useState({ name: user?.name || '', phone: user?.phone || '' });
@@ -489,8 +543,31 @@ const ExpertDashboard = () => {
 
           {/* Avatar */}
           <div className="expert-sidebar-avatar">
-            <div style={{ width: 38, height: 38, borderRadius: '10px', background: 'linear-gradient(135deg, rgba(168,85,247,0.3), rgba(99,102,241,0.3))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '0.95rem', color: 'var(--secondary)', flexShrink: 0 }}>
-              {initials}
+            <div 
+              onClick={() => user?.avatar && openLightbox(user.avatar, user?.name, 'Specialist Profile Photo')}
+              style={{ 
+                width: 38, 
+                height: 38, 
+                borderRadius: '10px', 
+                background: 'linear-gradient(135deg, rgba(168,85,247,0.3), rgba(99,102,241,0.3))', 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center', 
+                fontWeight: 800, 
+                fontSize: '0.95rem', 
+                color: 'var(--secondary)', 
+                flexShrink: 0,
+                overflow: 'hidden',
+                cursor: user?.avatar ? 'zoom-in' : 'default',
+                border: '1.5px solid rgba(168,85,247,0.3)'
+              }}
+              title={user?.avatar ? "Click to view full photo" : user?.name}
+            >
+              {user?.avatar ? (
+                <img src={user.avatar} alt={user.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ) : (
+                initials
+              )}
             </div>
             <div style={{ minWidth: 0 }}>
               <div style={{ fontWeight: 700, fontSize: '0.87rem', color: 'var(--text-main)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user?.name || 'Expert'}</div>
@@ -526,7 +603,30 @@ const ExpertDashboard = () => {
                 </div>
                 {/* mobile avatar */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 0', borderBottom: '1px solid var(--border-light)', marginBottom: '0.75rem' }}>
-                  <div style={{ width: 38, height: 38, borderRadius: '10px', background: 'linear-gradient(135deg, rgba(168,85,247,0.3), rgba(99,102,241,0.3))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, color: 'var(--secondary)' }}>{initials}</div>
+                  <div 
+                    onClick={() => user?.avatar && openLightbox(user.avatar, user?.name, 'Specialist Profile Photo')}
+                    style={{ 
+                      width: 38, 
+                      height: 38, 
+                      borderRadius: '10px', 
+                      background: 'linear-gradient(135deg, rgba(168,85,247,0.3), rgba(99,102,241,0.3))', 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      justifyContent: 'center', 
+                      fontWeight: 800, 
+                      color: 'var(--secondary)',
+                      overflow: 'hidden',
+                      cursor: user?.avatar ? 'zoom-in' : 'default',
+                      border: '1.5px solid rgba(168,85,247,0.3)'
+                    }}
+                    title={user?.avatar ? "Click to view full photo" : user?.name}
+                  >
+                    {user?.avatar ? (
+                      <img src={user.avatar} alt={user.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : (
+                      initials
+                    )}
+                  </div>
                   <div>
                     <div style={{ fontWeight: 700, fontSize: '0.875rem', color: 'var(--text-main)' }}>{user?.name || 'Expert'}</div>
                     <div style={{ fontSize: '0.72rem', color: '#10b981' }}>{user?.isActivated ? '✓ Activated' : '⚠ Pending'}</div>
@@ -1137,7 +1237,11 @@ const ExpertDashboard = () => {
                               onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 10px 28px rgba(0,0,0,0.15)'; }}
                               onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = ''; }}
                             >
-                              <div style={{ position: 'relative', paddingBottom: '75%', background: 'rgba(168,85,247,0.06)' }}>
+                              <div 
+                                onClick={() => openLightbox(item.imageUrl, item.title || 'Lookbook Style', `${item.category} • Style Photo`)}
+                                style={{ position: 'relative', paddingBottom: '75%', background: 'rgba(168,85,247,0.06)', cursor: 'zoom-in' }}
+                                title="Click to view full photo in lightbox"
+                              >
                                 <img
                                   src={item.imageUrl}
                                   alt={item.title || 'Lookbook'}
@@ -1151,7 +1255,10 @@ const ExpertDashboard = () => {
                                 </span>
                                 {/* Delete button */}
                                 <button
-                                  onClick={() => handleDeletePortfolioItem(String(item._id))}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeletePortfolioItem(String(item._id));
+                                  }}
                                   title="Remove from lookbook"
                                   style={{ position: 'absolute', top: '0.5rem', right: '0.5rem', background: 'rgba(239,68,68,0.85)', border: 'none', borderRadius: '8px', width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', cursor: 'pointer', backdropFilter: 'blur(4px)', transition: 'background 0.15s' }}
                                   onMouseEnter={e => e.currentTarget.style.background = '#ef4444'}
@@ -1175,17 +1282,136 @@ const ExpertDashboard = () => {
 
                   {/* ─── PROFILE ─── */}
                   {activeTab === 'profile' && (
-                    <div className="app-card" style={{ maxWidth: '580px' }}>
+                    <div className="app-card" style={{ maxWidth: '620px' }}>
                       <div className="card-header">
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                           <div style={{ width: 44, height: 44, borderRadius: '12px', background: 'linear-gradient(135deg, rgba(168,85,247,0.25), rgba(99,102,241,0.25))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '1.1rem', color: 'var(--secondary)' }}>{initials}</div>
                           <div>
-                            <h3 style={{ margin: 0 }}>Profile Settings</h3>
-                            <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-muted)' }}>{user?.email}</p>
+                            <h3 style={{ margin: 0 }}>Specialist Profile Settings</h3>
+                            <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-muted)' }}>{user?.email} • {user?.specialty || 'General Specialist'}</p>
                           </div>
                         </div>
                       </div>
                       <div className="card-body">
+                        {/* SPECIALIST AVATAR UPLOADER */}
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '1.5rem',
+                          padding: '1.25rem',
+                          borderRadius: '18px',
+                          background: 'rgba(255, 255, 255, 0.02)',
+                          border: '1px solid var(--border-light)',
+                          marginBottom: '1.5rem'
+                        }}>
+                          {/* Circular Avatar */}
+                          <div style={{ position: 'relative' }}>
+                            <div 
+                              onClick={() => {
+                                if (user?.avatar) {
+                                  openLightbox(user.avatar, user?.name, 'Specialist Profile Photo • Full HD View');
+                                } else if (avatarInputRef.current) {
+                                  avatarInputRef.current.click();
+                                }
+                              }}
+                              style={{
+                                width: '92px',
+                                height: '92px',
+                                borderRadius: '50%',
+                                background: 'linear-gradient(135deg, var(--secondary), var(--primary))',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                color: '#fff',
+                                fontSize: '2rem',
+                                fontWeight: 800,
+                                overflow: 'hidden',
+                                cursor: user?.avatar ? 'zoom-in' : 'pointer',
+                                boxShadow: '0 8px 24px rgba(168, 85, 247, 0.25)',
+                                border: '3px solid rgba(255, 255, 255, 0.15)',
+                                position: 'relative'
+                              }}
+                              title={user?.avatar ? "Click to view full photo in lightbox" : "Click to upload avatar"}
+                            >
+                              {user?.avatar ? (
+                                <img 
+                                  src={user.avatar} 
+                                  alt={user?.name} 
+                                  style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                                />
+                              ) : (
+                                initials
+                              )}
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => avatarInputRef.current && avatarInputRef.current.click()}
+                              disabled={avatarUploading}
+                              title="Upload Specialist Photo"
+                              style={{
+                                position: 'absolute',
+                                bottom: '-2px',
+                                right: '-2px',
+                                width: '32px',
+                                height: '32px',
+                                borderRadius: '50%',
+                                background: 'var(--secondary)',
+                                color: '#fff',
+                                border: '2px solid #fff',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                cursor: 'pointer',
+                                boxShadow: '0 4px 10px rgba(0,0,0,0.2)'
+                              }}
+                            >
+                              <Camera size={15} />
+                            </button>
+                          </div>
+
+                          {/* Controls */}
+                          <div style={{ flex: 1 }}>
+                            <h4 style={{ margin: '0 0 0.25rem', fontSize: '1rem', fontFamily: 'Outfit', fontWeight: 700 }}>
+                              Specialist Avatar
+                            </h4>
+                            <p style={{ margin: '0 0 0.75rem', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                              Students and clients see this photo across the campus discovery feed and booking wizard.
+                            </p>
+
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
+                              <input 
+                                type="file" 
+                                ref={avatarInputRef}
+                                onChange={handleAvatarFileSelect}
+                                accept="image/*"
+                                style={{ display: 'none' }}
+                              />
+
+                              <button
+                                type="button"
+                                onClick={() => avatarInputRef.current && avatarInputRef.current.click()}
+                                disabled={avatarUploading}
+                                className="btn btn-secondary"
+                                style={{ fontSize: '0.8rem', padding: '0.45rem 0.85rem' }}
+                              >
+                                {avatarUploading ? 'Uploading...' : 'Change Photo'}
+                              </button>
+
+                              {user?.avatar && (
+                                <button
+                                  type="button"
+                                  onClick={() => openLightbox(user.avatar, user?.name, 'Specialist Profile Photo • Full HD View')}
+                                  className="btn btn-outline"
+                                  style={{ fontSize: '0.8rem', padding: '0.45rem 0.85rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+                                >
+                                  <ZoomIn size={14} /> Full View
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
                         <form onSubmit={submitProfile} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                           <div className="input-group" style={{ marginBottom: 0 }}>
                             <label>Display Name</label>
@@ -1303,6 +1529,15 @@ const ExpertDashboard = () => {
         type={confirmModal.type}
         onConfirm={confirmModal.onConfirm}
         onCancel={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+      />
+
+      {/* Smooth Image Lightbox Modal */}
+      <ImageLightboxModal
+        isOpen={lightbox.isOpen}
+        imageUrl={lightbox.imageUrl}
+        title={lightbox.title}
+        subtitle={lightbox.subtitle}
+        onClose={() => setLightbox(prev => ({ ...prev, isOpen: false }))}
       />
     </>
   );

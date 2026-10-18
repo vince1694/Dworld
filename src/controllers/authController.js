@@ -6,6 +6,7 @@ require('dotenv').config();
 const { validationResult } = require('express-validator');
 const Notification = require('../models/Notification');
 const { sendPasswordResetEmail, sendRegistrationOtpEmail, sendWelcomeEmail } = require('../utils/sendEmail');
+const { uploadImage } = require('../utils/cloudinary');
 
 // ── In-memory pending registrations store (TTL: 10 min) ──────────────────────
 const pendingRegistrations = new Map();
@@ -201,7 +202,8 @@ const verifyRegistration = async (req, res, next) => {
                 email: userResult.email,
                 role: userResult.role,
                 state: userResult.state,
-                isActivated: userResult.isActivated
+                isActivated: userResult.isActivated,
+                avatar: userResult.avatar || ''
             }
         });
     } catch (error) {
@@ -250,7 +252,8 @@ const login = async (req, res, next) => {
                 isActivated: user.role === 'expert' ? Boolean(user.isActivated) : true,
                 matricNo: user.matricNo || '',
                 department: user.department || '',
-                phone: user.phone || ''
+                phone: user.phone || '',
+                avatar: user.avatar || ''
             },
         });
     } catch (error) {
@@ -365,13 +368,50 @@ const resetPassword = async (req, res, next) => {
 
 const updateProfile = async (req, res, next) => {
     try {
-        const { name, phone, bio, specialty } = req.body;
+        const { name, phone, bio, specialty, avatar } = req.body;
+        const updateData = {};
+        if (name !== undefined) updateData.name = name;
+        if (phone !== undefined) updateData.phone = phone;
+        if (bio !== undefined) updateData.bio = bio;
+        if (specialty !== undefined) updateData.specialty = specialty;
+
+        if (avatar && typeof avatar === 'string' && avatar.trim()) {
+            const avatarUrl = await uploadImage(avatar, 'dworld_avatars');
+            updateData.avatar = avatarUrl;
+        }
+
         const user = await User.findByIdAndUpdate(
             req.user.id,
-            { name, phone, bio, specialty },
+            updateData,
             { new: true }
-        );
+        ).select('-password');
+
         res.json({ success: true, message: 'Profile updated successfully', user });
+    } catch (error) {
+        next(error);
+    }
+};
+
+const uploadAvatar = async (req, res, next) => {
+    try {
+        const { avatar } = req.body;
+        if (!avatar) {
+            return res.status(400).json({ success: false, message: 'Please provide an image for the avatar.' });
+        }
+
+        const avatarUrl = await uploadImage(avatar, 'dworld_avatars');
+        const user = await User.findByIdAndUpdate(
+            req.user.id,
+            { avatar: avatarUrl },
+            { new: true }
+        ).select('-password');
+
+        res.json({
+            success: true,
+            message: 'Profile picture updated successfully!',
+            avatar: avatarUrl,
+            user
+        });
     } catch (error) {
         next(error);
     }
@@ -413,6 +453,7 @@ const getMe = async (req, res, next) => {
             name: user.name,
             email: user.email,
             role: user.role,
+            avatar: user.avatar || '',
             isActivated: user.role === 'expert' ? Boolean(user.isActivated) : true,
             activationFee: user.activationFee || 3000,
             phone: user.phone || '',
@@ -544,6 +585,7 @@ const getExperts = async (req, res, next) => {
                 workingDays: exp.workingDays || ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
                 workingHours: exp.workingHours || { start: '09:00', end: '18:00' },
                 rating: exp.rating || 4.9,
+                avatar: exp.avatar || '',
                 portfolio: exp.portfolio || [],
                 isVerified: true,
                 services
@@ -568,10 +610,12 @@ const addPortfolioItem = async (req, res, next) => {
             return res.status(404).json({ success: false, message: 'Expert account not found.' });
         }
 
+        const uploadedUrl = await uploadImage(imageUrl, 'dworld_portfolio');
+
         const newItem = {
             title: (title || '').trim(),
             description: (description || '').trim(),
-            imageUrl: imageUrl.trim(),
+            imageUrl: uploadedUrl,
             category: (category || user.specialty || 'Hair Styling').trim(),
             createdAt: new Date()
         };
@@ -723,6 +767,7 @@ module.exports = {
     verifyRegistration,
     login, 
     updateProfile, 
+    uploadAvatar,
     updateAvailability,
     forgotPassword, 
     verifyOtp, 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNotify } from '../context/NotificationContext';
 import { useSearchParams, useNavigate } from 'react-router-dom';
@@ -8,9 +8,11 @@ import {
   ListChecks, 
   CalendarX2, 
   CheckCircle, 
+  CheckCircle2,
   Clock, 
   MapPin, 
   User, 
+  UserCheck,
   Settings, 
   Sparkles, 
   ShieldCheck, 
@@ -29,26 +31,42 @@ import {
   Download,
   Calendar,
   Share2,
-  RotateCcw
+  RotateCcw,
+  Camera,
+  ZoomIn
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import BookingWizardModal from '../components/BookingWizardModal';
 import ReviewModal from '../components/ReviewModal';
 import AppointmentChatModal from '../components/AppointmentChatModal';
 import ConfirmModal from '../components/ConfirmModal';
+import ImageLightboxModal from '../components/ImageLightboxModal';
 import { getGoogleCalendarUrl, downloadIcsFile } from '../utils/calendar';
 
 import { API_URL } from '../config/api';
 
 const Dashboard = () => {
-  const { user } = useAuth();
+  const { user, setUser } = useAuth();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get('tab') || 'overview';
 
   const [services, setServices] = useState([]);
+  const [experts, setExperts] = useState([]);
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // Lightbox Modal State
+  const [lightbox, setLightbox] = useState({
+    isOpen: false,
+    imageUrl: '',
+    title: '',
+    subtitle: ''
+  });
+
+  // Avatar Upload State
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const avatarInputRef = useRef(null);
   
   // UI Controls
   const [isWizardOpen, setIsWizardOpen] = useState(false);
@@ -115,9 +133,10 @@ const Dashboard = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [servicesRes, appointmentsRes] = await Promise.all([
+      const [servicesRes, appointmentsRes, expertsRes] = await Promise.all([
         axios.get(`${API_URL}/services`),
-        axios.get(`${API_URL}/appointments/my-appointments`)
+        axios.get(`${API_URL}/appointments/my-appointments`),
+        axios.get(`${API_URL}/auth/experts`)
       ]);
       
       if (servicesRes.data.success) {
@@ -127,11 +146,54 @@ const Dashboard = () => {
       if (appointmentsRes.data.success) {
         setAppointments(appointmentsRes.data.data);
       }
+
+      if (expertsRes?.data?.success) {
+        setExperts(expertsRes.data.data || []);
+      }
     } catch (err) {
       console.error('Failed to fetch dashboard data', err);
     } finally {
       setLoading(false);
     }
+  };
+
+  const openLightbox = (imageUrl, title = 'Profile Picture', subtitle = 'Full HD View') => {
+    if (!imageUrl) return;
+    setLightbox({
+      isOpen: true,
+      imageUrl,
+      title,
+      subtitle
+    });
+  };
+
+  const handleAvatarFileSelect = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 10 * 1024 * 1024) {
+      addToast('Image size exceeds 10MB limit. Please choose a smaller photo.', 'warning');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const base64Data = reader.result;
+      try {
+        setAvatarUploading(true);
+        const res = await axios.post(`${API_URL}/auth/avatar`, { avatar: base64Data });
+        if (res.data.success) {
+          const newAvatar = res.data.avatar;
+          setUser(prev => ({ ...prev, avatar: newAvatar }));
+          addToast('Profile photo updated successfully! 📸', 'success');
+        }
+      } catch (err) {
+        addToast(err.response?.data?.message || 'Failed to upload profile picture.', 'error');
+      } finally {
+        setAvatarUploading(false);
+      }
+    };
+    reader.readAsDataURL(file);
   };
 
   const getGreeting = () => {
@@ -721,52 +783,151 @@ const Dashboard = () => {
             </div>
           </div>
 
-          {/* BENTO SPAN 5: FEATURED SERVICES SHOWCASE */}
+          {/* BENTO SPAN 5: VERIFIED CAMPUS SPECIALISTS & EXPERTS */}
           <div className="bento-card bento-span-5">
-            <div className="card-header">
-              <h3 style={{ margin: 0, fontSize: '1.1rem' }}>Featured Services</h3>
+            <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                  <ShieldCheck size={18} color="var(--primary)" /> Verified Specialists
+                </h3>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                  Certified campus experts who paid the ₦3,000 activation fee
+                </span>
+              </div>
+              <span style={{
+                background: 'rgba(16, 185, 129, 0.1)',
+                color: '#10b981',
+                border: '1px solid rgba(16, 185, 129, 0.25)',
+                fontSize: '0.72rem',
+                fontWeight: 700,
+                padding: '0.25rem 0.6rem',
+                borderRadius: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.3rem'
+              }}>
+                <CheckCircle2 size={12} /> {experts.length} Verified
+              </span>
             </div>
-            <div className="card-body" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              {services.slice(0, 4).map(service => {
-                const serviceId = String(service._id || service.id);
-                return (
-                  <div 
-                    key={serviceId}
-                    onClick={() => openBookingForService(serviceId)}
-                    style={{
-                      padding: '1rem 1.25rem',
-                      borderRadius: '14px',
-                      background: 'rgba(255, 255, 255, 0.02)',
-                      border: '1px solid var(--border-light)',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      transition: 'all 0.2s ease',
-                      pointerEvents: 'auto'
-                    }}
-                    className="hover-card-select"
-                  >
-                    <div>
-                      <h4 style={{ margin: '0 0 0.2rem', fontSize: '0.95rem', fontFamily: 'Outfit' }}>{service.name}</h4>
-                      <span style={{ fontSize: '0.8rem', color: 'var(--secondary)', fontWeight: 600 }}>₦{service.price?.toLocaleString()} • {service.duration || 45}m</span>
+            <div className="card-body" style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+              {experts.length === 0 ? (
+                <div style={{ padding: '2.5rem 1.25rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                  <UserCheck size={36} style={{ opacity: 0.35, marginBottom: '0.65rem' }} />
+                  <p style={{ margin: 0, fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-main)' }}>No verified specialists yet</p>
+                  <p style={{ margin: '0.3rem 0 0', fontSize: '0.78rem' }}>Registered specialists appear here once verified and activated.</p>
+                </div>
+              ) : (
+                experts.map(expert => {
+                  const expertId = String(expert._id || expert.id);
+                  const firstService = (expert.services && expert.services[0]) || null;
+                  const price = firstService?.price || 3500;
+                  const duration = firstService?.duration || 45;
+
+                  return (
+                    <div 
+                      key={expertId}
+                      style={{
+                        padding: '0.9rem 1.15rem',
+                        borderRadius: '16px',
+                        background: 'rgba(255, 255, 255, 0.02)',
+                        border: '1px solid var(--border-light)',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        gap: '0.85rem',
+                        transition: 'all 0.2s ease',
+                        pointerEvents: 'auto'
+                      }}
+                      className="hover-card-select"
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0 }}>
+                        {/* Expert Avatar with click to lightbox */}
+                        <div 
+                          onClick={(e) => {
+                            if (expert.avatar) {
+                              e.stopPropagation();
+                              openLightbox(expert.avatar, expert.name, `${expert.specialty || 'Campus Specialist'} • Verified Specialist`);
+                            }
+                          }}
+                          style={{
+                            width: 44,
+                            height: 44,
+                            borderRadius: '12px',
+                            background: 'linear-gradient(135deg, rgba(79, 70, 229, 0.2), rgba(168, 85, 247, 0.2))',
+                            color: 'var(--primary)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontWeight: 800,
+                            fontSize: '1rem',
+                            flexShrink: 0,
+                            overflow: 'hidden',
+                            border: '1.5px solid rgba(79, 70, 229, 0.3)',
+                            cursor: expert.avatar ? 'zoom-in' : 'default',
+                            position: 'relative'
+                          }}
+                          title={expert.avatar ? "Click to view full photo" : expert.name}
+                        >
+                          {expert.avatar ? (
+                            <img 
+                              src={expert.avatar} 
+                              alt={expert.name} 
+                              style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                            />
+                          ) : (
+                            expert.name ? expert.name.charAt(0).toUpperCase() : 'E'
+                          )}
+                        </div>
+
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                            <h4 style={{ margin: 0, fontSize: '0.92rem', fontFamily: 'Outfit', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {expert.name}
+                            </h4>
+                            <ShieldCheck size={14} color="#10b981" title="Verified & ₦3,000 Activation Paid" />
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.15rem', flexWrap: 'wrap' }}>
+                            <span style={{ fontSize: '0.75rem', color: 'var(--primary)', fontWeight: 600 }}>
+                              {expert.specialty || 'Stylist'}
+                            </span>
+                            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>•</span>
+                            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                              From ₦{price.toLocaleString()} ({duration}m)
+                            </span>
+                          </div>
+                          {expert.location && (
+                            <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: '2px' }}>
+                              📍 {expert.location}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => navigate(`/book?expertId=${expertId}`)}
+                        style={{
+                          padding: '0.45rem 0.85rem',
+                          borderRadius: '10px',
+                          background: 'linear-gradient(135deg, var(--primary), var(--secondary))',
+                          color: '#fff',
+                          fontSize: '0.78rem',
+                          fontWeight: 700,
+                          border: 'none',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.35rem',
+                          flexShrink: 0,
+                          boxShadow: '0 4px 12px rgba(79, 70, 229, 0.25)'
+                        }}
+                      >
+                        Book <ArrowRight size={13} />
+                      </button>
                     </div>
-                    <span style={{
-                      padding: '0.35rem 0.75rem',
-                      borderRadius: '10px',
-                      background: 'rgba(99, 102, 241, 0.12)',
-                      color: 'var(--primary)',
-                      fontSize: '0.75rem',
-                      fontWeight: 700,
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.3rem'
-                    }}>
-                      Book <ArrowRight size={12} />
-                    </span>
-                  </div>
-                );
-              })}
+                  );
+                })
+              )}
             </div>
 
             {/* Campus Share / Referral Card */}
@@ -809,11 +970,134 @@ const Dashboard = () => {
               <div style={{ padding: '0.5rem', background: 'rgba(255, 255, 255, 0.05)', borderRadius: '8px', color: 'var(--text-main)' }}>
                 <Settings size={20} />
               </div>
-              <h3 style={{ margin: 0 }}>Profile Settings</h3>
+              <div>
+                <h3 style={{ margin: 0 }}>Profile Settings</h3>
+                <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Manage your campus account details & avatar</span>
+              </div>
             </div>
           </div>
 
           <div className="card-body">
+            {/* AVATAR PROFILE PICTURE UPLOADER */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '1.5rem',
+              padding: '1.25rem',
+              borderRadius: '18px',
+              background: 'rgba(255, 255, 255, 0.02)',
+              border: '1px solid var(--border-light)',
+              marginBottom: '1.75rem'
+            }}>
+              {/* Circular Avatar with Hover & Lightbox Click */}
+              <div style={{ position: 'relative' }}>
+                <div 
+                  onClick={() => {
+                    if (user?.avatar) {
+                      openLightbox(user.avatar, user.name || 'My Profile Picture', `${user.email} • Full View`);
+                    } else if (avatarInputRef.current) {
+                      avatarInputRef.current.click();
+                    }
+                  }}
+                  style={{
+                    width: '92px',
+                    height: '92px',
+                    borderRadius: '50%',
+                    background: 'linear-gradient(135deg, var(--primary), var(--secondary))',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#fff',
+                    fontSize: '2rem',
+                    fontWeight: 800,
+                    overflow: 'hidden',
+                    cursor: user?.avatar ? 'zoom-in' : 'pointer',
+                    boxShadow: '0 8px 24px rgba(79, 70, 229, 0.25)',
+                    border: '3px solid rgba(255, 255, 255, 0.1)',
+                    position: 'relative'
+                  }}
+                  title={user?.avatar ? "Click to view full photo in lightbox" : "Click to upload profile picture"}
+                >
+                  {user?.avatar ? (
+                    <img 
+                      src={user.avatar} 
+                      alt={user.name} 
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                    />
+                  ) : (
+                    user?.name ? user.name.charAt(0).toUpperCase() : 'U'
+                  )}
+                </div>
+
+                {/* Camera Overlay Icon */}
+                <button
+                  type="button"
+                  onClick={() => avatarInputRef.current && avatarInputRef.current.click()}
+                  disabled={avatarUploading}
+                  title="Upload / Change Profile Picture"
+                  style={{
+                    position: 'absolute',
+                    bottom: '-2px',
+                    right: '-2px',
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '50%',
+                    background: 'var(--primary)',
+                    color: '#fff',
+                    border: '2px solid #fff',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 10px rgba(0,0,0,0.2)'
+                  }}
+                >
+                  <Camera size={15} />
+                </button>
+              </div>
+
+              {/* Upload Controls & Lightbox Button */}
+              <div style={{ flex: 1 }}>
+                <h4 style={{ margin: '0 0 0.25rem', fontSize: '1rem', fontFamily: 'Outfit', fontWeight: 700 }}>
+                  Profile Picture
+                </h4>
+                <p style={{ margin: '0 0 0.75rem', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                  PNG, JPG, or WEBP up to 10MB. Uploads are stored securely via Cloudinary.
+                </p>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
+                  <input 
+                    type="file" 
+                    ref={avatarInputRef}
+                    onChange={handleAvatarFileSelect}
+                    accept="image/*"
+                    style={{ display: 'none' }}
+                  />
+
+                  <button
+                    type="button"
+                    onClick={() => avatarInputRef.current && avatarInputRef.current.click()}
+                    disabled={avatarUploading}
+                    className="btn btn-secondary"
+                    style={{ fontSize: '0.8rem', padding: '0.45rem 0.85rem' }}
+                  >
+                    {avatarUploading ? 'Uploading...' : 'Upload Photo'}
+                  </button>
+
+                  {user?.avatar && (
+                    <button
+                      type="button"
+                      onClick={() => openLightbox(user.avatar, user.name || 'My Profile Picture', `${user.email} • Full View`)}
+                      className="btn btn-outline"
+                      style={{ fontSize: '0.8rem', padding: '0.45rem 0.85rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+                    >
+                      <ZoomIn size={14} /> Full View
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+
             <form onSubmit={submitProfile} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
               <div className="input-group" style={{ marginBottom: 0 }}>
                 <label>Full Name</label>
@@ -831,7 +1115,7 @@ const Dashboard = () => {
                   type="text" 
                   value={profileForm.phone} 
                   onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })} 
-                  placeholder="+1 (555) 000-0000" 
+                  placeholder="+234 000 000 0000" 
                 />
               </div>
 
@@ -1156,6 +1440,15 @@ const Dashboard = () => {
         type={confirmModal.type}
         onConfirm={confirmModal.onConfirm}
         onCancel={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+      />
+
+      {/* SMOOTH IMAGE LIGHTBOX MODAL */}
+      <ImageLightboxModal
+        isOpen={lightbox.isOpen}
+        imageUrl={lightbox.imageUrl}
+        title={lightbox.title}
+        subtitle={lightbox.subtitle}
+        onClose={() => setLightbox(prev => ({ ...prev, isOpen: false }))}
       />
 
     </div>

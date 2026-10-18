@@ -14,6 +14,7 @@ const userSchema = new mongoose.Schema({
   password: { type: String, required: true },
   role: { type: String, enum: ['user', 'expert', 'admin'], default: 'user' },
   phone: { type: String, default: '' },
+  avatar: { type: String, default: '' },
   state: { type: String, default: '' },
   address: { type: String, default: '' },
   location: { type: String, default: '' },

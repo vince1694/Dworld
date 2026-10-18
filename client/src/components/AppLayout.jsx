@@ -213,8 +213,16 @@ const AppLayout = ({ children }) => {
 
         {/* User Profile Card */}
         <div className="user-profile-summary">
-          <div className="user-avatar-circle">
-            {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
+          <div className="user-avatar-circle" style={{ overflow: 'hidden', padding: 0 }}>
+            {user.avatar ? (
+              <img 
+                src={user.avatar} 
+                alt={user.name} 
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+              />
+            ) : (
+              user.name ? user.name.charAt(0).toUpperCase() : 'U'
+            )}
           </div>
           {!collapsed && (
             <div className="user-details">
@@ -503,8 +511,16 @@ const AppLayout = ({ children }) => {
             
             {/* Mobile User Profile Summary */}
             <div className="user-profile-summary">
-              <div className="user-avatar-circle">
-                {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
+              <div className="user-avatar-circle" style={{ overflow: 'hidden', padding: 0 }}>
+                {user.avatar ? (
+                  <img 
+                    src={user.avatar} 
+                    alt={user.name} 
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                  />
+                ) : (
+                  user.name ? user.name.charAt(0).toUpperCase() : 'U'
+                )}
               </div>
               <div className="user-details">
                 <span className="user-name-label">{user.name}</span>

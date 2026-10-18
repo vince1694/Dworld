@@ -4,6 +4,7 @@ const {
   verifyRegistration,
   login, 
   updateProfile, 
+  uploadAvatar,
   updateAvailability,
   forgotPassword, 
   verifyOtp, 
@@ -49,6 +50,7 @@ router.post('/forgot-password', forgotPassword);
 router.post('/verify', verifyOtp);
 router.post('/reset-password', resetPassword);
 router.put('/profile', protect, updateProfile);
+router.post('/avatar', protect, uploadAvatar);
 router.put('/availability', protect, updateAvailability);
 router.post('/portfolio', protect, addPortfolioItem);
 router.delete('/portfolio/:itemId', protect, deletePortfolioItem);
