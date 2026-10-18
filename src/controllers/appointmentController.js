@@ -485,6 +485,86 @@ const clearBookingHistory = async (req, res, next) => {
     }
 };
 
+const rescheduleAppointment = async (req, res, next) => {
+    try {
+        const appointmentId = req.params.id;
+        const { date, time } = req.body;
+        const userId = req.user.id;
+
+        if (!date || !time) {
+            return res.status(400).json({ success: false, message: 'Please select both a new date and time.' });
+        }
+
+        const appointment = await Appointment.findById(appointmentId).populate('service_id');
+        if (!appointment) {
+            return res.status(404).json({ success: false, message: 'Appointment not found' });
+        }
+
+        const appointmentUserId = appointment.user_id?.toString();
+        const stylistId = appointment.stylist_id?.toString();
+
+        if (req.user.role !== 'admin' && appointmentUserId !== userId && stylistId !== userId) {
+            return res.status(403).json({ success: false, message: 'Not authorized to reschedule this appointment' });
+        }
+
+        if (['completed', 'cancelled'].includes(appointment.status)) {
+            return res.status(400).json({ success: false, message: 'Cannot reschedule a completed or cancelled appointment.' });
+        }
+
+        // Check conflict with new date and time
+        const conflictQuery = {
+            _id: { $ne: appointmentId },
+            date,
+            time,
+            status: { $ne: 'cancelled' }
+        };
+        if (appointment.stylist_id) {
+            conflictQuery.stylist_id = appointment.stylist_id;
+        }
+
+        const conflict = await Appointment.findOne(conflictQuery);
+        if (conflict) {
+            return res.status(400).json({ success: false, message: 'This specialist already has an active appointment for this date and time.' });
+        }
+
+        // Release old time slot & mark new
+        if (appointment.date && appointment.time) {
+            await TimeSlot.markAvailable(appointment.date, appointment.time);
+        }
+        await TimeSlot.markUnavailable(date, time);
+
+        const oldDate = appointment.date;
+        const oldTime = appointment.time;
+
+        appointment.date = date;
+        appointment.time = time;
+        appointment.status = 'pending'; // Requires re-confirmation from expert/client
+        appointment.reminderSent = false;
+        await appointment.save();
+
+        // Notify counterpart
+        const notifyTarget = userId === appointmentUserId ? stylistId : appointmentUserId;
+        if (notifyTarget) {
+            const User = require('../models/User');
+            const actor = await User.findById(userId);
+            await createNotificationHelper(
+                notifyTarget,
+                'Appointment Rescheduled 🔄',
+                `${actor?.name || 'A client'} rescheduled appointment from ${oldDate} at ${oldTime} to ${date} at ${time}.`,
+                'booking'
+            );
+        }
+
+        res.status(200).json({
+            success: true,
+            message: `Appointment successfully rescheduled to ${date} at ${time}.`,
+            data: appointment
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 module.exports = {
     bookAppointment,
     getUserAppointments,
@@ -497,5 +577,7 @@ module.exports = {
     deleteTimeSlot,
     payAppointment,
     deleteAppointment,
-    clearBookingHistory
+    clearBookingHistory,
+    rescheduleAppointment
 };
+

@@ -44,6 +44,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import AppointmentChatModal from '../components/AppointmentChatModal';
 import ExpertActivationModal from '../components/ExpertActivationModal';
 import WalletModal from '../components/WalletModal';
+import ConfirmModal from '../components/ConfirmModal';
 import { getGoogleCalendarUrl, downloadIcsFile } from '../utils/calendar';
 import { API_URL } from '../config/api';
 
@@ -92,6 +93,16 @@ const ExpertDashboard = () => {
   const [portfolioForm, setPortfolioForm] = useState({ title: '', description: '', imageUrl: '', category: user?.specialty || 'Hair Styling' });
   const [portfolioSubmitting, setPortfolioSubmitting] = useState(false);
   const [portfolioPreview, setPortfolioPreview] = useState(null);
+
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    confirmText: 'Confirm',
+    cancelText: 'Cancel',
+    type: 'danger',
+    onConfirm: null
+  });
 
   const { notify } = useNotify();
   const addToast = (message, type = 'success') => {
@@ -209,10 +220,25 @@ const ExpertDashboard = () => {
       fetchData();
     } catch (err) { addToast(err.response?.data?.message || 'Failed to save.', 'error'); }
   };
-  const handleDeleteService = async (id) => {
-    if (!window.confirm('Delete this service?')) return;
-    try { await axios.delete(`${API_URL}/services/${id}`); addToast('Service removed.', 'info'); fetchData(); }
-    catch (err) { addToast('Failed to delete.', 'error'); }
+  const handleDeleteService = (id) => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Delete Service Offering?',
+      message: 'Are you sure you want to remove this service from your catalog? Students will no longer be able to book it.',
+      confirmText: 'Delete Service',
+      type: 'danger',
+      onConfirm: async () => {
+        try {
+          await axios.delete(`${API_URL}/services/${id}`);
+          addToast('Service removed.', 'info');
+          fetchData();
+        } catch (err) {
+          addToast('Failed to delete.', 'error');
+        } finally {
+          setConfirmModal(prev => ({ ...prev, isOpen: false }));
+        }
+      }
+    });
   };
   const submitProfile = async (e) => {
     e.preventDefault(); setSavingProfile(true);
@@ -243,17 +269,27 @@ const ExpertDashboard = () => {
     }
   };
 
-  const handleDeletePortfolioItem = async (itemId) => {
-    if (!window.confirm('Remove this photo from your lookbook?')) return;
-    try {
-      const res = await axios.delete(`${API_URL}/auth/portfolio/${itemId}`);
-      if (res.data.success) {
-        setPortfolio(res.data.data);
-        addToast('Lookbook item removed.', 'info');
+  const handleDeletePortfolioItem = (itemId) => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Remove Lookbook Photo?',
+      message: 'Are you sure you want to remove this style photo from your campus lookbook?',
+      confirmText: 'Remove Photo',
+      type: 'danger',
+      onConfirm: async () => {
+        try {
+          const res = await axios.delete(`${API_URL}/auth/portfolio/${itemId}`);
+          if (res.data.success) {
+            setPortfolio(res.data.data);
+            addToast('Lookbook item removed.', 'info');
+          }
+        } catch (err) {
+          addToast('Failed to remove lookbook item.', 'error');
+        } finally {
+          setConfirmModal(prev => ({ ...prev, isOpen: false }));
+        }
       }
-    } catch (err) {
-      addToast('Failed to remove lookbook item.', 'error');
-    }
+    });
   };
 
   const pendingApps   = appointments.filter(a => a.status === 'pending').length;
@@ -1224,6 +1260,18 @@ const ExpertDashboard = () => {
           </button>
         </div>
       )}
+
+      {/* Global Confirmation Modal */}
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        confirmText={confirmModal.confirmText}
+        cancelText={confirmModal.cancelText}
+        type={confirmModal.type}
+        onConfirm={confirmModal.onConfirm}
+        onCancel={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+      />
     </>
   );
 };

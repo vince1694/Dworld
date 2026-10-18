@@ -13,10 +13,13 @@ const {
   topupWallet,
   getExperts,
   addPortfolioItem,
-  deletePortfolioItem
+  deletePortfolioItem,
+  getAllUsersForAdmin,
+  updateUserStatusForAdmin,
+  deleteUserForAdmin
 } = require('../controllers/authController');
 const { body } = require('express-validator');
-const { protect } = require('../middleware/authMiddleware');
+const { protect, adminOnly } = require('../middleware/authMiddleware');
 const router = express.Router();
 
 // Step 1: Submit form → sends OTP
@@ -49,5 +52,10 @@ router.put('/profile', protect, updateProfile);
 router.put('/availability', protect, updateAvailability);
 router.post('/portfolio', protect, addPortfolioItem);
 router.delete('/portfolio/:itemId', protect, deletePortfolioItem);
+
+// Admin User Operations
+router.get('/admin/users', protect, adminOnly, getAllUsersForAdmin);
+router.patch('/admin/users/:id/status', protect, adminOnly, updateUserStatusForAdmin);
+router.delete('/admin/users/:id', protect, adminOnly, deleteUserForAdmin);
 
 module.exports = router;

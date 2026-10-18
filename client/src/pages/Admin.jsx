@@ -23,10 +23,15 @@ import {
   X,
   Search,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Users,
+  UserCheck,
+  UserX,
+  ShieldCheck,
+  Power
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-
+import ConfirmModal from '../components/ConfirmModal';
 
 import { API_URL } from '../config/api';
 
@@ -37,7 +42,27 @@ const Admin = () => {
   
   const [appointments, setAppointments] = useState([]);
   const [services, setServices] = useState([]);
+  const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // User Management State
+  const [users, setUsers] = useState([]);
+  const [userSummary, setUserSummary] = useState({ totalUsers: 0, totalExperts: 0, activeExperts: 0, totalStudents: 0 });
+  const [usersLoading, setUsersLoading] = useState(false);
+  const [userSearchQuery, setUserSearchQuery] = useState('');
+  const [userRoleFilter, setUserRoleFilter] = useState('all');
+  const [userStatusFilter, setUserStatusFilter] = useState('all');
+
+  // Confirmation Modal State
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    confirmText: 'Confirm',
+    cancelText: 'Cancel',
+    type: 'danger',
+    onConfirm: null
+  });
   
   // Service Modal & Form State
   const [isServiceModalOpen, setIsServiceModalOpen] = useState(false);
@@ -79,6 +104,71 @@ const Admin = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchUsers = async () => {
+    setUsersLoading(true);
+    try {
+      const res = await axios.get(`${API_URL}/auth/admin/users`, {
+        params: {
+          search: userSearchQuery,
+          role: userRoleFilter,
+          status: userStatusFilter
+        }
+      });
+      if (res.data.success) {
+        setUsers(res.data.data);
+        if (res.data.summary) setUserSummary(res.data.summary);
+      }
+    } catch (err) {
+      console.error('Error fetching admin users', err);
+    } finally {
+      setUsersLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'users') {
+      fetchUsers();
+    }
+  }, [activeTab, userRoleFilter, userStatusFilter]);
+
+  const handleToggleUserActivation = async (targetUser) => {
+    try {
+      const newStatus = !targetUser.isActivated;
+      const res = await axios.patch(`${API_URL}/auth/admin/users/${targetUser._id}/status`, {
+        isActivated: newStatus
+      });
+      if (res.data.success) {
+        addToast(`Expert ${targetUser.name} ${newStatus ? 'activated' : 'deactivated'} successfully!`, 'success');
+        fetchUsers();
+      }
+    } catch (err) {
+      addToast(err.response?.data?.message || 'Failed to update user status.', 'error');
+    }
+  };
+
+  const handleDeleteUser = (targetUser) => {
+    setConfirmModal({
+      isOpen: true,
+      title: `Delete ${targetUser.name}'s Account?`,
+      message: `Permanently delete ${targetUser.email}? This will erase their user profile and associated data.`,
+      confirmText: 'Delete Account',
+      type: 'danger',
+      onConfirm: async () => {
+        try {
+          const res = await axios.delete(`${API_URL}/auth/admin/users/${targetUser._id}`);
+          if (res.data.success) {
+            addToast(res.data.message || 'User deleted successfully.', 'info');
+            fetchUsers();
+          }
+        } catch (err) {
+          addToast(err.response?.data?.message || 'Failed to delete user.', 'error');
+        } finally {
+          setConfirmModal(prev => ({ ...prev, isOpen: false }));
+        }
+      }
+    });
   };
 
   const handleUpdateStatus = async (id, status) => {
@@ -132,15 +222,25 @@ const Admin = () => {
     }
   };
 
-  const handleDeleteService = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this service card?')) return;
-    try {
-      await axios.delete(`${API_URL}/services/${id}`);
-      addToast('Service removed from catalog.', 'info');
-      fetchData();
-    } catch (err) {
-      addToast('Failed to delete service.', 'error');
-    }
+  const handleDeleteService = (id) => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Delete Service Card?',
+      message: 'Are you sure you want to remove this service from the platform catalog? This cannot be undone.',
+      confirmText: 'Delete Service',
+      type: 'danger',
+      onConfirm: async () => {
+        try {
+          await axios.delete(`${API_URL}/services/${id}`);
+          addToast('Service removed from catalog.', 'info');
+          fetchData();
+        } catch (err) {
+          addToast('Failed to delete service.', 'error');
+        } finally {
+          setConfirmModal(prev => ({ ...prev, isOpen: false }));
+        }
+      }
+    });
   };
 
   const submitProfile = async (e) => {
@@ -439,6 +539,218 @@ const Admin = () => {
               </motion.div>
             )}
 
+            {/* USER DIRECTORY TAB */}
+            {activeTab === 'users' && (
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="app-card">
+                <div className="card-header" style={{ flexWrap: 'wrap', gap: '0.85rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <Users size={20} color="var(--primary)" />
+                    <h3 style={{ margin: 0, fontSize: '1.1rem' }}>User & Expert Directory ({users.length})</h3>
+                  </div>
+
+                  <div className="admin-filter-row">
+                    <div style={{ position: 'relative', flex: '1 1 200px', minWidth: '160px' }}>
+                      <input 
+                        type="text" 
+                        placeholder="Search name, email, matric, location..."
+                        value={userSearchQuery}
+                        onChange={(e) => setUserSearchQuery(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') fetchUsers(); }}
+                        style={{ width: '100%', padding: '0.45rem 0.85rem 0.45rem 2.2rem', borderRadius: '10px', border: '1px solid var(--border-light)', background: 'rgba(255,255,255,0.03)', color: 'var(--text-main)', fontSize: '0.85rem' }}
+                      />
+                      <Search size={14} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-subtle)' }} />
+                    </div>
+
+                    {/* Role Filter Chips */}
+                    <div className="admin-chips">
+                      {['all', 'expert', 'user', 'admin'].map(r => (
+                        <button
+                          key={r}
+                          onClick={() => setUserRoleFilter(r)}
+                          style={{
+                            padding: '0.4rem 0.75rem',
+                            borderRadius: '8px',
+                            border: '1px solid var(--border-light)',
+                            background: userRoleFilter === r ? 'var(--primary)' : 'transparent',
+                            color: userRoleFilter === r ? 'white' : 'var(--text-muted)',
+                            fontSize: '0.75rem',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                            textTransform: 'capitalize'
+                          }}
+                        >
+                          {r === 'user' ? 'Students' : r === 'all' ? 'All Roles' : r + 's'}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Status Filter Chips */}
+                    <div className="admin-chips">
+                      {[
+                        { key: 'all', label: 'All Status' },
+                        { key: 'activated', label: 'Activated' },
+                        { key: 'unactivated', label: 'Unactivated' }
+                      ].map(st => (
+                        <button
+                          key={st.key}
+                          onClick={() => setUserStatusFilter(st.key)}
+                          style={{
+                            padding: '0.4rem 0.7rem',
+                            borderRadius: '8px',
+                            border: '1px solid var(--border-light)',
+                            background: userStatusFilter === st.key ? '#10b981' : 'transparent',
+                            color: userStatusFilter === st.key ? 'white' : 'var(--text-muted)',
+                            fontSize: '0.75rem',
+                            fontWeight: 600,
+                            cursor: 'pointer'
+                          }}
+                        >
+                          {st.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="card-body" style={{ padding: 0 }}>
+                  {usersLoading ? (
+                    <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                      Loading directory accounts...
+                    </div>
+                  ) : users.length > 0 ? (
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                      {users.map(u => (
+                        <div key={u._id} className="admin-appt-row">
+                          {/* User Identity */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', flex: '1 1 240px', minWidth: 0 }}>
+                            <div style={{
+                              width: '42px',
+                              height: '42px',
+                              borderRadius: '50%',
+                              background: u.role === 'expert' ? 'linear-gradient(135deg, rgba(79, 70, 229, 0.2), rgba(124, 58, 237, 0.25))' : 'rgba(99, 102, 241, 0.1)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              border: '1px solid var(--border-light)',
+                              color: 'var(--primary)',
+                              fontWeight: 800,
+                              fontFamily: 'Outfit',
+                              fontSize: '1rem',
+                              flexShrink: 0
+                            }}>
+                              {u.name?.charAt(0)?.toUpperCase() || 'U'}
+                            </div>
+
+                            <div style={{ minWidth: 0 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
+                                <strong style={{ color: 'var(--text-main)', fontSize: '0.925rem', fontFamily: 'Outfit' }}>
+                                  {u.name}
+                                </strong>
+                                <span style={{
+                                  fontSize: '0.68rem',
+                                  padding: '0.12rem 0.45rem',
+                                  borderRadius: '6px',
+                                  background: u.role === 'admin' ? 'rgba(239,68,68,0.12)' : u.role === 'expert' ? 'rgba(124,58,237,0.12)' : 'rgba(99,102,241,0.08)',
+                                  color: u.role === 'admin' ? '#ef4444' : u.role === 'expert' ? '#7c3aed' : 'var(--primary)',
+                                  fontWeight: 700,
+                                  textTransform: 'uppercase'
+                                }}>
+                                  {u.role === 'user' ? 'Student' : u.role}
+                                </span>
+                              </div>
+                              <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {u.email} {u.phone ? `· ${u.phone}` : ''}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Extra Metadata (Specialty, Matric, Location) */}
+                          <div className="admin-appt-meta" style={{ flex: '1 1 200px' }}>
+                            {u.role === 'expert' && (
+                              <span style={{ fontWeight: 600, color: 'var(--text-main)' }}>
+                                {u.specialty || 'General Specialist'}
+                              </span>
+                            )}
+                            {(u.location || u.address) && (
+                              <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                                <MapPin size={12} color="#10b981" /> {u.location || u.address}
+                              </span>
+                            )}
+                            {u.matricNo && (
+                              <span style={{ fontSize: '0.75rem', color: 'var(--text-subtle)' }}>
+                                Matric: {u.matricNo}
+                              </span>
+                            )}
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-subtle)' }}>
+                              Wallet: ₦{(u.walletBalance || 0).toLocaleString()}
+                            </span>
+                          </div>
+
+                          {/* Status & Actions */}
+                          <div className="admin-appt-actions">
+                            {u.role === 'expert' && (
+                              <span style={{
+                                fontSize: '0.75rem',
+                                padding: '0.25rem 0.6rem',
+                                borderRadius: '8px',
+                                fontWeight: 700,
+                                background: u.isActivated ? 'rgba(16, 185, 129, 0.12)' : 'rgba(245, 158, 11, 0.12)',
+                                color: u.isActivated ? '#059669' : '#d97706',
+                                border: `1px solid ${u.isActivated ? 'rgba(16, 185, 129, 0.25)' : 'rgba(245, 158, 11, 0.25)'}`,
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.3rem'
+                              }}>
+                                {u.isActivated ? <UserCheck size={13} /> : <UserX size={13} />}
+                                {u.isActivated ? 'Activated' : 'Unactivated'}
+                              </span>
+                            )}
+
+                            {u.role === 'expert' && (
+                              <button
+                                type="button"
+                                onClick={() => handleToggleUserActivation(u)}
+                                className="btn btn-secondary"
+                                style={{
+                                  padding: '0.4rem 0.75rem',
+                                  fontSize: '0.75rem',
+                                  fontWeight: 700,
+                                  color: u.isActivated ? '#d97706' : '#059669'
+                                }}
+                              >
+                                <Power size={13} /> {u.isActivated ? 'Deactivate' : 'Activate (Free Override)'}
+                              </button>
+                            )}
+
+                            {u._id !== user?.id && (
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteUser(u)}
+                                className="btn btn-outline"
+                                style={{
+                                  padding: '0.4rem 0.65rem',
+                                  fontSize: '0.75rem',
+                                  color: '#ef4444',
+                                  borderColor: 'rgba(239, 68, 68, 0.25)'
+                                }}
+                                title="Delete User"
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div style={{ padding: '4rem 1.5rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                      No user accounts found matching your filters.
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            )}
+
             {/* PROFILE TAB */}
             {activeTab === 'profile' && (
               <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="app-card" style={{ maxWidth: '600px' }}>
@@ -605,6 +917,18 @@ const Admin = () => {
           </div>
         )}
       </AnimatePresence>
+
+      {/* Global Confirmation Modal */}
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        confirmText={confirmModal.confirmText}
+        cancelText={confirmModal.cancelText}
+        type={confirmModal.type}
+        onConfirm={confirmModal.onConfirm}
+        onCancel={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+      />
 
     </div>
   );

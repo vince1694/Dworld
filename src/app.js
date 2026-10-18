@@ -64,6 +64,10 @@ app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;
 
+const { startReminderScheduler } = require('./utils/reminderScheduler');
+
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server is running on port ${PORT}`);
+    startReminderScheduler();
 });
+

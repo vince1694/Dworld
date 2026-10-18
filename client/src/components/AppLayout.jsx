@@ -20,7 +20,9 @@ import {
   Sparkles,
   HelpCircle,
   Plus,
-  MessageSquare
+  MessageSquare,
+  Users,
+  Mail
 } from 'lucide-react';
 import axios from 'axios';
 
@@ -43,6 +45,14 @@ const AppLayout = ({ children }) => {
     if (user) {
       fetchWallet();
       fetchNotifications();
+
+      // Background polling every 30 seconds for dynamic unread badge and balance
+      const pollTimer = setInterval(() => {
+        fetchNotifications();
+        fetchWallet();
+      }, 30000);
+
+      return () => clearInterval(pollTimer);
     }
   }, [user]);
 
@@ -98,7 +108,9 @@ const AppLayout = ({ children }) => {
     if (user.role === 'admin') {
       return [
         { name: 'Global Bookings', path: '/admin?tab=appointments', tab: 'appointments', icon: <CalendarRange size={18} /> },
+        { name: 'User Directory', path: '/admin?tab=users', tab: 'users', icon: <Users size={18} /> },
         { name: 'Platform Services', path: '/admin?tab=services', tab: 'services', icon: <PackagePlus size={18} /> },
+        { name: 'Support Inquiries', path: '/admin?tab=inquiries', tab: 'inquiries', icon: <Mail size={18} /> },
         { name: 'Services & Experts', path: '/services', icon: <UserCheck size={18} /> },
         { name: 'Admin Settings', path: '/admin?tab=profile', tab: 'profile', icon: <Shield size={18} /> },
       ];

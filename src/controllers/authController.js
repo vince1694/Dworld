@@ -611,6 +611,113 @@ const deletePortfolioItem = async (req, res, next) => {
     }
 };
 
+// ── Admin User Management ─────────────────────────────────────────────────────
+const getAllUsersForAdmin = async (req, res, next) => {
+    try {
+        const { search, role, status } = req.query;
+        let filter = {};
+
+        if (role && role !== 'all') {
+            filter.role = role;
+        }
+
+        if (status === 'activated') {
+            filter.isActivated = true;
+        } else if (status === 'unactivated') {
+            filter.isActivated = false;
+        }
+
+        if (search && search.trim()) {
+            const regex = new RegExp(search.trim(), 'i');
+            filter.$or = [
+                { name: regex },
+                { email: regex },
+                { phone: regex },
+                { specialty: regex },
+                { matricNo: regex },
+                { location: regex }
+            ];
+        }
+
+        const users = await User.find(filter)
+            .select('-password -resetOtp -resetOtpExpires')
+            .sort({ createdAt: -1 });
+
+        // Stats summary
+        const totalUsers = await User.countDocuments();
+        const totalExperts = await User.countDocuments({ role: { $in: ['expert', 'stylist'] } });
+        const activeExperts = await User.countDocuments({ role: { $in: ['expert', 'stylist'] }, isActivated: true });
+        const totalStudents = await User.countDocuments({ role: 'user' });
+
+        res.status(200).json({
+            success: true,
+            data: users,
+            summary: {
+                totalUsers,
+                totalExperts,
+                activeExperts,
+                totalStudents
+            }
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+const updateUserStatusForAdmin = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const { isActivated, isVerified, role } = req.body;
+
+        const updateData = {};
+        if (typeof isActivated === 'boolean') {
+            updateData.isActivated = isActivated;
+            if (isActivated) {
+                updateData.activatedAt = new Date();
+            }
+        }
+        if (typeof isVerified === 'boolean') updateData.isVerified = isVerified;
+        if (role) updateData.role = role;
+
+        const updatedUser = await User.findByIdAndUpdate(id, updateData, { new: true })
+            .select('-password -resetOtp -resetOtpExpires');
+
+        if (!updatedUser) {
+            return res.status(404).json({ success: false, message: 'User not found.' });
+        }
+
+        res.status(200).json({
+            success: true,
+            message: 'User status successfully updated.',
+            data: updatedUser
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+const deleteUserForAdmin = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+
+        if (String(id) === String(req.user.id)) {
+            return res.status(400).json({ success: false, message: 'You cannot delete your own administrative account.' });
+        }
+
+        const user = await User.findByIdAndDelete(id);
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'User account not found.' });
+        }
+
+        res.status(200).json({
+            success: true,
+            message: `User account (${user.email}) permanently deleted.`
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 module.exports = { 
     initiateRegister,
     verifyRegistration,
@@ -625,5 +732,9 @@ module.exports = {
     topupWallet, 
     getExperts,
     addPortfolioItem,
-    deletePortfolioItem
+    deletePortfolioItem,
+    getAllUsersForAdmin,
+    updateUserStatusForAdmin,
+    deleteUserForAdmin
 };
+

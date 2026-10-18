@@ -608,9 +608,25 @@ const BookAppointment = () => {
                                 {expert.name}
                               </h3>
                             </div>
-                            <span style={{ fontSize: '0.75rem', color: 'var(--text-subtle)', fontWeight: 600, display: 'block' }}>
-                              {expert.matricNo || 'LCU Certified Stylist'}
-                            </span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.2rem', flexWrap: 'wrap' }}>
+                              <span style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.2rem',
+                                color: '#d97706',
+                                background: '#fffbe8',
+                                border: '1px solid #fef3c7',
+                                padding: '0.1rem 0.4rem',
+                                borderRadius: '6px',
+                                fontSize: '0.72rem',
+                                fontWeight: 800
+                              }}>
+                                <Star size={11} fill="#d97706" color="#d97706" /> {expert.rating || 4.9}
+                              </span>
+                              <span style={{ fontSize: '0.75rem', color: 'var(--text-subtle)', fontWeight: 600 }}>
+                                {expert.matricNo || 'LCU Certified Stylist'}
+                              </span>
+                            </div>
                           </div>
                         </div>
 

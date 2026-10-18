@@ -11,7 +11,8 @@ const {
     deleteTimeSlot,
     payAppointment,
     deleteAppointment,
-    clearBookingHistory
+    clearBookingHistory,
+    rescheduleAppointment
 } = require('../controllers/appointmentController');
 const { getAppointmentMessages, sendAppointmentMessage, getAllUserConversations } = require('../controllers/appointmentChatController');
 const { protect, adminOnly } = require('../middleware/authMiddleware');
@@ -25,6 +26,7 @@ router.post('/:id/messages', protect, sendAppointmentMessage);
 // User routes
 router.post('/book', protect, bookAppointment);
 router.get('/my-appointments', protect, getUserAppointments);
+router.patch('/:id/reschedule', protect, rescheduleAppointment);
 router.post('/:id/pay', protect, payAppointment);
 router.post('/:id/pay-wallet', protect, payAppointment);
 router.delete('/clear-history', protect, clearBookingHistory);

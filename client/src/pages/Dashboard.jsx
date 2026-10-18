@@ -28,12 +28,14 @@ import {
   MessageSquare,
   Download,
   Calendar,
-  Share2
+  Share2,
+  RotateCcw
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import BookingWizardModal from '../components/BookingWizardModal';
 import ReviewModal from '../components/ReviewModal';
 import AppointmentChatModal from '../components/AppointmentChatModal';
+import ConfirmModal from '../components/ConfirmModal';
 import { getGoogleCalendarUrl, downloadIcsFile } from '../utils/calendar';
 
 import { API_URL } from '../config/api';
@@ -56,6 +58,25 @@ const Dashboard = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [chatAppointment, setChatAppointment] = useState(null);
+
+  // In-app Confirmation Modal & Reschedule States
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    confirmText: 'Confirm',
+    cancelText: 'Cancel',
+    type: 'danger',
+    onConfirm: null
+  });
+
+  const [rescheduleData, setRescheduleData] = useState({
+    isOpen: false,
+    appointment: null,
+    date: '',
+    time: '10:00',
+    submitting: false
+  });
 
   const { notify } = useNotify();
   const addToast = (message, type = 'success') => {
@@ -246,30 +267,92 @@ const Dashboard = () => {
     }
   };
 
-  const handleDeleteAppointment = async (appointmentId) => {
-    if (!window.confirm('Are you sure you want to delete this booking?')) return;
-    try {
-      const res = await axios.delete(`${API_URL}/appointments/${appointmentId}`);
-      if (res.data.success) {
-        addToast('Booking deleted successfully.', 'info');
-        setSelectedAppointment(null);
-        fetchData();
+  const handleDeleteAppointment = (appointmentId) => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Delete Booking Record?',
+      message: 'Are you sure you want to delete this booking? If this appointment was paid and not yet completed, the full payment amount will be automatically refunded to your wallet.',
+      confirmText: 'Delete Booking',
+      cancelText: 'Keep Booking',
+      type: 'danger',
+      onConfirm: async () => {
+        try {
+          const res = await axios.delete(`${API_URL}/appointments/${appointmentId}`);
+          if (res.data.success) {
+            addToast('Booking deleted successfully.', 'info');
+            setSelectedAppointment(null);
+            fetchData();
+          }
+        } catch (err) {
+          addToast(err.response?.data?.message || 'Failed to delete booking.', 'error');
+        } finally {
+          setConfirmModal(prev => ({ ...prev, isOpen: false }));
+        }
       }
-    } catch (err) {
-      addToast(err.response?.data?.message || 'Failed to delete booking.', 'error');
-    }
+    });
   };
 
-  const handleClearHistory = async () => {
-    if (!window.confirm('Clear all completed and cancelled appointment history?')) return;
+  const handleClearHistory = () => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Clear Past Booking History?',
+      message: 'Are you sure you want to permanently clear all completed and cancelled booking records from your history?',
+      confirmText: 'Clear History',
+      cancelText: 'Cancel',
+      type: 'warning',
+      onConfirm: async () => {
+        try {
+          const res = await axios.delete(`${API_URL}/appointments/clear-history`);
+          if (res.data.success) {
+            addToast(res.data.message || 'Booking history cleared.', 'info');
+            fetchData();
+          }
+        } catch (err) {
+          addToast('Failed to clear booking history.', 'error');
+        } finally {
+          setConfirmModal(prev => ({ ...prev, isOpen: false }));
+        }
+      }
+    });
+  };
+
+  const openRescheduleModal = (apt) => {
+    setRescheduleData({
+      isOpen: true,
+      appointment: apt,
+      date: apt.date || '',
+      time: apt.time || '10:00',
+      submitting: false
+    });
+  };
+
+  const handleConfirmReschedule = async (e) => {
+    e.preventDefault();
+    if (!rescheduleData.date || !rescheduleData.time) {
+      addToast('Please select both a new date and time.', 'warning');
+      return;
+    }
+
     try {
-      const res = await axios.delete(`${API_URL}/appointments/clear-history`);
+      setRescheduleData(prev => ({ ...prev, submitting: true }));
+      const aptId = rescheduleData.appointment._id || rescheduleData.appointment.id;
+      const res = await axios.patch(`${API_URL}/appointments/${aptId}/reschedule`, {
+        date: rescheduleData.date,
+        time: rescheduleData.time
+      });
+
       if (res.data.success) {
-        addToast(res.data.message, 'info');
+        addToast(res.data.message || 'Appointment rescheduled successfully!', 'success');
+        setRescheduleData(prev => ({ ...prev, isOpen: false }));
+        if (selectedAppointment && (selectedAppointment._id === aptId || selectedAppointment.id === aptId)) {
+          setSelectedAppointment(res.data.data);
+        }
         fetchData();
       }
     } catch (err) {
-      addToast('Failed to clear booking history.', 'error');
+      addToast(err.response?.data?.message || 'Failed to reschedule appointment.', 'error');
+    } finally {
+      setRescheduleData(prev => ({ ...prev, submitting: false }));
     }
   };
 
@@ -564,6 +647,32 @@ const Dashboard = () => {
                         >
                           <MessageSquare size={12} /> Chat
                         </button>
+                        {(app.status === 'pending' || app.status === 'approved') && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openRescheduleModal(app);
+                            }}
+                            style={{
+                              background: 'rgba(245, 158, 11, 0.1)',
+                              border: '1px solid rgba(245, 158, 11, 0.25)',
+                              color: '#d97706',
+                              padding: '0.35rem 0.55rem',
+                              borderRadius: '8px',
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '0.25rem',
+                              fontSize: '0.75rem',
+                              fontWeight: 600,
+                              minHeight: '32px'
+                            }}
+                            title="Reschedule Booking"
+                          >
+                            <RotateCcw size={12} /> Reschedule
+                          </button>
+                        )}
                         <button
                           type="button"
                           onClick={(e) => {
@@ -890,6 +999,17 @@ const Dashboard = () => {
                   </>
                 )}
 
+                {(selectedAppointment.status === 'pending' || selectedAppointment.status === 'approved') && (
+                  <button 
+                    type="button"
+                    onClick={() => openRescheduleModal(selectedAppointment)}
+                    className="btn btn-secondary"
+                    style={{ color: '#d97706', borderColor: 'rgba(245, 158, 11, 0.3)', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
+                  >
+                    <RotateCcw size={15} /> Reschedule Date/Time
+                  </button>
+                )}
+
                 {selectedAppointment.status === 'pending' && (
                   <button 
                     onClick={() => handleCancelAppointment(selectedAppointment.id || selectedAppointment._id)}
@@ -922,6 +1042,120 @@ const Dashboard = () => {
         isOpen={Boolean(chatAppointment)}
         onClose={() => setChatAppointment(null)}
         appointment={chatAppointment}
+      />
+
+      {/* RESCHEDULE APPOINTMENT MODAL */}
+      <AnimatePresence>
+        {rescheduleData.isOpen && rescheduleData.appointment && (
+          <div className="modal-overlay" onClick={() => !rescheduleData.submitting && setRescheduleData(prev => ({ ...prev, isOpen: false }))}>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              onClick={(e) => e.stopPropagation()}
+              className="modal-card"
+              style={{ maxWidth: '480px', width: '100%', padding: '1.75rem', borderRadius: '24px' }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                  <div style={{ width: 38, height: 38, borderRadius: '12px', background: 'rgba(245, 158, 11, 0.12)', color: '#d97706', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <RotateCcw size={20} />
+                  </div>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: '1.2rem', fontFamily: 'Outfit', fontWeight: 800 }}>Reschedule Appointment</h3>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                      {rescheduleData.appointment.service_id?.name || 'Styling Session'}
+                    </span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => !rescheduleData.submitting && setRescheduleData(prev => ({ ...prev, isOpen: false }))}
+                  style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '0.35rem' }}
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div style={{ background: '#f8fafc', padding: '0.85rem 1rem', borderRadius: '12px', border: '1px solid var(--border-light)', marginBottom: '1.25rem', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                <strong>Current:</strong> {rescheduleData.appointment.date} at {rescheduleData.appointment.time}
+              </div>
+
+              <form onSubmit={handleConfirmReschedule} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                <div className="input-group" style={{ marginBottom: 0 }}>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 700, marginBottom: '0.4rem', display: 'block' }}>New Date</label>
+                  <input
+                    type="date"
+                    min={new Date().toISOString().split('T')[0]}
+                    value={rescheduleData.date}
+                    onChange={(e) => setRescheduleData(prev => ({ ...prev, date: e.target.value }))}
+                    required
+                    style={{ width: '100%', padding: '0.75rem', borderRadius: '12px', border: '1px solid var(--border-light)', fontSize: '0.9rem' }}
+                  />
+                </div>
+
+                <div className="input-group" style={{ marginBottom: 0 }}>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 700, marginBottom: '0.4rem', display: 'block' }}>New Time Slot</label>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem', maxHeight: '180px', overflowY: 'auto', padding: '0.2rem' }}>
+                    {['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00'].map(slot => (
+                      <button
+                        key={slot}
+                        type="button"
+                        onClick={() => setRescheduleData(prev => ({ ...prev, time: slot }))}
+                        style={{
+                          padding: '0.55rem',
+                          borderRadius: '10px',
+                          border: '1.5px solid',
+                          borderColor: rescheduleData.time === slot ? 'var(--primary)' : 'var(--border-light)',
+                          background: rescheduleData.time === slot ? 'rgba(79, 70, 229, 0.1)' : '#ffffff',
+                          color: rescheduleData.time === slot ? 'var(--primary)' : 'var(--text-main)',
+                          fontWeight: rescheduleData.time === slot ? 800 : 600,
+                          fontSize: '0.825rem',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease'
+                        }}
+                      >
+                        {slot}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.75rem' }}>
+                  <button
+                    type="button"
+                    disabled={rescheduleData.submitting}
+                    onClick={() => setRescheduleData(prev => ({ ...prev, isOpen: false }))}
+                    className="btn btn-secondary"
+                    style={{ padding: '0.7rem 1.25rem', borderRadius: '12px' }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={rescheduleData.submitting}
+                    className="btn btn-primary"
+                    style={{ padding: '0.7rem 1.4rem', borderRadius: '12px', fontWeight: 700 }}
+                  >
+                    {rescheduleData.submitting ? 'Updating...' : 'Confirm Reschedule'}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* GLOBAL CONFIRMATION MODAL */}
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        confirmText={confirmModal.confirmText}
+        cancelText={confirmModal.cancelText}
+        type={confirmModal.type}
+        onConfirm={confirmModal.onConfirm}
+        onCancel={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
       />
 
     </div>

@@ -324,11 +324,42 @@ const sendContactInquiryEmail = async ({ name, email, message }) => {
     });
 };
 
+const sendAppointmentReminderEmail = async ({ email, clientName, expertName, serviceName, date, time, location }) => {
+    const topBar = `<div class="logo">D·WORLD</div><div class="logo-sub">Appointment Reminder</div>`;
+    const body = `
+      <div class="success-card" style="background:linear-gradient(135deg,rgba(99,102,241,0.15),rgba(124,58,237,0.2));border-color:#6366f1;">
+        <div class="success-icon">⏰</div>
+        <p style="margin:0;font-size:18px;font-weight:800;color:#818cf8;">Upcoming Appointment Soon!</p>
+      </div>
+      <p class="title">Hello ${clientName?.split(' ')[0] || 'there'}, your styling session is coming up!</p>
+      <p class="txt">This is a quick reminder about your scheduled appointment on D.WORLD:</p>
+      <table style="width:100%;border-collapse:collapse;margin:0 0 24px;border-radius:10px;overflow:hidden;border:1px solid #1e293b;">
+        <tr><td style="padding:10px 14px;background:#0d1117;font-size:13px;color:#64748b;font-weight:600;">SERVICE</td>
+            <td style="padding:10px 14px;background:#0d1117;font-size:14px;color:#e2e8f0;font-weight:700;text-align:right;">${serviceName || 'Campus Service'}</td></tr>
+        <tr><td style="padding:10px 14px;background:#111827;font-size:13px;color:#64748b;font-weight:600;border-top:1px solid #1e293b;">DATE & TIME</td>
+            <td style="padding:10px 14px;background:#111827;font-size:14px;color:#a5b4fc;font-weight:700;text-align:right;border-top:1px solid #1e293b;">${date} at ${time}</td></tr>
+        <tr><td style="padding:10px 14px;background:#0d1117;font-size:13px;color:#64748b;font-weight:600;border-top:1px solid #1e293b;">EXPERT</td>
+            <td style="padding:10px 14px;background:#0d1117;font-size:14px;color:#34d399;font-weight:700;text-align:right;border-top:1px solid #1e293b;">${expertName || 'Specialist'}</td></tr>
+        ${location ? `<tr><td style="padding:10px 14px;background:#111827;font-size:13px;color:#64748b;font-weight:600;border-top:1px solid #1e293b;">LOCATION</td>
+            <td style="padding:10px 14px;background:#111827;font-size:13px;color:#e2e8f0;font-weight:600;text-align:right;border-top:1px solid #1e293b;">${location}</td></tr>` : ''}
+      </table>
+      <div class="notice">
+        📍 Please ensure you are ready on campus at the scheduled time. Need to chat? Open Live Chat in your dashboard.
+      </div>
+    `;
+    return sendEmail({
+        to: email,
+        subject: `⏰ Reminder: Your styling session for "${serviceName}" is soon (${time})`,
+        html: htmlWrap(topBar, body)
+    });
+};
+
 module.exports = {
     sendRegistrationOtpEmail,
     sendPasswordResetEmail,
     sendBookingConfirmationEmail,
     sendExpertActivationEmail,
     sendWelcomeEmail,
-    sendContactInquiryEmail
+    sendContactInquiryEmail,
+    sendAppointmentReminderEmail
 };

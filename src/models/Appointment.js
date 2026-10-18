@@ -12,7 +12,8 @@ const appointmentSchema = new mongoose.Schema({
   amountPaid: { type: Number, default: 0 },
   commissionRate: { type: Number, default: 0.10 },
   commissionAmount: { type: Number, default: 0 },
-  expertPayout: { type: Number, default: 0 }
+  expertPayout: { type: Number, default: 0 },
+  reminderSent: { type: Boolean, default: false }
 }, { timestamps: true });
 
 appointmentSchema.statics.create = async function(appointmentData) {
