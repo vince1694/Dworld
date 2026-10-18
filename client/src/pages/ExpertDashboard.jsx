@@ -205,6 +205,29 @@ const ExpertDashboard = () => {
     } catch (err) { addToast('Failed to update appointment status.', 'error'); }
   };
 
+  const handleDeleteAppointment = (appointmentId) => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Delete Appointment Record?',
+      message: 'Are you sure you want to remove this appointment from your schedule? If paid and not yet completed, the client will be automatically refunded.',
+      confirmText: 'Delete Appointment',
+      type: 'danger',
+      onConfirm: async () => {
+        try {
+          const res = await axios.delete(`${API_URL}/appointments/${appointmentId}`);
+          if (res.data.success) {
+            addToast('Appointment removed from schedule.', 'info');
+            fetchData();
+          }
+        } catch (err) {
+          addToast(err.response?.data?.message || 'Failed to delete appointment.', 'error');
+        } finally {
+          setConfirmModal(prev => ({ ...prev, isOpen: false }));
+        }
+      }
+    });
+  };
+
   const handleEditService = (s) => {
     setServiceForm({ name: s.name, description: s.description || '', duration: s.duration, price: s.price, location: s.location || '', category: s.category || 'Hair Packages' });
     setEditingServiceId(s.id || s._id);
@@ -683,10 +706,19 @@ const ExpertDashboard = () => {
                                   </button>
                                 )}
                                 {app.status !== 'cancelled' && app.status !== 'completed' && (
-                                  <button onClick={() => handleUpdateStatus(app.id || app._id, 'cancelled')} className="btn btn-secondary" style={{ padding: '0.38rem 0.55rem', fontSize: '0.775rem', color: '#ef4444', minHeight: '32px' }}>
+                                  <button onClick={() => handleUpdateStatus(app.id || app._id, 'cancelled')} className="btn btn-secondary" style={{ padding: '0.38rem 0.55rem', fontSize: '0.775rem', color: '#ef4444', minHeight: '32px' }} title="Cancel Appointment">
                                     <XCircle size={13} />
                                   </button>
                                 )}
+                                <button 
+                                  type="button"
+                                  onClick={() => handleDeleteAppointment(app.id || app._id)} 
+                                  className="btn btn-outline" 
+                                  style={{ padding: '0.38rem 0.55rem', fontSize: '0.775rem', color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.25)', minHeight: '32px' }}
+                                  title="Delete Appointment"
+                                >
+                                  <Trash2 size={13} />
+                                </button>
                               </div>
                             </div>
                           </div>
