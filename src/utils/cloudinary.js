@@ -45,13 +45,28 @@ const uploadImage = async (fileBase64OrUrl, folder = 'dworld_avatars') => {
     }
 
     try {
+        cloudinary.config({
+            cloud_name: process.env.CLOUDINARY_CLOUD_NAME.trim(),
+            api_key: process.env.CLOUDINARY_API_KEY.trim(),
+            api_secret: process.env.CLOUDINARY_API_SECRET.trim(),
+            secure: true
+        });
+
+        const isAvatar = folder === 'dworld_avatars';
+        const transformation = isAvatar
+            ? [
+                { width: 600, height: 600, crop: 'fill', gravity: 'face' },
+                { quality: 'auto', fetch_format: 'auto' }
+              ]
+            : [
+                { width: 1200, height: 1200, crop: 'limit' },
+                { quality: 'auto', fetch_format: 'auto' }
+              ];
+
         const result = await cloudinary.uploader.upload(fileBase64OrUrl, {
             folder,
             resource_type: 'image',
-            transformation: [
-                { width: 600, height: 600, crop: 'fill', gravity: 'face' },
-                { quality: 'auto', fetch_format: 'auto' }
-            ]
+            transformation
         });
         return result.secure_url;
     } catch (err) {
