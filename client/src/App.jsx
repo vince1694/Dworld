@@ -22,6 +22,7 @@ import WalletPage from './pages/WalletPage';
 import Chat from './pages/Chat';
 import ExpertProfilePage from './pages/ExpertProfilePage';
 import AppointmentDetailsPage from './pages/AppointmentDetailsPage';
+import PaidServicesPage from './pages/PaidServicesPage';
 
 const ProtectedRoute = ({ children, allowedRoles, redirectTo = '/login' }) => {
   const { user, loading } = useAuth();
@@ -131,6 +132,14 @@ function App() {
               </ProtectedRoute>
             } />
             
+            <Route path="/paid-services" element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <PaidServicesPage />
+                </AppLayout>
+              </ProtectedRoute>
+            } />
+
             <Route path="/admin" element={
               <ProtectedRoute allowedRoles={['admin']} redirectTo="/admin/login">
                 <AdminLayout>

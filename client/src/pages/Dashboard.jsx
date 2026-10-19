@@ -671,8 +671,18 @@ const Dashboard = () => {
           )}
         </div>
 
-        {/* Card 3: Total Spent */}
-        <div className="bento-card bento-span-3 dashboard-stat-card">
+        {/* Card 3: Total Spent — click navigates to /paid-services */}
+        <div
+          className="bento-card bento-span-3 dashboard-stat-card"
+          onClick={() => navigate('/paid-services')}
+          role="button"
+          tabIndex={0}
+          onKeyDown={e => e.key === 'Enter' && navigate('/paid-services')}
+          title="View all paid services"
+          style={{ cursor: 'pointer', transition: 'box-shadow 0.2s ease, border-color 0.2s ease, transform 0.2s ease' }}
+          onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 8px 24px rgba(139,92,246,0.18)'; e.currentTarget.style.borderColor = 'rgba(139,92,246,0.4)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+          onMouseLeave={e => { e.currentTarget.style.boxShadow = ''; e.currentTarget.style.borderColor = ''; e.currentTarget.style.transform = ''; }}
+        >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.65rem' }}>
             <span className="stat-label" style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 700 }}>TOTAL SPENT</span>
             <div className="stat-icon-wrapper" style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(139, 92, 246, 0.12)', color: '#8b5cf6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -684,7 +694,9 @@ const Dashboard = () => {
           ) : (
             <div>
               <h2 style={{ margin: 0, color: '#8b5cf6', fontFamily: 'Outfit' }}>₦{totalSpent.toLocaleString()}</h2>
-              <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.2rem', display: 'block' }}>Paid services</span>
+              <span style={{ fontSize: '0.72rem', color: '#8b5cf6', marginTop: '0.2rem', display: 'flex', alignItems: 'center', gap: '0.25rem', fontWeight: 600, opacity: 0.75 }}>
+                View paid services →
+              </span>
             </div>
           )}
         </div>
