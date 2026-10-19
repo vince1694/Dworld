@@ -8,8 +8,12 @@ const AuthContext = createContext();
 axios.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
-    if (token && !config.headers['Authorization']) {
-      config.headers['Authorization'] = `Bearer ${token}`;
+    if (token) {
+      if (config.headers && typeof config.headers.set === 'function') {
+        config.headers.set('Authorization', `Bearer ${token}`);
+      } else if (config.headers) {
+        config.headers['Authorization'] = `Bearer ${token}`;
+      }
     }
     return config;
   },
@@ -102,13 +106,16 @@ export const AuthProvider = ({ children }) => {
   };
 
   const login = async (email, password) => {
-    const res = await axios.post(`${API_URL}/auth/login`, { email, password }, { timeout: 12000 });
+    const cleanEmail = (email || '').trim().toLowerCase();
+    const res = await axios.post(`${API_URL}/auth/login`, { email: cleanEmail, password }, { timeout: 15000 });
     const { token, user } = res.data;
     
     // Attach authorization immediately before any navigation
     localStorage.setItem('token', token);
     writeCachedUser(user);
-    axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    if (axios.defaults.headers.common) {
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    }
     setToken(token);
     setUser(user);
     setLoading(false);

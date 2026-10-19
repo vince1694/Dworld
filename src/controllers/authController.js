@@ -219,8 +219,14 @@ const login = async (req, res, next) => {
             return res.status(400).json({ success: false, message: 'Please provide email and password' });
         }
 
-        const cleanEmail = email.trim().toLowerCase();
-        const user = await User.findOne({ email: { $regex: new RegExp(`^${cleanEmail}$`, 'i') } });
+        const cleanEmail = (email || '').trim().toLowerCase();
+        // 1. Direct indexed exact lookup (fastest, utilizes unique index on email)
+        let user = await User.findOne({ email: cleanEmail });
+        if (!user) {
+            // 2. Safe escaped regex fallback for case-insensitive edge cases
+            const escaped = cleanEmail.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            user = await User.findOne({ email: { $regex: new RegExp(`^${escaped}$`, 'i') } });
+        }
 
         if (!user) {
             return res.status(401).json({ success: false, message: 'Invalid email or password' });

@@ -39,21 +39,37 @@ if (process.env.NODE_ENV !== 'production') {
     app.use(morgan('dev'));
 }
 
-// Fix #12: Restrict CORS to known origins instead of allowing all (*)
+// Robust origin validation supporting production domains, LAN IPs, localhost on any port, and Render preview URLs
 const ALLOWED_ORIGINS = [
     'https://dworld.ink',
     'https://www.dworld.ink',
     process.env.CLIENT_URL,
     'http://localhost:5173',
-    'http://localhost:3000'
+    'http://localhost:5174',
+    'http://localhost:3000',
+    'http://127.0.0.1:5173',
+    'http://127.0.0.1:5174'
 ].filter(Boolean);
+
+const isOriginAllowed = (origin) => {
+    if (!origin) return true; // Mobile apps, curl, same-origin, server-to-server
+    if (ALLOWED_ORIGINS.includes(origin)) return true;
+    // Allow any localhost / 127.0.0.1 on any port for local dev
+    if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) return true;
+    // Allow local LAN IP for mobile phone testing (e.g. http://192.168.x.x:5173)
+    if (/^https?:\/\/(192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+)(:\d+)?$/.test(origin)) return true;
+    // Allow any onrender.com deployment or dworld domain
+    if (/^https:\/\/([a-z0-9-]+\.)?onrender\.com$/.test(origin)) return true;
+    if (/^https:\/\/([a-z0-9-]+\.)?dworld\.ink$/.test(origin)) return true;
+    return false;
+};
 
 app.use(cors({
     origin: (origin, callback) => {
-        // Allow requests with no origin (mobile apps, Postman, server-to-server)
-        if (!origin || ALLOWED_ORIGINS.includes(origin)) {
+        if (isOriginAllowed(origin)) {
             callback(null, true);
         } else {
+            console.warn(`[CORS Blocked Origin]: ${origin}`);
             callback(new Error(`CORS policy: origin ${origin} not allowed`));
         }
     },

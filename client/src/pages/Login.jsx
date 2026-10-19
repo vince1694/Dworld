@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useNotify } from '../context/NotificationContext';
@@ -28,9 +28,22 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
+  const { login, user: currentUser } = useAuth();
   const { notify } = useNotify();
   const navigate = useNavigate();
+
+  // If already authenticated, redirect smoothly to corresponding dashboard
+  useEffect(() => {
+    if (currentUser) {
+      if (currentUser.role === 'admin') {
+        navigate('/admin', { replace: true });
+      } else if (currentUser.role === 'expert' || currentUser.role === 'stylist') {
+        navigate('/expert', { replace: true });
+      } else {
+        navigate('/dashboard', { replace: true });
+      }
+    }
+  }, [currentUser, navigate]);
 
   const handleRoleSelect = (role) => {
     setSelectedRole(role);
@@ -41,38 +54,34 @@ const Login = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    
+    const cleanEmail = (email || '').trim().toLowerCase();
+    if (!cleanEmail || !password) {
+      setError('Please provide your email and password.');
+      return;
+    }
+
     setLoading(true);
     try {
-      const user = await login(email, password);
+      const user = await login(cleanEmail, password);
 
-      // Check Specialist role selection
-      if (selectedRole === 'expert') {
-        if (user.role !== 'expert' && user.role !== 'stylist') {
-          notify.info(`Signed in successfully! This account is registered as a Student, taking you to your Student Dashboard.`);
-          navigate('/dashboard');
-          return;
-        }
-        notify.success(`Welcome back, Specialist ${user.name || ''}! ✂️`);
-        navigate('/expert');
-        return;
-      }
-
-      // Client / Student role
+      // Route smoothly according to registered user role with zero hanging
       if (user.role === 'admin') {
         notify.success(`Welcome back, Admin ${user.name || ''}!`);
-        navigate('/admin');
+        navigate('/admin', { replace: true });
       } else if (user.role === 'expert' || user.role === 'stylist') {
-        notify.info(`Signed in successfully! This account is registered as a Specialist, taking you to your Specialist Console.`);
-        navigate('/expert');
+        notify.success(`Welcome back, Specialist ${user.name || ''}! ✂️`);
+        navigate('/expert', { replace: true });
       } else {
         notify.success(`Welcome back, ${user.name || 'there'}! 👋`);
-        navigate('/dashboard');
+        navigate('/dashboard', { replace: true });
       }
     } catch (err) {
-      const msg = err.response?.data?.message || 'Failed to login. Please check your credentials.';
+      const msg = err.response?.data?.message || (err.code === 'ECONNABORTED' 
+        ? 'Connection timed out. Please check your network and try again.' 
+        : 'Failed to sign in. Please verify your credentials.');
       setError(msg);
       notify.error(msg);
-    } finally {
       setLoading(false);
     }
   };
