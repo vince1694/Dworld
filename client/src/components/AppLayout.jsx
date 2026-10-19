@@ -25,6 +25,7 @@ import {
   Mail
 } from 'lucide-react';
 import axios from 'axios';
+import NotificationPanel from './NotificationPanel';
 
 import { API_URL } from '../config/api';
 
@@ -340,6 +341,7 @@ const AppLayout = ({ children }) => {
           <div className="topbar-actions-wrapper">
             <button 
               onClick={() => navigate('/wallet')}
+              className="topbar-wallet-btn"
               style={{
                 background: 'linear-gradient(135deg, var(--primary), var(--secondary))',
                 color: 'white',
@@ -356,107 +358,51 @@ const AppLayout = ({ children }) => {
               }}
               title="Open Campus Wallet"
             >
-              <Wallet size={16} /> <span>₦{walletBalance.toLocaleString()}</span>
+              <Wallet size={16} /> <span className="topbar-wallet-text">₦{walletBalance.toLocaleString()}</span>
             </button>
 
             {/* Notification Bell Button */}
-            <div style={{ position: 'relative' }}>
-              <button
-                onClick={toggleNotifications}
-                style={{
-                  background: '#f8fafc',
-                  border: '1px solid var(--border-light)',
-                  width: '38px',
-                  height: '38px',
-                  borderRadius: '10px',
+            <button
+              onClick={toggleNotifications}
+              title="Notifications"
+              style={{
+                background: isNotifOpen ? 'rgba(99,102,241,0.1)' : '#f8fafc',
+                border: isNotifOpen ? '1px solid rgba(99,102,241,0.3)' : '1px solid var(--border-light)',
+                width: '38px',
+                height: '38px',
+                borderRadius: '10px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                color: isNotifOpen ? 'var(--primary, #6366f1)' : 'var(--text-main)',
+                position: 'relative',
+                transition: 'all 0.18s ease',
+                flexShrink: 0
+              }}
+            >
+              <Bell size={18} />
+              {notifications.filter(n => !n.read).length > 0 && (
+                <span style={{
+                  position: 'absolute',
+                  top: '-4px',
+                  right: '-4px',
+                  background: '#ef4444',
+                  color: 'white',
+                  borderRadius: '50%',
+                  width: '18px',
+                  height: '18px',
+                  fontSize: '0.62rem',
+                  fontWeight: 800,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  cursor: 'pointer',
-                  color: 'var(--text-main)',
-                  position: 'relative'
-                }}
-              >
-                <Bell size={18} />
-                {unreadCount > 0 && (
-                  <span style={{
-                    position: 'absolute',
-                    top: '-4px',
-                    right: '-4px',
-                    background: '#ef4444',
-                    color: 'white',
-                    borderRadius: '50%',
-                    width: '18px',
-                    height: '18px',
-                    fontSize: '0.65rem',
-                    fontWeight: 800,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}>
-                    {unreadCount}
-                  </span>
-                )}
-              </button>
-
-              {/* Notification Dropdown Drawer */}
-              {isNotifOpen && (
-                <>
-                  <div 
-                    onClick={() => setIsNotifOpen(false)} 
-                    style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 2400 }}
-                  />
-                  <div style={{
-                    position: 'absolute',
-                    right: 0,
-                    top: '46px',
-                    width: 'min(330px, 86vw)',
-                    background: '#ffffff',
-                    border: '1px solid var(--border-light)',
-                    borderRadius: '16px',
-                    boxShadow: '0 20px 40px -10px rgba(15, 23, 42, 0.25)',
-                    zIndex: 2550,
-                    padding: '1rem',
-                    overflow: 'hidden'
-                  }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', borderBottom: '1px solid var(--border-light)', paddingBottom: '0.5rem' }}>
-                      <strong style={{ fontSize: '0.9rem', color: 'var(--text-main)', fontFamily: 'Outfit' }}>Notifications</strong>
-                      {unreadCount > 0 && (
-                        <button
-                          onClick={markAllNotificationsRead}
-                          style={{ background: 'none', border: 'none', color: 'var(--primary)', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}
-                        >
-                          Mark all read
-                        </button>
-                      )}
-                    </div>
-
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '280px', overflowY: 'auto' }}>
-                      {notifications.length > 0 ? (
-                        notifications.map(notif => (
-                          <div key={notif._id} style={{
-                            padding: '0.65rem 0.75rem',
-                            borderRadius: '10px',
-                            background: notif.read ? '#f8fafc' : 'rgba(79, 70, 229, 0.06)',
-                            border: notif.read ? '1px solid var(--border-light)' : '1px solid rgba(79, 70, 229, 0.2)'
-                          }}>
-                            <strong style={{ fontSize: '0.825rem', color: 'var(--text-main)', display: 'block' }}>{notif.title}</strong>
-                            <p style={{ margin: '0.15rem 0 0', fontSize: '0.775rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>{notif.message}</p>
-                            <span style={{ fontSize: '0.675rem', color: 'var(--text-subtle)', display: 'block', marginTop: '0.35rem' }}>
-                              {new Date(notif.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                            </span>
-                          </div>
-                        ))
-                      ) : (
-                        <div style={{ padding: '1.5rem', textAlign: 'center', color: 'var(--text-subtle)', fontSize: '0.8rem' }}>
-                          No new notifications
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </>
+                  border: '2px solid white'
+                }}>
+                  {notifications.filter(n => !n.read).length > 9 ? '9+' : notifications.filter(n => !n.read).length}
+                </span>
               )}
-            </div>
+            </button>
 
             {/* Profile Avatar in Topbar */}
             <button
@@ -1243,6 +1189,15 @@ const AppLayout = ({ children }) => {
           to { transform: translateX(0); }
         }
       `}</style>
+
+      {/* Global Notification Drawer */}
+      <NotificationPanel
+        isOpen={isNotifOpen}
+        onClose={() => setIsNotifOpen(false)}
+        notifications={notifications}
+        setNotifications={setNotifications}
+        user={user}
+      />
     </div>
   );
 };

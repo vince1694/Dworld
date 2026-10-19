@@ -878,3 +878,132 @@ a {
     justify-content: center;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   GLOBAL MOBILE OVERFLOW GUARD
+   Prevents horizontal scroll on all viewports
+═══════════════════════════════════════════════════════════════ */
+html, body, #root {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   NOTIFICATION DRAWER — MOBILE FULL SCREEN
+═══════════════════════════════════════════════════════════════ */
+@media (max-width: 480px) {
+  /* Notification panel drawer goes full-width on small phones */
+  [style*="maxWidth: '430px'"],
+  [style*="max-width: 430px"] {
+    max-width: 100vw !important;
+    width: 100vw !important;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   TOPBAR TIGHT VIEWPORT FIXES  (≤400px)
+   Prevents wallet badge + bell from wrapping or overflowing
+═══════════════════════════════════════════════════════════════ */
+@media (max-width: 400px) {
+  .app-topbar {
+    padding: 0 0.55rem !important;
+    gap: 0.3rem !important;
+  }
+
+  /* Wallet badge: hide text label, keep icon */
+  .topbar-wallet-text {
+    display: none !important;
+  }
+
+  /* Shrink wallet badge width */
+  .topbar-wallet-btn {
+    padding: 0 0.45rem !important;
+    min-width: 38px !important;
+    gap: 0 !important;
+  }
+
+  /* Bell and avatar remain full size for touch targets */
+  .topbar-actions-wrapper {
+    gap: 0.3rem !important;
+  }
+
+  .topbar-title-wrapper h2 {
+    font-size: 0.82rem !important;
+    max-width: 80px !important;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   AUTH CARD — SMALL MOBILE BREATHING ROOM (≤430px)
+═══════════════════════════════════════════════════════════════ */
+@media (max-width: 430px) {
+  .auth-card {
+    border-radius: 20px !important;
+    margin: 0 0.75rem !important;
+  }
+
+  .auth-header {
+    padding: 1.5rem 1.35rem 1rem !important;
+  }
+
+  .auth-header h1 {
+    font-size: 1.35rem !important;
+  }
+
+  .auth-body {
+    padding: 1rem 1.35rem 1.5rem !important;
+  }
+
+  /* Role segment switcher: full width, comfortable tap targets */
+  .role-segment-btn {
+    padding: 0.65rem 0.5rem !important;
+    font-size: 0.78rem !important;
+    gap: 0.35rem !important;
+  }
+
+  /* Buttons: full width and tall enough for thumb press */
+  .auth-body .btn {
+    width: 100% !important;
+    min-height: 48px !important;
+    font-size: 0.9rem !important;
+    justify-content: center !important;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   360px EDGE CASE SWEEP
+═══════════════════════════════════════════════════════════════ */
+@media (max-width: 360px) {
+  .auth-card {
+    margin: 0 0.5rem !important;
+  }
+
+  .auth-header {
+    padding: 1.25rem 1rem 0.85rem !important;
+  }
+
+  .auth-body {
+    padding: 0.85rem 1rem 1.25rem !important;
+  }
+
+  .role-segment-btn {
+    font-size: 0.72rem !important;
+    padding: 0.55rem 0.35rem !important;
+  }
+
+  /* Prevent KPI/stat cards from collapsing below readable width */
+  .bento-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .bento-span-3, .bento-span-4, .bento-span-6,
+  .bento-span-12, .bento-span-8, .bento-span-7, .bento-span-5 {
+    grid-column: span 1 !important;
+  }
+
+  /* Stack topbar tightly */
+  .app-topbar {
+    padding: 0 0.4rem !important;
+  }
+}
+
