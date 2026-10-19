@@ -498,10 +498,22 @@ const MyAppointments = ({
     return appointments.filter(a => {
       if (filterStatus !== 'all' && a.status !== filterStatus) return false;
       if (!q) return true;
-      const svc = (a.service_id?.name || '').toLowerCase();
-      const specialist = (a.service_id?.stylist_id?.name || a.stylist_id?.name || '').toLowerCase();
-      const date = (a.date || '').toLowerCase();
-      return svc.includes(q) || specialist.includes(q) || date.includes(q);
+      const terms = q.split(/\s+/);
+      const fields = [
+        a.service_id?.name || '',
+        a.service_id?.category || '',
+        a.service_id?.stylist_id?.name || a.stylist_id?.name || '',
+        a.service_id?.stylist_id?.address || a.stylist_id?.address || a.service_id?.location || '',
+        a.date || '',
+        formatDate(a.date),
+        a.time || '',
+        String(a.service_id?.price || ''),
+        `\u20a6${parseFloat(a.service_id?.price || 0).toLocaleString('en-NG')}`,
+        a.paymentStatus || '',
+        a.notes || '',
+        a.status || '',
+      ].map(s => s.toLowerCase());
+      return terms.every(term => fields.some(f => f.includes(term)));
     });
   }, [appointments, filterStatus, searchQuery]);
 
@@ -521,7 +533,7 @@ const MyAppointments = ({
             type="text"
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            placeholder="Search service, specialist…"
+            placeholder="Search service, specialist, date, price, status…"
             style={{
               width: '100%', padding: '0.5rem 0.75rem 0.5rem 2.2rem',
               borderRadius: '10px', border: '1.5px solid #e2e8f0',
@@ -615,6 +627,7 @@ const MyAppointments = ({
         <div style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 600, marginBottom: '0.85rem', paddingLeft: '0.25rem' }}>
           Showing <span style={{ color: '#0f172a' }}>{filtered.length}</span> appointment{filtered.length !== 1 ? 's' : ''}
           {filterStatus !== 'all' ? ` · ${filterStatus}` : ''}
+          {searchQuery.trim() ? <span> matching <span style={{ color: '#6366f1' }}>"{ searchQuery.trim() }"</span></span> : null}
         </div>
       )}
 
@@ -633,7 +646,25 @@ const MyAppointments = ({
           </motion.div>
         ) : filtered.length === 0 ? (
           <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-            <EmptyState filter={filterStatus} onBook={onBook} />
+            {searchQuery.trim() ? (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1.1rem', padding: '3.5rem 2rem', textAlign: 'center' }}>
+                <div style={{ width: 72, height: 72, borderRadius: 20, background: 'linear-gradient(135deg,rgba(99,102,241,0.1),rgba(139,92,246,0.1))', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid rgba(99,102,241,0.15)' }}>
+                  <Search size={30} style={{ color: '#6366f1', opacity: 0.6 }} />
+                </div>
+                <div>
+                  <h3 style={{ fontFamily: 'Outfit', fontWeight: 800, fontSize: '1.1rem', color: '#0f172a', margin: '0 0 0.4rem' }}>No results for &ldquo;{searchQuery.trim()}&rdquo;</h3>
+                  <p style={{ color: '#64748b', fontSize: '0.875rem', margin: 0, maxWidth: 290, lineHeight: 1.6 }}>Try a different keyword — service name, specialist, date, price, or payment status.</p>
+                </div>
+                <button
+                  onClick={() => setSearchQuery('')}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', padding: '0.5rem 1.1rem', borderRadius: 10, border: '1.5px solid rgba(99,102,241,0.3)', background: 'rgba(99,102,241,0.07)', color: '#6366f1', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer' }}
+                >
+                  <X size={14} /> Clear Search
+                </button>
+              </div>
+            ) : (
+              <EmptyState filter={filterStatus} onBook={onBook} />
+            )}
           </motion.div>
         ) : viewMode === 'grid' ? (
           <motion.div

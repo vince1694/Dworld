@@ -5,7 +5,7 @@ import axios from "axios";
 import {
   ArrowLeft, Banknote, CheckCircle2, Calendar, Clock, User, MapPin,
   ChevronRight, Search, Filter, Sparkles, Receipt, TrendingUp,
-  ShieldCheck, RefreshCw, CalendarCheck, Award,
+  ShieldCheck, RefreshCw, CalendarCheck, Award, X
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useNotify } from "../context/NotificationContext";
@@ -40,7 +40,6 @@ const SkeletonCard = () => (
     </div>
   </div>
 );
-
 const PaidCard = ({ appt, index }) => {
   const navigate = useNavigate();
   const id = appt._id || appt.id;
@@ -55,52 +54,56 @@ const PaidCard = ({ appt, index }) => {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
-      transition={{ duration: 0.28, delay: index * 0.06 }}
+      whileTap={{ scale: 0.985 }}
+      transition={{ duration: 0.25, delay: Math.min(index * 0.05, 0.3) }}
       onClick={() => navigate(`/appointment/${id}`)}
-      style={{ background: "#fff", borderRadius: 20, border: "1px solid #e2e8f0", padding: "1.5rem", cursor: "pointer", transition: "all 0.2s ease", position: "relative", overflow: "hidden" }}
+      className="ps-paid-card"
+      style={{ background: "#fff", borderRadius: 20, border: "1px solid #e2e8f0", padding: "clamp(1rem, 3.5vw, 1.4rem)", cursor: "pointer", transition: "box-shadow 0.2s ease, border-color 0.2s ease, transform 0.2s ease", position: "relative", overflow: "hidden" }}
       onMouseEnter={e => { e.currentTarget.style.boxShadow = "0 8px 28px rgba(79,70,229,0.12)"; e.currentTarget.style.borderColor = "rgba(99,102,241,0.35)"; e.currentTarget.style.transform = "translateY(-2px)"; }}
       onMouseLeave={e => { e.currentTarget.style.boxShadow = "none"; e.currentTarget.style.borderColor = "#e2e8f0"; e.currentTarget.style.transform = "translateY(0)"; }}
     >
-      <div style={{ position: "absolute", top: 16, right: 16, background: "rgba(16,185,129,0.1)", color: "#059669", border: "1px solid rgba(16,185,129,0.25)", borderRadius: 99, padding: "0.22rem 0.65rem", fontSize: "0.72rem", fontWeight: 700, display: "flex", alignItems: "center", gap: "0.3rem" }}>
-        <CheckCircle2 size={11} /> PAID
-      </div>
-
-      <div style={{ display: "flex", alignItems: "flex-start", gap: "0.9rem", marginBottom: "1rem", paddingRight: "4.5rem" }}>
-        <div style={{ width: 52, height: 52, borderRadius: 14, flexShrink: 0, background: "linear-gradient(135deg,#4f46e5,#7c3aed)", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", boxShadow: "0 4px 12px rgba(79,70,229,0.22)", border: "2.5px solid #fff" }}>
-          {avatar ? <img src={avatar} alt={specialistName} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span style={{ color: "#fff", fontWeight: 800, fontSize: "1rem", fontFamily: "Outfit" }}>{initials}</span>}
-        </div>
-        <div style={{ minWidth: 0 }}>
-          <h3 style={{ margin: 0, fontSize: "1rem", fontFamily: "Outfit", fontWeight: 700, color: "#0f172a", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{serviceName}</h3>
-          <div style={{ fontSize: "0.82rem", color: "#64748b", marginTop: "0.2rem", display: "flex", alignItems: "center", gap: "0.35rem" }}>
-            <User size={12} style={{ flexShrink: 0 }} /><span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{specialistName}</span>
+      {/* Top Header Row with flex-between (mobile safe — badge never overlaps title) */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "0.65rem", marginBottom: "0.85rem" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", minWidth: 0, flex: 1 }}>
+          <div style={{ width: 48, height: 48, borderRadius: 14, flexShrink: 0, background: "linear-gradient(135deg,#4f46e5,#7c3aed)", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", boxShadow: "0 4px 12px rgba(79,70,229,0.22)", border: "2px solid #fff" }}>
+            {avatar ? <img src={avatar} alt={specialistName} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span style={{ color: "#fff", fontWeight: 800, fontSize: "0.95rem", fontFamily: "Outfit" }}>{initials}</span>}
+          </div>
+          <div style={{ minWidth: 0 }}>
+            <h3 style={{ margin: 0, fontSize: "0.98rem", fontFamily: "Outfit", fontWeight: 700, color: "#0f172a", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{serviceName}</h3>
+            <div style={{ fontSize: "0.8rem", color: "#64748b", marginTop: "0.15rem", display: "flex", alignItems: "center", gap: "0.35rem" }}>
+              <User size={12} style={{ flexShrink: 0 }} /><span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{specialistName}</span>
+            </div>
           </div>
         </div>
+        <div style={{ background: "rgba(16,185,129,0.1)", color: "#059669", border: "1px solid rgba(16,185,129,0.25)", borderRadius: 99, padding: "0.22rem 0.65rem", fontSize: "0.7rem", fontWeight: 800, display: "flex", alignItems: "center", gap: "0.25rem", flexShrink: 0 }}>
+          <CheckCircle2 size={11} /> PAID
+        </div>
       </div>
 
-      <div style={{ background: "#f8fafc", borderRadius: 12, padding: "0.85rem 1rem", marginBottom: "1rem", border: "1px solid #f1f5f9", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.65rem" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+      <div className="ps-detail-grid" style={{ background: "#f8fafc", borderRadius: 12, padding: "0.75rem 0.95rem", marginBottom: "0.85rem", border: "1px solid #f1f5f9", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.6rem" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.45rem", minWidth: 0 }}>
           <div style={{ width: 28, height: 28, borderRadius: 8, background: "rgba(99,102,241,0.1)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Calendar size={13} color="#6366f1" /></div>
-          <div><div style={{ fontSize: "0.68rem", color: "#94a3b8", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em" }}>Date</div><div style={{ fontSize: "0.82rem", color: "#0f172a", fontWeight: 600 }}>{formatDate(appt.date)}</div></div>
+          <div style={{ minWidth: 0 }}><div style={{ fontSize: "0.65rem", color: "#94a3b8", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em" }}>Date</div><div style={{ fontSize: "0.8rem", color: "#0f172a", fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{formatDate(appt.date)}</div></div>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.45rem", minWidth: 0 }}>
           <div style={{ width: 28, height: 28, borderRadius: 8, background: "rgba(245,158,11,0.1)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Clock size={13} color="#f59e0b" /></div>
-          <div><div style={{ fontSize: "0.68rem", color: "#94a3b8", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em" }}>Time</div><div style={{ fontSize: "0.82rem", color: "#0f172a", fontWeight: 600 }}>{appt.time || "—"} · {duration}min</div></div>
+          <div style={{ minWidth: 0 }}><div style={{ fontSize: "0.65rem", color: "#94a3b8", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em" }}>Time</div><div style={{ fontSize: "0.8rem", color: "#0f172a", fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{appt.time || "—"} · {duration}m</div></div>
         </div>
         {location && (
-          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", gridColumn: "1 / -1" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.45rem", gridColumn: "1 / -1", minWidth: 0 }}>
             <div style={{ width: 28, height: 28, borderRadius: 8, background: "rgba(16,185,129,0.1)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><MapPin size={13} color="#10b981" /></div>
-            <div style={{ fontSize: "0.82rem", color: "#0f172a", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{location}</div>
+            <div style={{ fontSize: "0.8rem", color: "#0f172a", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{location}</div>
           </div>
         )}
       </div>
 
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <span style={{ background: status.bg, color: status.color, border: `1px solid ${status.border}`, borderRadius: 99, padding: "0.25rem 0.65rem", fontSize: "0.72rem", fontWeight: 700, textTransform: "capitalize" }}>{status.label}</span>
-        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-          <span style={{ fontSize: "1.15rem", fontWeight: 800, fontFamily: "Outfit", color: "#8b5cf6", letterSpacing: "-0.01em" }}>{fmtCurrency(price)}</span>
+        <span style={{ background: status.bg, color: status.color, border: `1px solid ${status.border}`, borderRadius: 99, padding: "0.22rem 0.6rem", fontSize: "0.72rem", fontWeight: 700, textTransform: "capitalize" }}>{status.label}</span>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+          <span style={{ fontSize: "1.1rem", fontWeight: 800, fontFamily: "Outfit", color: "#8b5cf6", letterSpacing: "-0.01em" }}>{fmtCurrency(price)}</span>
           <ChevronRight size={16} color="#94a3b8" />
         </div>
       </div>
@@ -138,8 +141,20 @@ const PaidServicesPage = () => {
     let r = appointments.filter(a => {
       if (filterStatus !== "all" && a.status !== filterStatus) return false;
       if (!q) return true;
-      return [(a.service_id?.name || ""), (a.stylist_id?.name || a.service_id?.stylist_id?.name || ""), (a.date || "")]
-        .some(s => s.toLowerCase().includes(q));
+      const terms = q.split(/\s+/);
+      const fields = [
+        (a.service_id?.name || ""),
+        (a.service_id?.category || ""),
+        (a.stylist_id?.name || a.service_id?.stylist_id?.name || ""),
+        (a.stylist_id?.address || a.service_id?.location || ""),
+        (a.date || ""),
+        formatDate(a.date),
+        (a.time || ""),
+        String(a.service_id?.price || ""),
+        fmtCurrency(a.service_id?.price)
+      ].map(s => s.toLowerCase());
+
+      return terms.every(term => fields.some(f => f.includes(term)));
     });
     if (sortBy === "newest")  r = [...r].sort((a, b) => new Date(b.createdAt || b.date) - new Date(a.createdAt || a.date));
     if (sortBy === "oldest")  r = [...r].sort((a, b) => new Date(a.createdAt || a.date) - new Date(b.createdAt || b.date));
@@ -151,51 +166,68 @@ const PaidServicesPage = () => {
   const FILTERS = ["all", "pending", "approved", "completed", "cancelled"];
 
   return (
-    <div style={{ minHeight: "100vh", background: "var(--bg-main)", padding: "clamp(1rem,4vw,2rem)", maxWidth: 1000, margin: "0 auto" }}>
+    <div style={{ minHeight: "100vh", background: "var(--bg-main)", padding: "clamp(0.75rem,3.5vw,2rem)", maxWidth: 1000, margin: "0 auto" }}>
       <style>{`
         @keyframes ps-shimmer { 0%{background-position:-600px 0} 100%{background-position:600px 0} }
         .ps-shimmer { background: linear-gradient(90deg,rgba(0,0,0,0.04) 0%,rgba(0,0,0,0.09) 40%,rgba(0,0,0,0.04) 80%); background-size:1200px 100%; animation:ps-shimmer 1.4s ease-in-out infinite; display:inline-block; }
-        .ps-pill { padding:.38rem .85rem; border-radius:999px; font-size:.77rem; font-weight:600; cursor:pointer; border:1.5px solid; transition:all .15s ease; white-space:nowrap; text-transform:capitalize; }
+        .ps-pill { padding:.4rem .85rem; border-radius:999px; font-size:.76rem; font-weight:700; cursor:pointer; border:1.5px solid; transition:all .15s ease; white-space:nowrap; text-transform:capitalize; flex-shrink:0; }
         .ps-sort { appearance:none; background:#fff; border:1.5px solid #e2e8f0; border-radius:10px; padding:.45rem 2rem .45rem .75rem; font-size:.82rem; font-family:inherit; color:#0f172a; cursor:pointer; outline:none; }
         @keyframes ps-spin { to { transform: rotate(360deg); } }
-        @media(max-width:640px){.ps-stats{grid-template-columns:1fr 1fr !important}.ps-grid{grid-template-columns:1fr !important}.ps-bar{flex-direction:column !important}}
+        
+        /* ── Mobile Sweeps ── */
+        @media(max-width:640px){
+          .ps-stats { grid-template-columns: 1fr 1fr !important; gap: 0.65rem !important; }
+          .ps-stats > div:last-child { grid-column: span 2 !important; }
+          .ps-grid { grid-template-columns: 1fr !important; }
+          .ps-bar { flex-direction: column !important; align-items: stretch !important; gap: 0.65rem !important; padding: 0.85rem !important; }
+          .ps-search-box { width: 100% !important; }
+          .ps-chips-scroller { width: 100% !important; overflow-x: auto !important; -webkit-overflow-scrolling: touch !important; scrollbar-width: none !important; padding-bottom: 2px !important; }
+          .ps-chips-scroller::-webkit-scrollbar { display: none; }
+          .ps-sort-refresh-row { width: 100% !important; display: flex !important; justify-content: space-between !important; align-items: center !important; margin-left: 0 !important; }
+          .ps-paid-card { border-radius: 16px !important; }
+        }
+        @media(max-width:390px){
+          .ps-stats { grid-template-columns: 1fr !important; }
+          .ps-stats > div:last-child { grid-column: auto !important; }
+          .ps-detail-grid { grid-template-columns: 1fr !important; gap: 0.5rem !important; }
+        }
       `}</style>
 
-      {/* Back */}
-      <div style={{ marginBottom: "1.5rem" }}>
+      {/* Back Button */}
+      <div style={{ marginBottom: "1.25rem" }}>
         <button onClick={() => navigate("/dashboard")}
-          style={{ display: "inline-flex", alignItems: "center", gap: ".45rem", background: "none", border: "none", cursor: "pointer", color: "#64748b", fontSize: ".875rem", fontWeight: 600, padding: ".4rem .6rem", borderRadius: 8 }}
-          onMouseEnter={e => { e.currentTarget.style.background = "rgba(99,102,241,0.07)"; e.currentTarget.style.color = "#4f46e5"; }}
-          onMouseLeave={e => { e.currentTarget.style.background = "none"; e.currentTarget.style.color = "#64748b"; }}>
+          style={{ display: "inline-flex", alignItems: "center", gap: ".45rem", background: "rgba(255,255,255,0.85)", border: "1px solid #e2e8f0", cursor: "pointer", color: "#475569", fontSize: ".84rem", fontWeight: 700, padding: ".45rem .85rem", borderRadius: 10, backdropFilter: "blur(4px)", boxShadow: "0 1px 4px rgba(0,0,0,0.03)", transition: "all 0.15s ease" }}
+          onMouseEnter={e => { e.currentTarget.style.background = "#fff"; e.currentTarget.style.color = "#4f46e5"; e.currentTarget.style.borderColor = "#c7d2fe"; }}
+          onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.85)"; e.currentTarget.style.color = "#475569"; e.currentTarget.style.borderColor = "#e2e8f0"; }}>
           <ArrowLeft size={16} /> Back to Dashboard
         </button>
       </div>
 
       {/* Hero */}
-      <div style={{ background: "linear-gradient(135deg,#4f46e5 0%,#7c3aed 55%,#8b5cf6 100%)", borderRadius: 24, padding: "clamp(1.5rem,4vw,2.25rem)", marginBottom: "1.75rem", position: "relative", overflow: "hidden", boxShadow: "0 16px 48px rgba(79,70,229,0.28)" }}>
+      <div style={{ background: "linear-gradient(135deg,#4f46e5 0%,#7c3aed 55%,#8b5cf6 100%)", borderRadius: "clamp(18px, 4vw, 24px)", padding: "clamp(1.25rem,4vw,2.25rem)", marginBottom: "1.5rem", position: "relative", overflow: "hidden", boxShadow: "0 16px 48px rgba(79,70,229,0.28)" }}>
         <div style={{ position: "absolute", top: -40, right: -40, width: 200, height: 200, borderRadius: "50%", background: "rgba(255,255,255,0.07)", pointerEvents: "none" }} />
         <div style={{ position: "absolute", bottom: -60, left: "30%", width: 160, height: 160, borderRadius: "50%", background: "rgba(255,255,255,0.05)", pointerEvents: "none" }} />
         <div style={{ position: "relative", zIndex: 1 }}>
           <div style={{ display: "flex", alignItems: "center", gap: ".85rem", marginBottom: ".5rem" }}>
-            <div style={{ width: 48, height: 48, borderRadius: 14, background: "rgba(255,255,255,0.18)", backdropFilter: "blur(8px)", display: "flex", alignItems: "center", justifyContent: "center", border: "1px solid rgba(255,255,255,0.25)" }}>
-              <Banknote size={24} color="#fff" />
+            <div style={{ width: 44, height: 44, borderRadius: 13, background: "rgba(255,255,255,0.18)", backdropFilter: "blur(8px)", display: "flex", alignItems: "center", justifyContent: "center", border: "1px solid rgba(255,255,255,0.25)", flexShrink: 0 }}>
+              <Banknote size={22} color="#fff" />
             </div>
             <div>
-              <h1 style={{ margin: 0, color: "#fff", fontSize: "clamp(1.25rem,4vw,1.65rem)", fontFamily: "Outfit", fontWeight: 800 }}>Paid Services</h1>
-              <p style={{ margin: 0, color: "rgba(255,255,255,0.75)", fontSize: ".85rem" }}>Full history of every service you have invested in</p>
+              <h1 style={{ margin: 0, color: "#fff", fontSize: "clamp(1.2rem,4vw,1.65rem)", fontFamily: "Outfit", fontWeight: 800 }}>Paid Services</h1>
+              <p style={{ margin: 0, color: "rgba(255,255,255,0.75)", fontSize: ".82rem" }}>Full history of your verified investments & bookings</p>
             </div>
           </div>
-          <div className="ps-stats" style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: ".85rem", marginTop: "1.5rem" }}>
+          <div className="ps-stats" style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: ".85rem", marginTop: "1.25rem" }}>
             {[
               { label: "Total Invested",  value: fmtCurrency(totalSpent), icon: TrendingUp },
               { label: "Sessions Paid",   value: loading ? "—" : totalSessions, icon: CalendarCheck },
               { label: "Avg per Session", value: loading ? "—" : fmtCurrency(avgSession), icon: Award },
             ].map(({ label, value, icon: Icon }, i) => (
-              <div key={i} style={{ background: "rgba(255,255,255,0.13)", backdropFilter: "blur(10px)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 16, padding: "1rem", display: "flex", alignItems: "center", gap: ".75rem" }}>
-                <div style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Icon size={18} color="#fff" /></div>
+              <div key={i} style={{ background: "rgba(255,255,255,0.13)", backdropFilter: "blur(10px)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 16, padding: "0.85rem 1rem", display: "flex", alignItems: "center", gap: ".75rem" }}>
+                <div style={{ width: 34, height: 34, borderRadius: 10, background: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Icon size={17} color="#fff" /></div>
                 <div>
-                  <div style={{ fontSize: ".7rem", color: "rgba(255,255,255,0.7)", fontWeight: 600, textTransform: "uppercase", letterSpacing: ".05em" }}>{label}</div>
-                  <div style={{ fontSize: "1.1rem", color: "#fff", fontWeight: 800, fontFamily: "Outfit", lineHeight: 1.2 }}>{value}</div>
+                  <div style={{ fontSize: ".68rem", color: "rgba(255,255,255,0.7)", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".05em" }}>{label}</div>
+                  <div style={{ fontSize: "1.05rem", color: "#fff", fontWeight: 800, fontFamily: "Outfit", lineHeight: 1.2 }}>{value}</div>
                 </div>
               </div>
             ))}
@@ -203,36 +235,43 @@ const PaidServicesPage = () => {
         </div>
       </div>
 
-      {/* Controls */}
-      <div className="ps-bar" style={{ background: "#fff", borderRadius: 18, border: "1px solid #e2e8f0", padding: "1rem 1.25rem", marginBottom: "1.25rem", display: "flex", alignItems: "center", gap: ".75rem", flexWrap: "wrap", boxShadow: "0 2px 8px rgba(15,23,42,0.05)" }}>
-        <div style={{ position: "relative", flex: "1 1 200px", minWidth: 180 }}>
-          <Search size={15} style={{ position: "absolute", left: ".75rem", top: "50%", transform: "translateY(-50%)", color: "#94a3b8", pointerEvents: "none" }} />
-          <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search service, specialist, date…"
-            style={{ width: "100%", padding: ".55rem .85rem .55rem 2.2rem", borderRadius: 999, border: "1.5px solid #e2e8f0", fontSize: ".84rem", outline: "none", background: "#f8fafc", fontFamily: "inherit", color: "#0f172a", transition: "all .2s ease" }}
+      {/* Controls Bar */}
+      <div className="ps-bar" style={{ background: "#fff", borderRadius: 18, border: "1px solid #e2e8f0", padding: "0.85rem 1.15rem", marginBottom: "1.25rem", display: "flex", alignItems: "center", gap: ".65rem", flexWrap: "wrap", boxShadow: "0 2px 8px rgba(15,23,42,0.04)" }}>
+        <div className="ps-search-box" style={{ position: "relative", flex: "1 1 200px", minWidth: 160 }}>
+          <Search size={15} style={{ position: "absolute", left: ".8rem", top: "50%", transform: "translateY(-50%)", color: "#94a3b8", pointerEvents: "none" }} />
+          <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search service, specialist, date, price…"
+            style={{ width: "100%", padding: ".52rem .85rem .52rem 2.25rem", borderRadius: 999, border: "1.5px solid #e2e8f0", fontSize: ".83rem", outline: "none", background: "#f8fafc", fontFamily: "inherit", color: "#0f172a", transition: "all .2s ease" }}
             onFocus={e => { e.target.style.borderColor = "#6366f1"; e.target.style.background = "#fff"; }}
             onBlur={e => { e.target.style.borderColor = "#e2e8f0"; e.target.style.background = "#f8fafc"; }} />
+          {searchQuery && (
+            <button onClick={() => setSearchQuery("")} style={{ position: "absolute", right: ".75rem", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "#94a3b8", display: "flex", padding: 0 }}>
+              <X size={14} />
+            </button>
+          )}
         </div>
-        <div style={{ display: "flex", gap: ".35rem", flexWrap: "wrap" }}>
+        <div className="ps-chips-scroller" style={{ display: "flex", gap: ".35rem" }}>
           {FILTERS.map(f => {
             const active = filterStatus === f;
             return <button key={f} className="ps-pill" onClick={() => setFilterStatus(f)} style={{ borderColor: active ? "#6366f1" : "#e2e8f0", background: active ? "#6366f1" : "#f8fafc", color: active ? "#fff" : "#64748b" }}>{f}</button>;
           })}
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: ".4rem", marginLeft: "auto" }}>
-          <Filter size={14} color="#64748b" />
-          <select value={sortBy} onChange={e => setSortBy(e.target.value)} className="ps-sort">
-            <option value="newest">Newest first</option>
-            <option value="oldest">Oldest first</option>
-            <option value="highest">Highest price</option>
-            <option value="lowest">Lowest price</option>
-          </select>
+        <div className="ps-sort-refresh-row" style={{ display: "flex", alignItems: "center", gap: ".5rem", marginLeft: "auto" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: ".4rem" }}>
+            <Filter size={14} color="#64748b" />
+            <select value={sortBy} onChange={e => setSortBy(e.target.value)} className="ps-sort">
+              <option value="newest">Newest first</option>
+              <option value="oldest">Oldest first</option>
+              <option value="highest">Highest price</option>
+              <option value="lowest">Lowest price</option>
+            </select>
+          </div>
+          <button onClick={fetchPaid} disabled={loading}
+            style={{ width: 36, height: 36, borderRadius: 10, border: "1.5px solid #e2e8f0", background: "#f8fafc", display: "flex", alignItems: "center", justifyContent: "center", cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.5 : 1, flexShrink: 0 }}
+            onMouseEnter={e => !loading && (e.currentTarget.style.borderColor = "#6366f1")}
+            onMouseLeave={e => (e.currentTarget.style.borderColor = "#e2e8f0")} title="Refresh list">
+            <RefreshCw size={14} color="#64748b" style={{ animation: loading ? "ps-spin 1s linear infinite" : "none" }} />
+          </button>
         </div>
-        <button onClick={fetchPaid} disabled={loading}
-          style={{ width: 36, height: 36, borderRadius: 10, border: "1.5px solid #e2e8f0", background: "#f8fafc", display: "flex", alignItems: "center", justifyContent: "center", cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.5 : 1 }}
-          onMouseEnter={e => !loading && (e.currentTarget.style.borderColor = "#6366f1")}
-          onMouseLeave={e => (e.currentTarget.style.borderColor = "#e2e8f0")} title="Refresh">
-          <RefreshCw size={14} color="#64748b" style={{ animation: loading ? "ps-spin 1s linear infinite" : "none" }} />
-        </button>
       </div>
 
       {!loading && displayed.length > 0 && (
