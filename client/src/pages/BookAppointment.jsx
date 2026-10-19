@@ -57,10 +57,16 @@ const BookAppointment = () => {
   // Wizard Steps: 1: Specialist & Service, 2: Date & Slot, 3: Review & Pay, 4: Confirmed
   const [step, setStep] = useState(1);
 
-  // Data Collections
-  const [services, setServices] = useState([]);
-  const [experts, setExperts] = useState([]);
-  const [loading, setLoading] = useState(true);
+  // Data Collections — seed from sessionStorage for instant render
+  const [services, setServices] = useState(() => {
+    try { const r = sessionStorage.getItem('dworld_book_services'); return r ? JSON.parse(r) : []; } catch { return []; }
+  });
+  const [experts, setExperts] = useState(() => {
+    try { const r = sessionStorage.getItem('dworld_book_experts'); return r ? JSON.parse(r) : []; } catch { return []; }
+  });
+  const [loading, setLoading] = useState(() => {
+    try { return !sessionStorage.getItem('dworld_book_experts'); } catch { return true; }
+  });
   const [walletBalance, setWalletBalance] = useState(0);
 
   // Filters for Step 1
@@ -105,11 +111,13 @@ const BookAppointment = () => {
       if (expRes.status === 'fulfilled' && expRes.value.data.success) {
         expList = expRes.value.data.data || [];
         setExperts(expList);
+        try { sessionStorage.setItem('dworld_book_experts', JSON.stringify(expList)); } catch {}
       }
 
       if (srvRes.status === 'fulfilled' && srvRes.value.data.success) {
         srvList = srvRes.value.data.data || [];
         setServices(srvList);
+        try { sessionStorage.setItem('dworld_book_services', JSON.stringify(srvList)); } catch {}
       }
 
       if (walRes.status === 'fulfilled' && walRes.value.data.success) {
@@ -662,9 +670,21 @@ const BookAppointment = () => {
 
           {/* Specialists Grid */}
           {loading ? (
-            <div className="flex-center" style={{ minHeight: '300px', flexDirection: 'column', gap: '1rem', color: 'var(--text-muted)' }}>
-              <RefreshCw size={30} className="animate-spin" color="var(--primary)" />
-              <span>Loading verified campus specialists...</span>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.25rem', marginBottom: '2.5rem' }}>
+              {[1,2,3].map(i => (
+                <div key={i} style={{ background: 'var(--surface)', border: '1.5px solid var(--border-light)', borderRadius: 20, padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+                    <div className="stat-shimmer" style={{ width: 52, height: 52, borderRadius: 16, flexShrink: 0 }} />
+                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
+                      <div className="stat-shimmer" style={{ height: '1rem', width: '60%', borderRadius: 6 }} />
+                      <div className="stat-shimmer" style={{ height: '0.75rem', width: '40%', borderRadius: 6 }} />
+                    </div>
+                  </div>
+                  <div className="stat-shimmer" style={{ height: 44, borderRadius: 12 }} />
+                  <div className="stat-shimmer" style={{ height: 80, borderRadius: 14 }} />
+                  <div className="stat-shimmer" style={{ height: 44, borderRadius: 12 }} />
+                </div>
+              ))}
             </div>
           ) : filteredExperts.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '4rem 1.5rem', color: 'var(--text-muted)', background: 'var(--surface)', borderRadius: '20px', border: '1px solid var(--border-light)' }}>
@@ -709,8 +729,8 @@ const BookAppointment = () => {
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.9rem' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
                           <div style={{
-                            width: 52,
-                            height: 52,
+                            width: 56,
+                            height: 56,
                             borderRadius: '16px',
                             background: 'linear-gradient(135deg, rgba(79, 70, 229, 0.15), rgba(124, 58, 237, 0.2))',
                             color: 'var(--primary)',
@@ -720,16 +740,28 @@ const BookAppointment = () => {
                             fontWeight: 900,
                             fontSize: '1.2rem',
                             fontFamily: 'Outfit',
-                            border: '1px solid rgba(79, 70, 229, 0.25)',
-                            position: 'relative'
+                            border: '2px solid rgba(79, 70, 229, 0.2)',
+                            position: 'relative',
+                            overflow: 'hidden',
+                            boxShadow: '0 4px 14px rgba(79,70,229,0.18)'
                           }}>
-                            {expert.name ? expert.name.charAt(0).toUpperCase() : 'E'}
+                            {expert.avatar ? (
+                              <img
+                                src={expert.avatar}
+                                alt={expert.name}
+                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                onError={e => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
+                              />
+                            ) : null}
+                            <span style={{ display: expert.avatar ? 'none' : 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' }}>
+                              {expert.name ? expert.name.charAt(0).toUpperCase() : 'E'}
+                            </span>
                             <span style={{
                               position: 'absolute',
-                              bottom: -2,
-                              right: -2,
-                              width: 12,
-                              height: 12,
+                              bottom: 2,
+                              right: 2,
+                              width: 11,
+                              height: 11,
                               borderRadius: '50%',
                               background: '#10b981',
                               border: '2px solid #ffffff'
@@ -886,9 +918,14 @@ const BookAppointment = () => {
                 justifyContent: 'center',
                 fontWeight: 900,
                 fontSize: '1.15rem',
-                fontFamily: 'Outfit'
+                fontFamily: 'Outfit',
+                overflow: 'hidden',
+                flexShrink: 0
               }}>
-                {selectedExpert.name.charAt(0).toUpperCase()}
+                {selectedExpert.avatar
+                  ? <img src={selectedExpert.avatar} alt={selectedExpert.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  : selectedExpert.name.charAt(0).toUpperCase()
+                }
               </div>
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
