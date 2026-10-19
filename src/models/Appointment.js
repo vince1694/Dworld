@@ -38,7 +38,8 @@ appointmentSchema.statics.getByUser = function(userId) {
   return this.find({ user_id: userId })
              .populate('service_id')
              .populate('stylist_id', 'name email phone specialty bio rating')
-             .sort({ date: -1, time: -1 });
+             .sort({ date: -1, time: -1 })
+             .lean();
 };
 
 appointmentSchema.statics.getAll = function() {
@@ -54,10 +55,14 @@ appointmentSchema.statics.updateStatus = function(id, status) {
 };
 
 appointmentSchema.statics.getByStylist = function(stylistId) {
-  return this.find({ $or: [{ stylist_id: stylistId }] })
-             .populate('user_id', 'name email phone')
-             .populate('service_id', 'name price location')
-             .sort({ date: -1, time: -1 });
+  return this.find({ 
+    $or: [{ stylist_id: stylistId }],
+    paymentStatus: { $in: ['paid', 'refunded'] }
+  })
+  .populate('user_id', 'name email phone')
+  .populate('service_id', 'name price location')
+  .sort({ date: -1, time: -1 })
+  .lean();
 };
 
 appointmentSchema.statics.checkExists = function(date, time) {

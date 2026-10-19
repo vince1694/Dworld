@@ -25,7 +25,21 @@ import ExpertProfilePage from './pages/ExpertProfilePage';
 const ProtectedRoute = ({ children, allowedRoles, redirectTo = '/login' }) => {
   const { user, loading } = useAuth();
   
-  if (loading) return <div>Loading...</div>;
+  if (loading) return (
+    <div style={{
+      minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
+      background: 'var(--bg-main, #0f0f1a)', flexDirection: 'column', gap: '1rem'
+    }}>
+      <div style={{
+        width: 36, height: 36,
+        border: '3px solid rgba(99,102,241,0.2)',
+        borderTop: '3px solid #6366f1',
+        borderRadius: '50%',
+        animation: 'spin 0.75s linear infinite'
+      }} />
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    </div>
+  );
   if (!user) return <Navigate to={redirectTo} />;
   if (allowedRoles && !allowedRoles.includes(user.role)) {
     if (allowedRoles.includes('admin')) {

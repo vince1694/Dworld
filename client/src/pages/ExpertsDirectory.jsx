@@ -6,6 +6,8 @@ import { UserCheck, Star, CalendarPlus, Briefcase, Mail, Phone, Clock, Award, Sh
 import BookingWizardModal from '../components/BookingWizardModal';
 
 import { API_URL } from '../config/api';
+import { useAuth } from '../context/AuthContext';
+import { useNotify } from '../context/NotificationContext';
 
 const ExpertsDirectory = () => {
   const [experts, setExperts] = useState([]);
@@ -54,7 +56,14 @@ const ExpertsDirectory = () => {
     }
   };
 
+  const { user } = useAuth();
+  const { notify } = useNotify();
+
   const handleBookExpert = (serviceId) => {
+    if (user && (user.role === 'expert' || user.role === 'stylist')) {
+      notify.warning('Only customer accounts can book appointments. Experts cannot book appointments.');
+      return;
+    }
     navigate(serviceId ? `/book?serviceId=${serviceId}` : '/book');
   };
 

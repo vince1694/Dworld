@@ -153,6 +153,11 @@ const BookingWizardModal = ({ isOpen, onClose, onBookingSuccess, preselectedServ
       return;
     }
 
+    if (user && (user.role === 'expert' || user.role === 'stylist')) {
+      setErrorMsg('You are logged in as an Expert. Only customer/student accounts can book appointments.');
+      return;
+    }
+
     if (!selectedService || !selectedDate || !selectedTime) {
       setErrorMsg('Missing required booking parameters.');
       return;

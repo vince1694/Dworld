@@ -51,10 +51,23 @@ const Dashboard = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get('tab') || 'overview';
 
-  const [services, setServices] = useState([]);
-  const [experts, setExperts] = useState([]);
+  const [services, setServices] = useState(() => {
+    // Restore cached services instantly — avoid re-fetching on every visit
+    try {
+      const raw = sessionStorage.getItem('dworld_services');
+      return raw ? JSON.parse(raw) : [];
+    } catch { return []; }
+  });
+  const [experts, setExperts] = useState(() => {
+    try {
+      const raw = sessionStorage.getItem('dworld_experts');
+      return raw ? JSON.parse(raw) : [];
+    } catch { return []; }
+  });
   const [appointments, setAppointments] = useState([]);
-  const [loading, setLoading] = useState(true);
+  // loading=false immediately — we show skeleton shimmer on individual sections
+  const [loading, setLoading] = useState(false);
+  const [apptLoading, setApptLoading] = useState(true);
 
   // Lightbox Modal State
   const [lightbox, setLightbox] = useState({
@@ -131,29 +144,41 @@ const Dashboard = () => {
   }, [searchParams]);
 
   const fetchData = async () => {
+    // Fast path: fetch appointments immediately (they change frequently)
+    setApptLoading(true);
     try {
-      setLoading(true);
-      const [servicesRes, appointmentsRes, expertsRes] = await Promise.all([
-        axios.get(`${API_URL}/services`),
+      const [appointmentsRes] = await Promise.all([
         axios.get(`${API_URL}/appointments/my-appointments`),
-        axios.get(`${API_URL}/auth/experts`)
       ]);
-      
-      if (servicesRes.data.success) {
-        setServices(servicesRes.data.data);
-      }
-      
       if (appointmentsRes.data.success) {
         setAppointments(appointmentsRes.data.data);
       }
-
-      if (expertsRes?.data?.success) {
-        setExperts(expertsRes.data.data || []);
-      }
     } catch (err) {
-      console.error('Failed to fetch dashboard data', err);
+      console.error('Failed to fetch appointments', err);
     } finally {
-      setLoading(false);
+      setApptLoading(false);
+    }
+
+    // Background: fetch services + experts (cached in sessionStorage, rarely change)
+    const cachedServices = sessionStorage.getItem('dworld_services');
+    const cachedExperts = sessionStorage.getItem('dworld_experts');
+    if (!cachedServices || !cachedExperts) {
+      try {
+        const [servicesRes, expertsRes] = await Promise.all([
+          axios.get(`${API_URL}/services`),
+          axios.get(`${API_URL}/auth/experts`)
+        ]);
+        if (servicesRes.data.success) {
+          setServices(servicesRes.data.data);
+          sessionStorage.setItem('dworld_services', JSON.stringify(servicesRes.data.data));
+        }
+        if (expertsRes?.data?.success) {
+          setExperts(expertsRes.data.data || []);
+          sessionStorage.setItem('dworld_experts', JSON.stringify(expertsRes.data.data || []));
+        }
+      } catch (err) {
+        console.error('Failed to fetch services/experts', err);
+      }
     }
   };
 
@@ -489,16 +514,10 @@ const Dashboard = () => {
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', minWidth: 0 }}>
-            {/* Topbar User Profile Picture Avatar */}
+            {/* Official D.WORLD Brand & App Logo */}
             <div style={{ position: 'relative', flexShrink: 0 }}>
               <div 
-                onClick={() => {
-                  if (user?.avatar) {
-                    openLightbox(user.avatar, user?.name || 'My Profile', 'Verified D.WORLD Member Photo');
-                  } else {
-                    avatarInputRef.current?.click();
-                  }
-                }}
+                onClick={() => openLightbox('/logo-192.png', 'D.WORLD Official Logo', 'Campus Network PWA')}
                 style={{ 
                   width: '58px', 
                   height: '58px', 
@@ -507,7 +526,6 @@ const Dashboard = () => {
                   display: 'flex', 
                   alignItems: 'center', 
                   justifyContent: 'center',
-                  color: 'white',
                   boxShadow: '0 8px 22px rgba(79, 70, 229, 0.28)',
                   overflow: 'hidden',
                   cursor: 'pointer',
@@ -515,53 +533,16 @@ const Dashboard = () => {
                   outline: '2px solid rgba(79, 70, 229, 0.25)',
                   transition: 'transform 0.2s ease, box-shadow 0.2s ease'
                 }}
-                title={user?.avatar ? "Tap to view profile photo in full HD" : "Tap to upload profile photo"}
+                title="D.WORLD Official Logo"
                 onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.05)'}
                 onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
               >
-                {avatarUploading ? (
-                  <span style={{ fontSize: '0.72rem', fontWeight: 700 }}>...</span>
-                ) : user?.avatar ? (
-                  <img 
-                    src={user.avatar} 
-                    alt={user.name || 'User Avatar'} 
-                    style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
-                  />
-                ) : (
-                  <span style={{ fontSize: '1.45rem', fontWeight: 800, fontFamily: 'Outfit' }}>
-                    {user?.name ? user.name.charAt(0).toUpperCase() : 'U'}
-                  </span>
-                )}
+                <img 
+                  src="/logo-192.png" 
+                  alt="D.WORLD Official Logo" 
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                />
               </div>
-
-              {/* Fast Camera Upload Badge */}
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  avatarInputRef.current?.click();
-                }}
-                style={{
-                  position: 'absolute',
-                  bottom: '-4px',
-                  right: '-4px',
-                  width: '24px',
-                  height: '24px',
-                  borderRadius: '50%',
-                  background: 'var(--primary)',
-                  color: '#ffffff',
-                  border: '2px solid #ffffff',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                  padding: 0,
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
-                }}
-                title="Change or upload profile picture"
-              >
-                <Camera size={12} />
-              </button>
             </div>
 
             <div style={{ minWidth: 0 }}>
@@ -591,7 +572,24 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* BENTO STATS ROW */}
+      {/* BENTO STATS ROW — shimmer while appointments load */}
+      <style>{`
+        @keyframes shimmer {
+          0% { background-position: -600px 0; }
+          100% { background-position: 600px 0; }
+        }
+        .stat-shimmer {
+          background: linear-gradient(90deg,
+            rgba(255,255,255,0.03) 0%,
+            rgba(255,255,255,0.10) 40%,
+            rgba(255,255,255,0.03) 80%
+          );
+          background-size: 1200px 100%;
+          animation: shimmer 1.4s ease-in-out infinite;
+          border-radius: 8px;
+          display: inline-block;
+        }
+      `}</style>
       <div className="bento-grid">
         <div className="bento-card bento-span-3" style={{ padding: '1.35rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
@@ -600,7 +598,7 @@ const Dashboard = () => {
               <CalendarCheck size={18} />
             </div>
           </div>
-          <h2 style={{ fontSize: '2rem', margin: 0, color: 'var(--primary)', fontFamily: 'Outfit' }}>{approvedCount}</h2>
+          {apptLoading ? <div className="stat-shimmer" style={{ height: '2.2rem', width: '3rem' }} /> : <h2 style={{ fontSize: '2rem', margin: 0, color: 'var(--primary)', fontFamily: 'Outfit' }}>{approvedCount}</h2>}
         </div>
 
         <div className="bento-card bento-span-3" style={{ padding: '1.35rem' }}>
@@ -610,7 +608,7 @@ const Dashboard = () => {
               <Clock size={18} />
             </div>
           </div>
-          <h2 style={{ fontSize: '2rem', margin: 0, color: 'var(--warning)', fontFamily: 'Outfit' }}>{pendingCount}</h2>
+          {apptLoading ? <div className="stat-shimmer" style={{ height: '2.2rem', width: '3rem' }} /> : <h2 style={{ fontSize: '2rem', margin: 0, color: 'var(--warning)', fontFamily: 'Outfit' }}>{pendingCount}</h2>}
         </div>
 
         <div className="bento-card bento-span-3" style={{ padding: '1.35rem' }}>
@@ -620,7 +618,7 @@ const Dashboard = () => {
               <Award size={18} />
             </div>
           </div>
-          <h2 style={{ fontSize: '2rem', margin: 0, color: 'var(--success)', fontFamily: 'Outfit' }}>{completedCount}</h2>
+          {apptLoading ? <div className="stat-shimmer" style={{ height: '2.2rem', width: '3rem' }} /> : <h2 style={{ fontSize: '2rem', margin: 0, color: 'var(--success)', fontFamily: 'Outfit' }}>{completedCount}</h2>}
         </div>
 
         <div className="bento-card bento-span-3" style={{ padding: '1.35rem' }}>
@@ -630,7 +628,7 @@ const Dashboard = () => {
               <TrendingUp size={18} />
             </div>
           </div>
-          <h2 style={{ fontSize: '2rem', margin: 0, color: 'var(--text-main)', fontFamily: 'Outfit' }}>{totalCount}</h2>
+          {apptLoading ? <div className="stat-shimmer" style={{ height: '2.2rem', width: '3rem' }} /> : <h2 style={{ fontSize: '2rem', margin: 0, color: 'var(--text-main)', fontFamily: 'Outfit' }}>{totalCount}</h2>}
         </div>
       </div>
 
@@ -702,9 +700,17 @@ const Dashboard = () => {
             </div>
 
             <div className="card-body" style={{ padding: 0 }}>
-              {loading ? (
-                <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-subtle)' }}>
-                  Loading schedule...
+              {apptLoading ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
+                  {[1,2,3].map(i => (
+                    <div key={i} style={{ padding: '1.1rem 1.25rem', borderBottom: '1px solid var(--border-light)', display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+                      <div className="stat-shimmer" style={{ width: 42, height: 42, borderRadius: 11, flexShrink: 0 }} />
+                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                        <div className="stat-shimmer" style={{ height: '0.9rem', width: '55%', borderRadius: 4 }} />
+                        <div className="stat-shimmer" style={{ height: '0.75rem', width: '35%', borderRadius: 4 }} />
+                      </div>
+                    </div>
+                  ))}
                 </div>
               ) : filteredAppointments.length > 0 ? (
                 <div style={{ display: 'flex', flexDirection: 'column' }}>

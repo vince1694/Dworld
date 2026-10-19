@@ -15,6 +15,7 @@ const {
   getExperts,
   getExpertById,
   addPortfolioItem,
+  updatePortfolioItem,
   deletePortfolioItem,
   getAllUsersForAdmin,
   updateUserStatusForAdmin,
@@ -55,6 +56,7 @@ router.put('/profile', protect, updateProfile);
 router.post('/avatar', protect, uploadAvatar);
 router.put('/availability', protect, updateAvailability);
 router.post('/portfolio', protect, addPortfolioItem);
+router.put('/portfolio/:itemId', protect, updatePortfolioItem);
 router.delete('/portfolio/:itemId', protect, deletePortfolioItem);
 
 // Admin User Operations

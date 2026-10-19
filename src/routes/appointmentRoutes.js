@@ -11,6 +11,7 @@ const {
     deleteTimeSlot,
     payAppointment,
     deleteAppointment,
+    cancelUnpaidAppointment,
     clearBookingHistory,
     rescheduleAppointment
 } = require('../controllers/appointmentController');
@@ -30,6 +31,7 @@ router.patch('/:id/reschedule', protect, rescheduleAppointment);
 router.post('/:id/pay', protect, payAppointment);
 router.post('/:id/pay-wallet', protect, payAppointment);
 router.delete('/clear-history', protect, clearBookingHistory);
+router.delete('/:id/cancel-unpaid', protect, cancelUnpaidAppointment);
 router.delete('/:id', protect, deleteAppointment);
 router.get('/slots', getAvailableSlots);
 

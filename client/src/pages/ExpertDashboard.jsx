@@ -82,10 +82,12 @@ const ExpertDashboard = () => {
 
   const [appointments, setAppointments] = useState([]);
   const [services, setServices] = useState([]);
-  const [loading, setLoading] = useState(true);
+  // Start loading=false immediately — skeleton KPIs render at once
+  const [loading, setLoading] = useState(false);
   const [walletBalance, setWalletBalance] = useState(0);
   const [walletTransactions, setWalletTransactions] = useState([]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [dataReady, setDataReady] = useState(false); // true once first fetch completes
 
   // Lightbox Modal State
   const [lightbox, setLightbox] = useState({
@@ -110,6 +112,18 @@ const ExpertDashboard = () => {
   const [portfolioForm, setPortfolioForm] = useState({ title: '', description: '', imageUrl: '', category: user?.specialty || 'Hair Styling' });
   const [portfolioSubmitting, setPortfolioSubmitting] = useState(false);
   const [portfolioPreview, setPortfolioPreview] = useState(null);
+
+  // Edit Lookbook Photo Modal State
+  const [editPortfolioModal, setEditPortfolioModal] = useState({
+    isOpen: false,
+    itemId: null,
+    title: '',
+    description: '',
+    imageUrl: '',
+    previewUrl: '',
+    submitting: false
+  });
+  const editPortfolioFileRef = useRef(null);
 
   const [confirmModal, setConfirmModal] = useState({
     isOpen: false,
@@ -220,7 +234,6 @@ const ExpertDashboard = () => {
 
   useEffect(() => { 
     fetchData(); 
-    fetchWallet(); 
 
     // Handle return from Paystack activation
     const reference = searchParams.get('reference') || searchParams.get('trxref');
@@ -234,7 +247,6 @@ const ExpertDashboard = () => {
             setActivationDismissed(false);
             if (refreshUser) refreshUser();
             fetchData();
-            fetchWallet();
             navigate('/expert', { replace: true });
           }
         })
@@ -248,32 +260,30 @@ const ExpertDashboard = () => {
     }
   }, [searchParams]);
 
-  const fetchWallet = async () => {
-    try {
-      const res = await axios.get(`${API_URL}/auth/wallet`);
-      if (res.data.success) {
-        setWalletBalance(res.data.data.walletBalance);
-        setWalletTransactions(res.data.data.transactions || []);
-      }
-    } catch (err) { console.error('Error fetching expert wallet', err); }
-  };
-
+  // Single batched fetch — all calls fire in parallel, no waterfall
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [appRes, srvRes] = await Promise.all([
+      const [appRes, srvRes, walletRes] = await Promise.all([
         axios.get(`${API_URL}/appointments/stylist-dashboard`),
-        axios.get(`${API_URL}/services/my-services`)
+        axios.get(`${API_URL}/services/my-services`),
+        axios.get(`${API_URL}/auth/wallet`)
       ]);
-      if (appRes.data.success) setAppointments(appRes.data.data.appointments);
-      if (srvRes.data.success) setServices(srvRes.data.data);
-      const userRes = await axios.get(`${API_URL}/auth/me`);
-      if (userRes.data.success && userRes.data.user) {
-        if (userRes.data.user.workingDays) setWorkingDays(userRes.data.user.workingDays);
-        if (userRes.data.user.workingHours) setWorkingHours(userRes.data.user.workingHours);
+      if (appRes.data.success) setAppointments(appRes.data.data.appointments || []);
+      if (srvRes.data.success) setServices(srvRes.data.data || []);
+      if (walletRes.data.success) {
+        setWalletBalance(walletRes.data.data.walletBalance || 0);
+        setWalletTransactions(walletRes.data.data.transactions || []);
       }
-    } catch (err) { console.error('Error fetching expert data', err); }
-    finally { setLoading(false); }
+      // Sync availability from AuthContext user (no extra /auth/me call needed)
+      if (user?.workingDays) setWorkingDays(user.workingDays);
+      if (user?.workingHours) setWorkingHours(user.workingHours);
+    } catch (err) { 
+      console.error('Error fetching expert data', err); 
+    } finally { 
+      setLoading(false); 
+      setDataReady(true);
+    }
   };
 
   const handleLogout = () => { logout(); navigate('/login'); };
@@ -414,6 +424,55 @@ const ExpertDashboard = () => {
     });
   };
 
+  const handleOpenEditPortfolio = (item) => {
+    setEditPortfolioModal({
+      isOpen: true,
+      itemId: item._id,
+      title: item.title || '',
+      description: item.description || '',
+      imageUrl: item.imageUrl,
+      previewUrl: item.imageUrl,
+      submitting: false
+    });
+  };
+
+  const handleEditPortfolioFile = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 15 * 1024 * 1024) {
+      addToast('Image exceeds 15MB limit.', 'warning');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      setEditPortfolioModal(prev => ({ ...prev, imageUrl: reader.result, previewUrl: reader.result }));
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSaveEditPortfolio = async (e) => {
+    e.preventDefault();
+    try {
+      setEditPortfolioModal(prev => ({ ...prev, submitting: true }));
+      const payload = {
+        title: editPortfolioModal.title,
+        description: editPortfolioModal.description,
+        imageUrl: editPortfolioModal.imageUrl
+      };
+      const res = await axios.put(`${API_URL}/auth/portfolio/${editPortfolioModal.itemId}`, payload);
+      if (res.data.success) {
+        setPortfolio(res.data.data);
+        setUser(prev => ({ ...prev, portfolio: res.data.data }));
+        addToast('Lookbook photo updated! 🎨', 'success');
+        setEditPortfolioModal(prev => ({ ...prev, isOpen: false }));
+      }
+    } catch (err) {
+      addToast(err.response?.data?.message || 'Failed to update lookbook photo.', 'error');
+    } finally {
+      setEditPortfolioModal(prev => ({ ...prev, submitting: false }));
+    }
+  };
+
   const pendingApps   = appointments.filter(a => a.status === 'pending').length;
   const approvedApps  = appointments.filter(a => a.status === 'approved').length;
   const completedApps = appointments.filter(a => a.status === 'completed').length;
@@ -550,6 +609,22 @@ const ExpertDashboard = () => {
           50% { box-shadow: 0 0 0 8px rgba(245,158,11,0); }
         }
         .activation-pulse { animation: softPulse 2.5s ease-in-out infinite; }
+
+        /* skeleton shimmer */
+        @keyframes shimmer {
+          0% { background-position: -400px 0; }
+          100% { background-position: 400px 0; }
+        }
+        .skeleton-shimmer {
+          background: linear-gradient(90deg,
+            rgba(255,255,255,0.04) 0%,
+            rgba(255,255,255,0.12) 40%,
+            rgba(255,255,255,0.04) 80%
+          );
+          background-size: 800px 100%;
+          animation: shimmer 1.4s ease-in-out infinite;
+          border-radius: 8px;
+        }
       `}</style>
 
 
@@ -788,7 +863,20 @@ const ExpertDashboard = () => {
 
             {/* ── KPI Stats ── */}
             <div className="kpi-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '1rem' }}>
-              {[
+              {loading ? [
+                { label: 'Confirmed', color: 'var(--primary)', bg: 'rgba(99,102,241,0.1)' },
+                { label: 'Pending', color: '#d97706', bg: 'rgba(245,158,11,0.1)' },
+                { label: 'Completed', color: '#059669', bg: 'rgba(16,185,129,0.1)' },
+                { label: 'Paid Earnings', bg: 'linear-gradient(135deg, var(--primary), var(--secondary))', gradient: true }
+              ].map(({ label, bg, gradient }) => (
+                <div key={label} className="kpi-card" style={{ background: bg, border: gradient ? 'none' : '1px solid var(--border-light)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '0.72rem', color: gradient ? 'rgba(255,255,255,0.5)' : 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</span>
+                    <div className="skeleton-shimmer" style={{ width: 16, height: 16, borderRadius: 4 }} />
+                  </div>
+                  <div className="skeleton-shimmer" style={{ height: '2rem', width: '60%', borderRadius: 6, marginTop: 4 }} />
+                </div>
+              )) : [
                 { label: 'Confirmed', value: approvedApps, color: 'var(--primary)', bg: 'rgba(99,102,241,0.1)', icon: CalendarCheck },
                 { label: 'Pending', value: pendingApps, color: '#d97706', bg: 'rgba(245,158,11,0.1)', icon: Clock },
                 { label: 'Completed', value: completedApps, color: '#059669', bg: 'rgba(16,185,129,0.1)', icon: CheckCircle },
@@ -822,9 +910,10 @@ const ExpertDashboard = () => {
 
             {/* ── Tab Content ── */}
             {loading ? (
-              <div style={{ padding: '4rem', textAlign: 'center' }}>
-                <div style={{ width: 40, height: 40, border: '3px solid var(--border-light)', borderTop: '3px solid var(--primary)', borderRadius: '50%', margin: '0 auto 1rem', animation: 'spin 0.8s linear infinite' }} />
-                <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>Loading your workspace...</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                {[1,2,3].map(i => (
+                  <div key={i} className="skeleton-shimmer" style={{ height: '78px', borderRadius: '14px' }} />
+                ))}
               </div>
             ) : (
               <AnimatePresence mode="wait">
@@ -1599,28 +1688,24 @@ const ExpertDashboard = () => {
                                 </div>
                               )}
 
-                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                                <div className="input-group" style={{ marginBottom: 0 }}>
-                                  <label>Style Title (e.g. Knotless Braids, Skin Fade)</label>
-                                  <input
-                                    type="text"
-                                    placeholder="e.g. Knotless Braids"
-                                    value={portfolioForm.title}
-                                    onChange={e => setPortfolioForm({ ...portfolioForm, title: e.target.value })}
-                                  />
-                                </div>
-                                <div className="input-group" style={{ marginBottom: 0 }}>
-                                  <label>Category</label>
-                                  <select
-                                    value={portfolioForm.category}
-                                    onChange={e => setPortfolioForm({ ...portfolioForm, category: e.target.value })}
-                                    style={{ padding: '0.75rem 1rem', borderRadius: '10px', border: '1px solid var(--border-light)', width: '100%', background: 'var(--bg-input, var(--bg-card))' }}
-                                  >
-                                    {['Hair Styling', 'Braids & Twists', 'Nails & Manicure', 'Lash Extensions', 'Makeup & Glam', 'Male Grooming', 'Other'].map(c => (
-                                      <option key={c} value={c}>{c}</option>
-                                    ))}
-                                  </select>
-                                </div>
+                              <div className="input-group" style={{ marginBottom: 0 }}>
+                                <label>Title (optional)</label>
+                                <input
+                                  type="text"
+                                  placeholder="e.g. Ghana Braids, Knotless Braids, Skin Fade"
+                                  value={portfolioForm.title}
+                                  onChange={e => setPortfolioForm({ ...portfolioForm, title: e.target.value })}
+                                />
+                              </div>
+
+                              <div className="input-group" style={{ marginBottom: 0 }}>
+                                <label>Caption / Description (optional)</label>
+                                <input
+                                  type="text"
+                                  placeholder="Describe this style, technique used, products, etc."
+                                  value={portfolioForm.description}
+                                  onChange={e => setPortfolioForm({ ...portfolioForm, description: e.target.value })}
+                                />
                               </div>
 
                               <button
@@ -1629,7 +1714,7 @@ const ExpertDashboard = () => {
                                 className="btn btn-primary"
                                 style={{ alignSelf: 'flex-start', background: 'linear-gradient(135deg, var(--secondary), var(--primary))', borderColor: 'transparent', padding: '0.65rem 1.5rem' }}
                               >
-                                {portfolioSubmitting ? 'Uploading to Cloudinary...' : <><Images size={15} /> Upload Work to Page</>}
+                                {portfolioSubmitting ? 'Uploading to Cloudinary...' : <><Images size={15} /> Upload to Lookbook</>}
                               </button>
                             </form>
                           )}
@@ -1674,16 +1759,30 @@ const ExpertDashboard = () => {
                                       <span style={{ position: 'absolute', top: '0.5rem', left: '0.5rem', background: 'rgba(0,0,0,0.65)', color: '#fff', fontSize: '0.62rem', fontWeight: 800, padding: '0.2rem 0.5rem', borderRadius: '6px', backdropFilter: 'blur(4px)', textTransform: 'uppercase' }}>
                                         {item.category}
                                       </span>
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleDeletePortfolioItem(String(item._id));
-                                        }}
-                                        title="Delete photo"
-                                        style={{ position: 'absolute', top: '0.5rem', right: '0.5rem', background: 'rgba(239,68,68,0.85)', border: 'none', borderRadius: '8px', width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', cursor: 'pointer' }}
-                                      >
-                                        <Trash2 size={13} />
-                                      </button>
+                                      <div style={{ position: 'absolute', top: '0.5rem', right: '0.5rem', display: 'flex', gap: '0.35rem' }}>
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleOpenEditPortfolio(item);
+                                          }}
+                                          title="Edit photo details or swap picture"
+                                          style={{ background: 'rgba(15,23,42,0.85)', backdropFilter: 'blur(6px)', border: '1px solid rgba(255,255,255,0.25)', borderRadius: '8px', width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', cursor: 'pointer' }}
+                                        >
+                                          <Edit size={13} />
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleDeletePortfolioItem(String(item._id));
+                                          }}
+                                          title="Delete photo"
+                                          style={{ background: 'rgba(239,68,68,0.88)', border: 'none', borderRadius: '8px', width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', cursor: 'pointer' }}
+                                        >
+                                          <Trash2 size={13} />
+                                        </button>
+                                      </div>
                                       <span style={{ position: 'absolute', bottom: '0.4rem', right: '0.5rem', background: 'rgba(0,0,0,0.6)', color: '#fff', fontSize: '0.65rem', padding: '0.15rem 0.45rem', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
                                         <ZoomIn size={11} /> Zoom
                                       </span>
@@ -1956,6 +2055,138 @@ const ExpertDashboard = () => {
           </button>
         </div>
       )}
+
+      {/* ── Edit Lookbook Photo Modal ── */}
+      <AnimatePresence>
+        {editPortfolioModal.isOpen && (
+          <div className="modal-overlay" onClick={() => !editPortfolioModal.submitting && setEditPortfolioModal(prev => ({ ...prev, isOpen: false }))}>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              onClick={e => e.stopPropagation()}
+              className="modal-card"
+              style={{ maxWidth: '520px', width: '100%', padding: '1.75rem', borderRadius: '20px' }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                  <div style={{ width: 36, height: 36, borderRadius: '10px', background: 'rgba(168,85,247,0.12)', color: 'var(--secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Edit size={18} />
+                  </div>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: '1.15rem', fontFamily: 'Outfit', fontWeight: 800 }}>Edit Lookbook Photo</h3>
+                    <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Update title, caption, or swap picture</span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => !editPortfolioModal.submitting && setEditPortfolioModal(prev => ({ ...prev, isOpen: false }))}
+                  style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '0.35rem' }}
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <form onSubmit={handleSaveEditPortfolio} style={{ display: 'flex', flexDirection: 'column', gap: '1.15rem' }}>
+                {/* Photo Preview & Change action */}
+                <div style={{
+                  position: 'relative',
+                  borderRadius: '14px',
+                  overflow: 'hidden',
+                  background: '#090d16',
+                  border: '1px solid var(--border-light)',
+                  maxHeight: '220px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <img
+                    src={editPortfolioModal.previewUrl || editPortfolioModal.imageUrl}
+                    alt="Lookbook work preview"
+                    style={{ maxWidth: '100%', maxHeight: '220px', objectFit: 'contain', display: 'block' }}
+                  />
+                  <input
+                    type="file"
+                    ref={editPortfolioFileRef}
+                    accept="image/*"
+                    onChange={handleEditPortfolioFile}
+                    style={{ display: 'none' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => editPortfolioFileRef.current?.click()}
+                    style={{
+                      position: 'absolute',
+                      bottom: '0.75rem',
+                      right: '0.75rem',
+                      background: 'rgba(0,0,0,0.75)',
+                      backdropFilter: 'blur(8px)',
+                      color: '#ffffff',
+                      border: '1px solid rgba(255,255,255,0.25)',
+                      padding: '0.35rem 0.75rem',
+                      borderRadius: '8px',
+                      fontSize: '0.75rem',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.35rem'
+                    }}
+                  >
+                    <Camera size={13} /> Change Photo
+                  </button>
+                </div>
+
+                <div className="input-group" style={{ marginBottom: 0 }}>
+                  <label style={{ fontSize: '0.825rem', fontWeight: 700, marginBottom: '0.35rem', display: 'block' }}>
+                    Title (optional)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Ghana Braids, Skin Fade, Acrylic Full Set"
+                    value={editPortfolioModal.title}
+                    onChange={e => setEditPortfolioModal(prev => ({ ...prev, title: e.target.value }))}
+                    style={{ width: '100%', padding: '0.7rem 0.9rem', borderRadius: '10px', border: '1px solid var(--border-light)', fontSize: '0.875rem' }}
+                  />
+                </div>
+
+                <div className="input-group" style={{ marginBottom: 0 }}>
+                  <label style={{ fontSize: '0.825rem', fontWeight: 700, marginBottom: '0.35rem', display: 'block' }}>
+                    Caption / Description (optional)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Describe technique, styling details, products used..."
+                    value={editPortfolioModal.description}
+                    onChange={e => setEditPortfolioModal(prev => ({ ...prev, description: e.target.value }))}
+                    style={{ width: '100%', padding: '0.7rem 0.9rem', borderRadius: '10px', border: '1px solid var(--border-light)', fontSize: '0.875rem' }}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.5rem' }}>
+                  <button
+                    type="button"
+                    disabled={editPortfolioModal.submitting}
+                    onClick={() => setEditPortfolioModal(prev => ({ ...prev, isOpen: false }))}
+                    className="btn btn-secondary"
+                    style={{ padding: '0.65rem 1.25rem', borderRadius: '10px', fontSize: '0.85rem' }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={editPortfolioModal.submitting}
+                    className="btn btn-primary"
+                    style={{ padding: '0.65rem 1.5rem', borderRadius: '10px', fontSize: '0.85rem', fontWeight: 800, background: 'linear-gradient(135deg, var(--secondary), var(--primary))', borderColor: 'transparent' }}
+                  >
+                    {editPortfolioModal.submitting ? 'Saving to Cloudinary...' : 'Save Changes'}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Global Confirmation Modal */}
       <ConfirmModal

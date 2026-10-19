@@ -12,6 +12,13 @@ const bookAppointment = async (req, res, next) => {
             return res.status(401).json({ success: false, message: 'Please log in to complete your booking.' });
         }
 
+        if (req.user && (req.user.role === 'expert' || req.user.role === 'stylist')) {
+            return res.status(403).json({ 
+                success: false, 
+                message: 'Experts cannot book appointments. Only customer accounts can book appointments.' 
+            });
+        }
+
         if (!service_id || !date || !time) {
             return res.status(400).json({ success: false, message: 'Please select a service, date, and time slot.' });
         }
@@ -55,21 +62,13 @@ const bookAppointment = async (req, res, next) => {
         // Book appointment
         const apt = await Appointment.create({ user_id, service_id: (service ? service._id : cleanServiceId), date, time, notes, stylist_id: targetStylistId });
 
-        // Mark slot as unavailable
+        // Mark slot as temporarily reserved
         await TimeSlot.markUnavailable(date, time);
 
-        // Send notification to expert
-        if (targetStylistId) {
-            const clientUser = await User.findById(user_id);
-            await createNotificationHelper(
-                targetStylistId,
-                'New Booking Request 📅',
-                `${clientUser ? clientUser.name : 'A client'} booked "${service ? service.name : 'a service'}" for ${date} at ${time}.`,
-                'booking'
-            );
-        }
+        // Note: Expert is NOT notified until payment has been successfully completed
+        // (via wallet pay or Paystack verification), preventing unpaid cancelled bookings from reaching the expert dashboard.
 
-        res.status(201).json({ success: true, message: 'Appointment booked successfully', data: apt });
+        res.status(201).json({ success: true, message: 'Appointment booked successfully. Awaiting payment.', data: apt });
     } catch (error) {
         console.error('Booking Error:', error);
         res.status(500).json({ success: false, message: error.message || 'Booking failed. Please try again.' });
@@ -289,7 +288,15 @@ const getAvailableSlots = async (req, res, next) => {
             return res.status(200).json({ success: true, availableSlots: DEFAULT_SLOTS, data: DEFAULT_SLOTS });
         }
 
-        const query = { date, status: { $ne: 'cancelled' } };
+        const twentyMinsAgo = new Date(Date.now() - 20 * 60 * 1000);
+        const query = { 
+            date, 
+            status: { $ne: 'cancelled' },
+            $or: [
+                { paymentStatus: { $in: ['paid', 'refunded'] } },
+                { paymentStatus: 'unpaid', createdAt: { $gte: twentyMinsAgo } }
+            ]
+        };
         if (stylist_id) {
             query.stylist_id = stylist_id;
         }
@@ -373,9 +380,9 @@ const payAppointment = async (req, res, next) => {
                 // Send notification to expert
                 await createNotificationHelper(
                     expertId,
-                    'Payment Received! 💰',
-                    `You received ₦${expertPayout.toLocaleString()} (after 10% platform fee of ₦${commissionAmount.toLocaleString()}) from ${clientUser.name} for "${appointment.service_id?.name || 'Service'}".`,
-                    'payment'
+                    'New Confirmed Booking! 📅',
+                    `${clientUser.name} booked "${appointment.service_id?.name || 'Service'}" for ${appointment.date} at ${appointment.time}. Payment of ₦${amount.toLocaleString()} received (₦${expertPayout.toLocaleString()} added to your wallet)!`,
+                    'booking'
                 );
             }
         }
@@ -565,6 +572,38 @@ const rescheduleAppointment = async (req, res, next) => {
     }
 };
 
+const cancelUnpaidAppointment = async (req, res, next) => {
+    try {
+        const appointmentId = req.params.id;
+        const userId = req.user.id;
+
+        const appointment = await Appointment.findById(appointmentId);
+        if (!appointment) {
+            return res.status(200).json({ success: true, message: 'Appointment already cleaned up' });
+        }
+
+        const appointmentUserId = appointment.user_id?.toString();
+        if (req.user.role !== 'admin' && appointmentUserId !== userId) {
+            return res.status(403).json({ success: false, message: 'Not authorized to cancel this reservation' });
+        }
+
+        // If already paid, reject cancel-unpaid (use standard cancel/refund flow instead)
+        if (appointment.paymentStatus === 'paid') {
+            return res.status(400).json({ success: false, message: 'Cannot cancel as unpaid: this appointment has already been paid' });
+        }
+
+        // Release the time slot immediately so others can book
+        if (appointment.date && appointment.time) {
+            await TimeSlot.markAvailable(appointment.date, appointment.time);
+        }
+
+        await Appointment.findByIdAndDelete(appointmentId);
+        res.status(200).json({ success: true, message: 'Unpaid appointment cleanly cancelled and timeslot released' });
+    } catch (error) {
+        next(error);
+    }
+};
+
 module.exports = {
     bookAppointment,
     getUserAppointments,
@@ -577,6 +616,7 @@ module.exports = {
     deleteTimeSlot,
     payAppointment,
     deleteAppointment,
+    cancelUnpaidAppointment,
     clearBookingHistory,
     rescheduleAppointment
 };

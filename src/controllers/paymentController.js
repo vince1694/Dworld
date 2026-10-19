@@ -255,7 +255,14 @@ const verifyPayment = async (req, res, next) => {
                         });
                         await expert.save();
 
-                        // Notify expert
+                        // Notify expert with confirmed booking & payment
+                        await Notification.create({
+                            user_id: expertId,
+                            title: 'New Confirmed Booking! 📅',
+                            message: `${user.name} booked "${appointment.service_id?.name || 'Service'}" for ${appointment.date} at ${appointment.time}. Payment confirmed (₦${expertPayout.toLocaleString()} added to your wallet)!`,
+                            type: 'booking'
+                        });
+
                         await Notification.create({
                             user_id: expertId,
                             title: 'Payment Received! 💰',

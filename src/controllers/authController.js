@@ -714,6 +714,46 @@ const deletePortfolioItem = async (req, res, next) => {
     }
 };
 
+const updatePortfolioItem = async (req, res, next) => {
+    try {
+        const { itemId } = req.params;
+        const { title, description, imageUrl, category } = req.body;
+        const user = await User.findById(req.user.id);
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'Expert account not found.' });
+        }
+
+        const item = (user.portfolio || []).find(it => String(it._id) === String(itemId));
+        if (!item) {
+            return res.status(404).json({ success: false, message: 'Lookbook photo not found.' });
+        }
+
+        if (title !== undefined) item.title = (title || '').trim();
+        if (description !== undefined) item.description = (description || '').trim();
+        if (category !== undefined) item.category = (category || user.specialty || 'General').trim();
+
+        if (imageUrl && imageUrl.trim()) {
+            if (imageUrl.startsWith('data:image')) {
+                const uploadedUrl = await uploadImage(imageUrl, 'dworld_portfolio');
+                item.imageUrl = uploadedUrl;
+            } else {
+                item.imageUrl = imageUrl.trim();
+            }
+        }
+
+        await user.save();
+        invalidateExpertsCache();
+
+        res.status(200).json({
+            success: true,
+            message: 'Lookbook photo updated successfully!',
+            data: user.portfolio
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 const getExpertById = async (req, res, next) => {
     try {
         const { id } = req.params;
@@ -892,6 +932,7 @@ module.exports = {
     getExperts,
     getExpertById,
     addPortfolioItem,
+    updatePortfolioItem,
     deletePortfolioItem,
     getAllUsersForAdmin,
     updateUserStatusForAdmin,

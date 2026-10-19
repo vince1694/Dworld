@@ -279,11 +279,27 @@ const BookAppointment = () => {
       setErrorMsg('Please select a verified specialist and service.');
       return;
     }
+
+    // Prevent experts from booking appointments
+    if (user && (user.role === 'expert' || user.role === 'stylist')) {
+      setErrorMsg('You are logged in as an Expert. Only customer/student accounts can book appointments.');
+      return;
+    }
+
+    const price = selectedService.price || 0;
+
+    // Pre-validate wallet balance before creating any reservation
+    if (paymentMethod === 'wallet' && walletBalance < price) {
+      setErrorMsg(`Insufficient wallet balance (₦${walletBalance.toLocaleString()}). Please choose Paystack or top up your wallet.`);
+      return;
+    }
+
     setErrorMsg('');
     setSubmitting(true);
+    let createdAptId = null;
 
     try {
-      // 1. Create Appointment Record
+      // 1. Create Appointment Record (initially reserved, pending payment)
       const bookPayload = {
         service_id: selectedService._id || selectedService.id,
         date: selectedDate,
@@ -299,47 +315,125 @@ const BookAppointment = () => {
 
       const bookedApt = bookRes.data.data;
       const aptId = bookedApt._id || bookedApt.id;
+      createdAptId = aptId;
 
       // 2. Process Payment
       if (paymentMethod === 'wallet') {
-        const price = selectedService.price || 0;
-        if (walletBalance < price) {
-          throw new Error(`Insufficient wallet balance (₦${walletBalance.toLocaleString()}). Please choose Paystack or top up your wallet.`);
-        }
-
         const payRes = await axios.post(`${API_URL}/appointments/${aptId}/pay`);
         if (payRes.data.success) {
           bookedApt.paymentStatus = 'paid';
           setWalletBalance(payRes.data.clientWalletBalance || (walletBalance - price));
+          setConfirmedBooking({
+            ...bookedApt,
+            service_id: selectedService,
+            stylist_id: selectedExpert
+          });
+          setStep(4); // Advance to confirmed screen
+        } else {
+          throw new Error(payRes.data.message || 'Payment processing failed');
         }
       } else if (paymentMethod === 'paystack') {
-        const userEmail = (user?.email && user.email.trim()) || '';
-        const price = selectedService.price || 0;
+        const userEmail = (user?.email && user.email.trim()) || 'client@dworld.com';
 
-        const initRes = await axios.post(`${API_URL}/payments/initialize`, {
-          amount: price,
-          appointment_id: aptId,
-          purpose: 'appointment_pay',
-          email: userEmail,
-          name: user?.name
-        });
+        // 1. Ensure Paystack inline script is ready
+        if (typeof window.PaystackPop === 'undefined') {
+          const script = document.createElement('script');
+          script.src = 'https://js.paystack.co/v1/inline.js';
+          script.async = true;
+          document.head.appendChild(script);
+          await new Promise((res) => { script.onload = res; script.onerror = res; });
+        }
 
-        if (initRes.data?.success && initRes.data?.data?.authorization_url) {
-          window.location.href = initRes.data.data.authorization_url;
-          return;
-        } else {
-          throw new Error(initRes.data?.message || 'Paystack payment initialization failed');
+        let publicKey = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY || '';
+        try {
+          const configRes = await axios.get(`${API_URL}/payments/config`);
+          if (configRes.data.success && configRes.data.publicKey) {
+            publicKey = configRes.data.publicKey;
+          }
+        } catch (e) {}
+
+        let popupOpened = false;
+        if (typeof window.PaystackPop !== 'undefined' && publicKey) {
+          try {
+            const handler = window.PaystackPop.setup({
+              key: publicKey,
+              email: userEmail,
+              amount: Math.round(price * 100),
+              currency: 'NGN',
+              ref: 'APT-' + Date.now() + '-' + Math.floor(Math.random() * 1000),
+              metadata: {
+                purpose: 'appointment_pay',
+                appointment_id: aptId,
+                user_id: user?.id || user?._id
+              },
+              callback: async (response) => {
+                try {
+                  const verifyRes = await axios.post(`${API_URL}/payments/verify`, {
+                    reference: response.reference
+                  });
+                  if (verifyRes.data.success) {
+                    bookedApt.paymentStatus = 'paid';
+                    setConfirmedBooking({
+                      ...bookedApt,
+                      service_id: selectedService,
+                      stylist_id: selectedExpert
+                    });
+                    setStep(4);
+                  } else {
+                    setErrorMsg(verifyRes.data.message || 'Payment verification failed');
+                  }
+                } catch (err) {
+                  setErrorMsg('Payment verification failed. Please check transactions.');
+                } finally {
+                  setSubmitting(false);
+                }
+              },
+              onClose: async () => {
+                // If customer cancels or closes payment popup, IMMEDIATELY clean up unpaid booking & release timeslot
+                try {
+                  await axios.delete(`${API_URL}/appointments/${aptId}/cancel-unpaid`);
+                } catch (e) {
+                  console.warn('Failed to clean up unpaid booking:', e);
+                }
+                setErrorMsg('Payment was cancelled. Your booking was not placed and no charge occurred.');
+                setSubmitting(false);
+              }
+            });
+            handler.openIframe();
+            popupOpened = true;
+            return;
+          } catch (e) {
+            console.warn('Paystack inline popup blocked or failed:', e);
+          }
+        }
+
+        if (!popupOpened) {
+          const initRes = await axios.post(`${API_URL}/payments/initialize`, {
+            amount: price,
+            appointment_id: aptId,
+            purpose: 'appointment_pay',
+            email: userEmail,
+            name: user?.name
+          });
+
+          if (initRes.data?.success && initRes.data?.data?.authorization_url) {
+            window.location.href = initRes.data.data.authorization_url;
+            return;
+          } else {
+            throw new Error(initRes.data?.message || 'Paystack payment initialization failed');
+          }
         }
       }
-
-      setConfirmedBooking({
-        ...bookedApt,
-        service_id: selectedService,
-        stylist_id: selectedExpert
-      });
-      setStep(4); // Advance to confirmed screen
     } catch (err) {
       console.error('Booking submission error:', err);
+      // Clean up unpaid booking if created and payment failed
+      if (createdAptId) {
+        try {
+          await axios.delete(`${API_URL}/appointments/${createdAptId}/cancel-unpaid`);
+        } catch (cleanupErr) {
+          console.warn('Failed to cleanup failed booking:', cleanupErr);
+        }
+      }
       setErrorMsg(err.response?.data?.message || err.message || 'Booking could not be finalized. Please try again.');
     } finally {
       setSubmitting(false);
@@ -388,6 +482,43 @@ const BookAppointment = () => {
               </div>
             </div>
           </div>
+
+          {/* Expert Account Notice */}
+          {user && (user.role === 'expert' || user.role === 'stylist') && (
+            <div style={{
+              background: 'rgba(245, 158, 11, 0.1)',
+              border: '1.5px solid rgba(245, 158, 11, 0.35)',
+              borderRadius: '16px',
+              padding: '1rem 1.25rem',
+              marginBottom: '1.25rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '0.75rem',
+              color: '#d97706'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                <AlertCircle size={22} style={{ flexShrink: 0, color: '#f59e0b' }} />
+                <div>
+                  <strong style={{ fontSize: '0.95rem', display: 'block', color: '#b45309' }}>
+                    Expert Account Detected
+                  </strong>
+                  <span style={{ fontSize: '0.825rem', color: '#92400e' }}>
+                    Only customer/student accounts can book appointments. Experts cannot book appointments.
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => navigate('/expert')}
+                className="btn btn-secondary"
+                style={{ fontSize: '0.825rem', padding: '0.45rem 0.95rem' }}
+              >
+                Go to Expert Workspace
+              </button>
+            </div>
+          )}
 
           {/* Stepper Progress Bar */}
           <div style={{
@@ -1110,7 +1241,7 @@ const BookAppointment = () => {
               {/* Submit Button */}
               <button
                 type="button"
-                disabled={submitting || (paymentMethod === 'wallet' && walletBalance < (selectedService.price || 0))}
+                disabled={submitting || (user && (user.role === 'expert' || user.role === 'stylist')) || (paymentMethod === 'wallet' && walletBalance < (selectedService.price || 0))}
                 onClick={handleConfirmAndPay}
                 className="btn btn-primary"
                 style={{
@@ -1122,12 +1253,18 @@ const BookAppointment = () => {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  gap: '0.5rem'
+                  gap: '0.5rem',
+                  opacity: (user && (user.role === 'expert' || user.role === 'stylist')) ? 0.6 : 1,
+                  cursor: (user && (user.role === 'expert' || user.role === 'stylist')) ? 'not-allowed' : 'pointer'
                 }}
               >
                 {submitting ? (
                   <>
                     <RefreshCw size={18} className="animate-spin" /> Processing Reservation...
+                  </>
+                ) : (user && (user.role === 'expert' || user.role === 'stylist')) ? (
+                  <>
+                    <AlertCircle size={18} /> Experts Cannot Book (Customers Only)
                   </>
                 ) : (
                   <>

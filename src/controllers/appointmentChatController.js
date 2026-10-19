@@ -85,7 +85,7 @@ const getAllUserConversations = async (req, res, next) => {
         const appointments = await Appointment.find({
             $or: [
                 { user_id: userId },
-                { stylist_id: userId }
+                { stylist_id: userId, paymentStatus: { $in: ['paid', 'refunded'] } }
             ]
         })
         .populate('service_id', 'name price duration category image')

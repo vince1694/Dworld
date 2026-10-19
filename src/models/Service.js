@@ -17,7 +17,7 @@ serviceSchema.index({ category: 1 });     // category filter queries
 
 
 serviceSchema.statics.getAll = function() {
-  return this.find().populate('stylist_id', 'name email role phone specialty bio rating portfolio workingDays workingHours');
+  return this.find().populate('stylist_id', 'name email role phone specialty bio rating portfolio workingDays workingHours').lean();
 };
 
 serviceSchema.statics.getById = function(id) {

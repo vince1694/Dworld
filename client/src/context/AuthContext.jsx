@@ -16,18 +16,41 @@ axios.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
+// Read cached user from localStorage for instant optimistic render
+const readCachedUser = () => {
+  try {
+    const raw = localStorage.getItem('dworld_user');
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+};
+const writeCachedUser = (u) => {
+  try {
+    if (u) localStorage.setItem('dworld_user', JSON.stringify(u));
+    else localStorage.removeItem('dworld_user');
+  } catch {}
+};
+
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  // Seed from cache so user is available immediately — no spinner on reload
+  const [user, setUser] = useState(() => {
+    const tok = localStorage.getItem('token');
+    return tok ? readCachedUser() : null;
+  });
+  // loading=false when a token is present and cached user exists (optimistic)
+  const [loading, setLoading] = useState(() => {
+    const tok = localStorage.getItem('token');
+    return !tok || !readCachedUser(); // only block if no cache available
+  });
   const [token, setToken] = useState(() => localStorage.getItem('token'));
 
   useEffect(() => {
     if (token) {
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      fetchUser();
+      fetchUser(); // silently revalidate in background
     } else {
       delete axios.defaults.headers.common['Authorization'];
       setUser(null);
+      writeCachedUser(null);
       setLoading(false);
     }
   }, [token]);
@@ -37,12 +60,14 @@ export const AuthProvider = ({ children }) => {
       const res = await axios.get(`${API_URL}/auth/me`);
       if (res.data?.success && res.data?.user) {
         setUser(res.data.user);
+        writeCachedUser(res.data.user); // keep cache fresh
       }
     } catch (err) {
       console.error('Failed to fetch user', err);
       // Only clear credentials if server explicitly rejected with 401 Unauthorized
       if (err.response && err.response.status === 401) {
         localStorage.removeItem('token');
+        writeCachedUser(null);
         setToken(null);
         setUser(null);
       }
@@ -57,6 +82,7 @@ export const AuthProvider = ({ children }) => {
     
     // Attach authorization immediately before any navigation
     localStorage.setItem('token', token);
+    writeCachedUser(user);
     axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     setToken(token);
     setUser(user);
@@ -76,6 +102,7 @@ export const AuthProvider = ({ children }) => {
     const { token, user } = res.data;
     
     localStorage.setItem('token', token);
+    writeCachedUser(user);
     axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     setToken(token);
     setUser(user);
@@ -85,6 +112,7 @@ export const AuthProvider = ({ children }) => {
 
   const logout = () => {
     localStorage.removeItem('token');
+    writeCachedUser(null);
     delete axios.defaults.headers.common['Authorization'];
     setToken(null);
     setUser(null);
@@ -95,8 +123,17 @@ export const AuthProvider = ({ children }) => {
     await fetchUser();
   };
 
+  // Optimistic local update — for avatar/profile changes that don't need a re-fetch
+  const updateUserCache = (partial) => {
+    setUser(prev => {
+      const updated = { ...prev, ...partial };
+      writeCachedUser(updated);
+      return updated;
+    });
+  };
+
   return (
-    <AuthContext.Provider value={{ user, setUser, loading, login, initiateRegister, verifyRegistration, logout, refreshUser }}>
+    <AuthContext.Provider value={{ user, setUser, loading, login, initiateRegister, verifyRegistration, logout, refreshUser, updateUserCache }}>
       {children}
     </AuthContext.Provider>
   );
