@@ -496,22 +496,18 @@ const StatBanner = ({ appointments, loading }) => {
   ];
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.85rem', marginBottom: '1.5rem' }}>
+    <div className="myappt-stat-grid">
       {items.map((item, i) => (
-        <div key={i} style={{
-          background: '#fff', border: '1px solid #e2e8f0', borderRadius: '16px',
-          padding: '1rem 1.1rem', display: 'flex', alignItems: 'center', gap: '0.75rem',
-          boxShadow: '0 1px 6px rgba(15,23,42,0.04)',
-        }}>
-          <div style={{ width: 40, height: 40, borderRadius: '12px', background: item.bg, color: item.color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+        <div key={i} className="myappt-stat-item">
+          <div className="stat-icon-circle" style={{ width: 40, height: 40, borderRadius: '12px', background: item.bg, color: item.color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
             {item.icon}
           </div>
-          <div>
+          <div style={{ minWidth: 0 }}>
             {loading
               ? <div className="stat-shimmer" style={{ height: '1.4rem', width: '3rem', borderRadius: 6 }} />
-              : <div style={{ fontFamily: 'Outfit', fontWeight: 800, fontSize: '1.25rem', color: '#0f172a', lineHeight: 1.1 }}>{item.value}</div>
+              : <div className="stat-value" style={{ fontFamily: 'Outfit', fontWeight: 800, fontSize: '1.25rem', color: '#0f172a', lineHeight: 1.1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.value}</div>
             }
-            <div style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 600, marginTop: '0.15rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{item.label}</div>
+            <div className="stat-title" style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 600, marginTop: '0.15rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{item.label}</div>
           </div>
         </div>
       ))}
@@ -561,14 +557,10 @@ const MyAppointments = ({
       <StatBanner appointments={appointments} loading={loading} />
 
       {/* ── Controls Bar ── */}
-      <div style={{
-        background: '#fff', border: '1px solid #e2e8f0', borderRadius: '18px',
-        padding: '0.85rem 1.1rem', marginBottom: '1.25rem',
-        display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap',
-        boxShadow: '0 1px 6px rgba(15,23,42,0.04)',
-      }}>
+      {/* ── Controls Bar ── */}
+      <div className="myappt-controls-bar">
         {/* Search */}
-        <div style={{ position: 'relative', flex: '1 1 180px', minWidth: 160 }}>
+        <div className="myappt-search-wrapper" style={{ position: 'relative', flex: '1 1 180px', minWidth: 160 }}>
           <Search size={15} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', pointerEvents: 'none' }} />
           <input
             type="text"
@@ -593,7 +585,7 @@ const MyAppointments = ({
         </div>
 
         {/* Filter chips */}
-        <div style={{ display: 'flex', gap: '0.35rem', overflowX: 'auto', flexShrink: 0, WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none' }}>
+        <div className="myappt-chips-wrapper chips-scroller" style={{ display: 'flex', gap: '0.35rem', overflowX: 'auto', flexShrink: 0, WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none' }}>
           {FILTERS.map(f => {
             const m = STATUS_META[f];
             const isActive = filterStatus === f;
@@ -619,51 +611,56 @@ const MyAppointments = ({
           })}
         </div>
 
-        {/* View mode toggle */}
-        <div style={{ display: 'flex', gap: '0.25rem', background: '#f1f5f9', borderRadius: '10px', padding: '3px', flexShrink: 0 }}>
-          {[{ mode: 'grid', Icon: LayoutGrid }, { mode: 'timeline', Icon: List }].map(({ mode, Icon }) => (
+        {/* Actions row: View mode toggle & Buttons */}
+        <div className="myappt-actions-row">
+          {/* View mode toggle */}
+          <div style={{ display: 'flex', gap: '0.25rem', background: '#f1f5f9', borderRadius: '10px', padding: '3px', flexShrink: 0 }}>
+            {[{ mode: 'grid', Icon: LayoutGrid }, { mode: 'timeline', Icon: List }].map(({ mode, Icon }) => (
+              <button
+                key={mode}
+                onClick={() => setViewMode(mode)}
+                title={mode.charAt(0).toUpperCase() + mode.slice(1)}
+                style={{
+                  width: 32, height: 32, borderRadius: '8px', border: 'none',
+                  background: viewMode === mode ? '#ffffff' : 'transparent',
+                  color: viewMode === mode ? '#6366f1' : '#94a3b8',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  cursor: 'pointer', boxShadow: viewMode === mode ? '0 1px 4px rgba(0,0,0,0.08)' : 'none',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                <Icon size={15} />
+              </button>
+            ))}
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
+            {/* Clear History */}
+            {hasHistory && (
+              <button
+                onClick={onClearHistory}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
+                  padding: '0.38rem 0.7rem', borderRadius: '999px',
+                  border: '1px solid rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.06)',
+                  color: '#ef4444', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer',
+                  flexShrink: 0,
+                }}
+              >
+                <Trash2 size={12} /> Clear History
+              </button>
+            )}
+
+            {/* Book new */}
             <button
-              key={mode}
-              onClick={() => setViewMode(mode)}
-              title={mode.charAt(0).toUpperCase() + mode.slice(1)}
-              style={{
-                width: 32, height: 32, borderRadius: '8px', border: 'none',
-                background: viewMode === mode ? '#ffffff' : 'transparent',
-                color: viewMode === mode ? '#6366f1' : '#94a3b8',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                cursor: 'pointer', boxShadow: viewMode === mode ? '0 1px 4px rgba(0,0,0,0.08)' : 'none',
-                transition: 'all 0.15s ease',
-              }}
+              onClick={onBook}
+              className="btn btn-primary"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.82rem', padding: '0.45rem 0.85rem', minHeight: 36, flexShrink: 0 }}
             >
-              <Icon size={15} />
+              <CalendarPlus size={14} /> New Booking
             </button>
-          ))}
+          </div>
         </div>
-
-        {/* Clear History */}
-        {hasHistory && (
-          <button
-            onClick={onClearHistory}
-            style={{
-              display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
-              padding: '0.38rem 0.7rem', borderRadius: '999px',
-              border: '1px solid rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.06)',
-              color: '#ef4444', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer',
-              flexShrink: 0,
-            }}
-          >
-            <Trash2 size={12} /> Clear History
-          </button>
-        )}
-
-        {/* Book new */}
-        <button
-          onClick={onBook}
-          className="btn btn-primary"
-          style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.82rem', padding: '0.45rem 0.85rem', minHeight: 36, flexShrink: 0 }}
-        >
-          <CalendarPlus size={14} /> New Booking
-        </button>
       </div>
 
       {/* ── Count label ── */}
@@ -681,7 +678,7 @@ const MyAppointments = ({
             key="skeleton"
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             style={viewMode === 'grid'
-              ? { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1rem' }
+              ? { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))', gap: '1rem' }
               : { display: 'flex', flexDirection: 'column', gap: '0' }
             }
           >
@@ -695,7 +692,7 @@ const MyAppointments = ({
           <motion.div
             key="grid"
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1rem' }}
+            style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))', gap: '1rem' }}
           >
             <AnimatePresence>
               {filtered.map(app => (

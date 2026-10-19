@@ -539,7 +539,7 @@ const Dashboard = () => {
       />
 
       {/* LIGHT MODE BENTO HERO BANNER WITH PROFILE PICTURE */}
-      <div className="bento-card" style={{ padding: '1.75rem', background: 'linear-gradient(135deg, rgba(79, 70, 229, 0.08), rgba(124, 58, 237, 0.08), rgba(2, 132, 199, 0.06))', borderColor: 'rgba(79, 70, 229, 0.15)' }}>
+      <div className="bento-card dashboard-hero-card">
         {/* Hidden input for changing profile photo directly from dashboard banner */}
         <input 
           type="file"
@@ -549,7 +549,7 @@ const Dashboard = () => {
           style={{ display: 'none' }}
         />
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+        <div className="dashboard-hero-wrapper">
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', minWidth: 0 }}>
             {/* User Profile Avatar */}
             <div style={{ position: 'relative', flexShrink: 0 }}>
@@ -562,8 +562,8 @@ const Dashboard = () => {
                   }
                 }}
                 style={{ 
-                  width: '58px', 
-                  height: '58px', 
+                  width: '54px', 
+                  height: '54px', 
                   borderRadius: '16px', 
                   background: 'linear-gradient(135deg, var(--primary), var(--secondary))', 
                   display: 'flex', 
@@ -576,13 +576,11 @@ const Dashboard = () => {
                   outline: '2px solid rgba(79, 70, 229, 0.25)',
                   transition: 'transform 0.2s ease, box-shadow 0.2s ease',
                   fontWeight: 800,
-                  fontSize: '1.3rem',
+                  fontSize: '1.25rem',
                   color: '#fff',
                   fontFamily: 'Outfit, sans-serif'
                 }}
                 title={user?.avatar ? 'View profile photo' : 'Click to upload profile photo'}
-                onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.05)'}
-                onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
               >
                 {user?.avatar ? (
                   <img 
@@ -622,8 +620,8 @@ const Dashboard = () => {
             </div>
 
             <div style={{ minWidth: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginBottom: '0.15rem', flexWrap: 'wrap' }}>
-                <h1 style={{ fontSize: 'clamp(1.25rem, 4vw, 1.75rem)', margin: 0, fontFamily: 'Outfit', lineHeight: 1.1 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.15rem', flexWrap: 'wrap' }}>
+                <h1 style={{ fontSize: 'clamp(1.18rem, 4vw, 1.7rem)', margin: 0, fontFamily: 'Outfit', lineHeight: 1.15 }}>
                   {getGreeting()}, {user?.name?.split(' ')[0] || 'User'}
                 </h1>
                 {nextUpcoming && (
@@ -632,7 +630,7 @@ const Dashboard = () => {
                   </span>
                 )}
               </div>
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', margin: 0 }}>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: 0 }}>
                 Welcome to your D.WORLD workspace. Manage bookings in real-time.
               </p>
             </div>
@@ -640,8 +638,7 @@ const Dashboard = () => {
 
           <button 
             onClick={() => navigate('/book')}
-            className="btn btn-primary"
-            style={{ padding: '0.8rem 1.5rem', fontSize: '0.9rem', flexShrink: 0 }}
+            className="btn btn-primary dashboard-hero-cta"
           >
             <CalendarPlus size={17} /> Book Appointment
           </button>
@@ -667,44 +664,44 @@ const Dashboard = () => {
         }
       `}</style>
       <div className="bento-grid">
-        <div className="bento-card bento-span-3" style={{ padding: '1.35rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600 }}>CONFIRMED</span>
-            <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(99, 102, 241, 0.12)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <CalendarCheck size={18} />
+        <div className="bento-card bento-span-3 dashboard-stat-card">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.65rem' }}>
+            <span className="stat-label" style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 700 }}>CONFIRMED</span>
+            <div className="stat-icon-wrapper" style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(99, 102, 241, 0.12)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <CalendarCheck size={17} />
             </div>
           </div>
-          {apptLoading ? <div className="stat-shimmer" style={{ height: '2.2rem', width: '3rem' }} /> : <h2 style={{ fontSize: '2rem', margin: 0, color: 'var(--primary)', fontFamily: 'Outfit' }}>{approvedCount}</h2>}
+          {apptLoading ? <div className="stat-shimmer" style={{ height: '2rem', width: '3rem' }} /> : <h2 style={{ margin: 0, color: 'var(--primary)' }}>{approvedCount}</h2>}
         </div>
 
-        <div className="bento-card bento-span-3" style={{ padding: '1.35rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600 }}>PENDING</span>
-            <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(245, 158, 11, 0.12)', color: 'var(--warning)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Clock size={18} />
+        <div className="bento-card bento-span-3 dashboard-stat-card">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.65rem' }}>
+            <span className="stat-label" style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 700 }}>PENDING</span>
+            <div className="stat-icon-wrapper" style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(245, 158, 11, 0.12)', color: 'var(--warning)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Clock size={17} />
             </div>
           </div>
-          {apptLoading ? <div className="stat-shimmer" style={{ height: '2.2rem', width: '3rem' }} /> : <h2 style={{ fontSize: '2rem', margin: 0, color: 'var(--warning)', fontFamily: 'Outfit' }}>{pendingCount}</h2>}
+          {apptLoading ? <div className="stat-shimmer" style={{ height: '2rem', width: '3rem' }} /> : <h2 style={{ margin: 0, color: 'var(--warning)' }}>{pendingCount}</h2>}
         </div>
 
-        <div className="bento-card bento-span-3" style={{ padding: '1.35rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600 }}>COMPLETED</span>
-            <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(16, 185, 129, 0.12)', color: 'var(--success)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Award size={18} />
+        <div className="bento-card bento-span-3 dashboard-stat-card">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.65rem' }}>
+            <span className="stat-label" style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 700 }}>COMPLETED</span>
+            <div className="stat-icon-wrapper" style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(16, 185, 129, 0.12)', color: 'var(--success)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Award size={17} />
             </div>
           </div>
-          {apptLoading ? <div className="stat-shimmer" style={{ height: '2.2rem', width: '3rem' }} /> : <h2 style={{ fontSize: '2rem', margin: 0, color: 'var(--success)', fontFamily: 'Outfit' }}>{completedCount}</h2>}
+          {apptLoading ? <div className="stat-shimmer" style={{ height: '2rem', width: '3rem' }} /> : <h2 style={{ margin: 0, color: 'var(--success)' }}>{completedCount}</h2>}
         </div>
 
-        <div className="bento-card bento-span-3" style={{ padding: '1.35rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600 }}>TOTAL BOOKINGS</span>
-            <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(255, 255, 255, 0.05)', color: 'var(--text-main)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <TrendingUp size={18} />
+        <div className="bento-card bento-span-3 dashboard-stat-card">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.65rem' }}>
+            <span className="stat-label" style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 700 }}>TOTAL</span>
+            <div className="stat-icon-wrapper" style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(255, 255, 255, 0.05)', color: 'var(--text-main)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <TrendingUp size={17} />
             </div>
           </div>
-          {apptLoading ? <div className="stat-shimmer" style={{ height: '2.2rem', width: '3rem' }} /> : <h2 style={{ fontSize: '2rem', margin: 0, color: 'var(--text-main)', fontFamily: 'Outfit' }}>{totalCount}</h2>}
+          {apptLoading ? <div className="stat-shimmer" style={{ height: '2rem', width: '3rem' }} /> : <h2 style={{ margin: 0, color: 'var(--text-main)' }}>{totalCount}</h2>}
         </div>
       </div>
 
@@ -774,22 +771,11 @@ const Dashboard = () => {
                   return (
                     <div 
                       key={expertId}
-                      style={{
-                        padding: '0.9rem 1.15rem',
-                        borderRadius: '16px',
-                        background: 'rgba(255, 255, 255, 0.02)',
-                        border: '1px solid var(--border-light)',
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        gap: '0.85rem',
-                        transition: 'all 0.2s ease',
-                        pointerEvents: 'auto'
-                      }}
-                      className="hover-card-select"
+                      className="specialist-card-row hover-card-select"
                     >
                       <div 
                         onClick={() => navigate(`/expert/${expertId}`)}
+                        className="expert-info-group"
                         style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0, cursor: 'pointer' }}
                         title={`View ${expert.name}'s Professional Page & Works`}
                       >
@@ -850,6 +836,7 @@ const Dashboard = () => {
                       <button
                         type="button"
                         onClick={() => navigate(`/book?expertId=${expertId}`)}
+                        className="book-btn"
                         style={{
                           padding: '0.45rem 0.85rem',
                           borderRadius: '10px',
@@ -923,7 +910,7 @@ const Dashboard = () => {
 
           <div className="card-body">
             {/* AVATAR PROFILE PICTURE UPLOADER */}
-            <div style={{
+            <div className="profile-avatar-row" style={{
               display: 'flex',
               alignItems: 'center',
               gap: '1.5rem',
@@ -1001,7 +988,7 @@ const Dashboard = () => {
               </div>
 
               {/* Upload Controls & Lightbox Button */}
-              <div style={{ flex: 1 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
                 <h4 style={{ margin: '0 0 0.25rem', fontSize: '1rem', fontFamily: 'Outfit', fontWeight: 700 }}>
                   Profile Picture
                 </h4>
@@ -1009,7 +996,7 @@ const Dashboard = () => {
                   PNG, JPG, or WEBP up to 10MB. Uploads are stored securely via Cloudinary.
                 </p>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
+                <div className="controls" style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
                   <input 
                     type="file" 
                     ref={avatarInputRef}

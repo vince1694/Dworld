@@ -818,6 +818,237 @@ a {
   }
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   CUSTOMER DASHBOARD MOBILE SWEEPS
+═══════════════════════════════════════════════════════════════ */
+.dashboard-hero-card {
+  padding: 1.75rem;
+  background: linear-gradient(135deg, rgba(79, 70, 229, 0.08), rgba(124, 58, 237, 0.08), rgba(2, 132, 199, 0.06));
+  border-color: rgba(79, 70, 229, 0.15);
+}
+
+.dashboard-hero-wrapper {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+}
+
+.dashboard-hero-cta {
+  padding: 0.8rem 1.5rem;
+  font-size: 0.9rem;
+  flex-shrink: 0;
+}
+
+.dashboard-stat-card {
+  padding: 1.35rem;
+}
+
+.dashboard-stat-card h2 {
+  font-size: 2rem;
+  margin: 0;
+  font-family: 'Outfit', sans-serif;
+}
+
+.myappt-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.85rem;
+  margin-bottom: 1.5rem;
+}
+
+.myappt-stat-item {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 1rem 1.1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  box-shadow: 0 1px 6px rgba(15,23,42,0.04);
+}
+
+.myappt-controls-bar {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 18px;
+  padding: 0.85rem 1.1rem;
+  margin-bottom: 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  box-shadow: 0 1px 6px rgba(15,23,42,0.04);
+}
+
+.specialist-card-row {
+  padding: 0.9rem 1.15rem;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-light);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.85rem;
+  transition: all 0.2s ease;
+}
+
+@media (max-width: 768px) {
+  .dashboard-hero-card {
+    padding: 1.15rem 1rem !important;
+    border-radius: 18px !important;
+  }
+
+  .dashboard-hero-wrapper {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 1rem !important;
+  }
+
+  .dashboard-hero-cta {
+    width: 100% !important;
+    justify-content: center !important;
+    min-height: 48px !important;
+    font-size: 0.92rem !important;
+    font-weight: 800 !important;
+  }
+
+  .dashboard-stat-card {
+    padding: 0.85rem 0.8rem !important;
+    border-radius: 14px !important;
+  }
+
+  .dashboard-stat-card h2 {
+    font-size: 1.5rem !important;
+  }
+
+  .dashboard-stat-card .stat-label {
+    font-size: 0.68rem !important;
+    letter-spacing: 0.04em !important;
+  }
+
+  .dashboard-stat-card .stat-icon-wrapper {
+    width: 28px !important;
+    height: 28px !important;
+  }
+
+  /* My Appointments responsive stat banner */
+  .myappt-stat-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 0.6rem !important;
+    margin-bottom: 1rem !important;
+  }
+
+  .myappt-stat-item {
+    padding: 0.75rem 0.8rem !important;
+    border-radius: 14px !important;
+    gap: 0.55rem !important;
+  }
+
+  .myappt-stat-item .stat-icon-circle {
+    width: 34px !important;
+    height: 34px !important;
+  }
+
+  .myappt-stat-item .stat-value {
+    font-size: 1.1rem !important;
+  }
+
+  .myappt-stat-item .stat-title {
+    font-size: 0.65rem !important;
+  }
+
+  .myappt-controls-bar {
+    padding: 0.75rem !important;
+    border-radius: 16px !important;
+    gap: 0.6rem !important;
+  }
+
+  .myappt-search-wrapper {
+    flex: 1 1 100% !important;
+    min-width: 100% !important;
+  }
+
+  .myappt-chips-wrapper {
+    width: 100% !important;
+    padding-bottom: 0.2rem;
+  }
+
+  .myappt-actions-row {
+    width: 100% !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    gap: 0.5rem !important;
+  }
+
+  .specialist-card-row {
+    padding: 0.75rem 0.85rem !important;
+    border-radius: 14px !important;
+    gap: 0.65rem !important;
+  }
+
+  .specialist-card-row .book-btn {
+    padding: 0.45rem 0.75rem !important;
+    font-size: 0.75rem !important;
+    min-height: 36px !important;
+  }
+
+  .profile-avatar-row {
+    flex-direction: column !important;
+    align-items: center !important;
+    text-align: center !important;
+    gap: 1rem !important;
+    padding: 1.25rem 1rem !important;
+  }
+
+  .profile-avatar-row .controls {
+    justify-content: center !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .dashboard-stat-card h2 {
+    font-size: 1.35rem !important;
+  }
+
+  .specialist-card-row {
+    flex-wrap: wrap !important;
+  }
+
+  .specialist-card-row .expert-info-group {
+    width: 100% !important;
+  }
+
+  .specialist-card-row .book-btn {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+
+  /* Standalone Appointment Page Mobile Sweeps */
+  .appt-hero-banner {
+    padding: 1.25rem 1rem !important;
+    border-radius: 18px !important;
+  }
+
+  .appt-action-bar {
+    padding: 1rem !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 0.85rem !important;
+  }
+
+  .appt-action-bar > div {
+    width: 100% !important;
+  }
+
+  .appt-action-bar .btn {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+}
+
 /* Horizontal Chip Scroller without scrollbar */
 .chips-scroller {
   display: flex;

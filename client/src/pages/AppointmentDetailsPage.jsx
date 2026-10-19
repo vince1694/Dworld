@@ -252,6 +252,7 @@ const AppointmentDetailsPage = () => {
       <motion.div
         initial={{ opacity: 0, y: 15 }}
         animate={{ opacity: 1, y: 0 }}
+        className="appt-hero-banner"
         style={{
           background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(168, 85, 247, 0.04) 100%)',
           borderRadius: '24px',
@@ -588,6 +589,7 @@ const AppointmentDetailsPage = () => {
         initial={{ opacity: 0, y: 15 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
+        className="appt-action-bar"
         style={{
           background: 'var(--surface)',
           borderRadius: '20px',
