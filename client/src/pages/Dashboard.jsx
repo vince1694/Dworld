@@ -41,6 +41,7 @@ import ReviewModal from '../components/ReviewModal';
 import AppointmentChatModal from '../components/AppointmentChatModal';
 import ConfirmModal from '../components/ConfirmModal';
 import ImageLightboxModal from '../components/ImageLightboxModal';
+import MyAppointments from '../components/MyAppointments';
 import { getGoogleCalendarUrl, downloadIcsFile } from '../utils/calendar';
 
 import { API_URL } from '../config/api';
@@ -711,227 +712,23 @@ const Dashboard = () => {
       {activeTab === 'overview' ? (
         <div className="bento-grid">
           
-          {/* BENTO SPAN 7: SCHEDULE TIMELINE */}
-          <div className="bento-card bento-span-7">
-            <div className="card-header" style={{ flexWrap: 'wrap', gap: '1rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <div style={{ padding: '0.5rem', background: 'rgba(168, 85, 247, 0.1)', borderRadius: '8px', color: 'var(--secondary)' }}>
-                  <ListChecks size={20} />
-                </div>
-                <div>
-                  <h3 style={{ margin: 0, fontSize: '1.15rem' }}>My Appointments</h3>
-                  <p style={{ margin: 0, fontSize: '0.825rem', color: 'var(--text-muted)' }}>Real-time booking schedule</p>
-                </div>
-              </div>
-
-              {/* Status Filter Chips & Clear History */}
-              <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', paddingBottom: '0.1rem' }}>
-                <div style={{ display: 'inline-flex', gap: '0.35rem', alignItems: 'center', whiteSpace: 'nowrap', minWidth: 'max-content' }}>
-                {['all', 'pending', 'approved', 'completed', 'cancelled'].map(status => (
-                  <button
-                    key={status}
-                    onClick={() => setFilterStatus(status)}
-                    style={{
-                      padding: '0.3rem 0.65rem',
-                      borderRadius: '9999px',
-                      border: '1px solid var(--border-light)',
-                      background: filterStatus === status ? 'var(--primary)' : 'rgba(255, 255, 255, 0.02)',
-                      color: filterStatus === status ? 'white' : 'var(--text-muted)',
-                      fontSize: '0.75rem',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                      textTransform: 'capitalize',
-                      minHeight: '30px'
-                    }}
-                  >
-                    {status}
-                  </button>
-                ))}
-                
-                {appointments.some(a => a.status === 'completed' || a.status === 'cancelled') && (
-                  <button
-                    onClick={handleClearHistory}
-                    style={{
-                      padding: '0.3rem 0.65rem',
-                      borderRadius: '9999px',
-                      border: '1px solid rgba(239, 68, 68, 0.3)',
-                      background: 'rgba(239, 68, 68, 0.08)',
-                      color: '#dc2626',
-                      fontSize: '0.75rem',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '0.25rem',
-                      marginLeft: '0.25rem',
-                      minHeight: '30px'
-                    }}
-                  >
-                    <Trash2 size={12} /> Clear
-                  </button>
-                )}
-                </div>
-              </div>
-            </div>
-
-            <div className="card-body" style={{ padding: 0 }}>
-              {apptLoading ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
-                  {[1,2,3].map(i => (
-                    <div key={i} style={{ padding: '1.1rem 1.25rem', borderBottom: '1px solid var(--border-light)', display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
-                      <div className="stat-shimmer" style={{ width: 42, height: 42, borderRadius: 11, flexShrink: 0 }} />
-                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                        <div className="stat-shimmer" style={{ height: '0.9rem', width: '55%', borderRadius: 4 }} />
-                        <div className="stat-shimmer" style={{ height: '0.75rem', width: '35%', borderRadius: 4 }} />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : filteredAppointments.length > 0 ? (
-                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  {filteredAppointments.map((app) => (
-                    <div 
-                      key={app.id || app._id}
-                      onClick={() => setSelectedAppointment(app)}
-                      className="hover-card-select appt-list-item"
-                      style={{ 
-                        display: 'flex', 
-                        justifyContent: 'space-between', 
-                        alignItems: 'center',
-                        padding: '1.1rem 1.25rem',
-                        borderBottom: '1px solid var(--border-light)',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s ease',
-                        gap: '0.75rem'
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', minWidth: 0 }}>
-                        <div style={{
-                          width: '42px',
-                          height: '42px',
-                          borderRadius: '11px',
-                          background: 'rgba(99, 102, 241, 0.1)',
-                          border: '1px solid rgba(99, 102, 241, 0.2)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          color: 'var(--primary)',
-                          flexShrink: 0
-                        }}>
-                          <CalendarCheck size={18} />
-                        </div>
-                        <div style={{ minWidth: 0 }}>
-                          <span style={{ fontWeight: 700, color: 'var(--text-main)', fontSize: '0.95rem', display: 'block', fontFamily: 'Outfit', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {app.service_id?.name || 'Appointment'}
-                          </span>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginTop: '0.2rem', fontSize: '0.78rem', color: 'var(--text-muted)', flexWrap: 'wrap' }}>
-                            <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                              <Clock size={12} color="var(--primary)" /> {app.date} at {app.time}
-                            </span>
-                            <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                              <User size={12} color="var(--secondary)" /> {app.service_id?.duration || 45} mins
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="appt-list-item-actions" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setChatAppointment(app);
-                          }}
-                          style={{
-                            background: 'rgba(99, 102, 241, 0.1)',
-                            border: '1px solid rgba(99, 102, 241, 0.25)',
-                            color: 'var(--primary)',
-                            padding: '0.35rem 0.6rem',
-                            borderRadius: '8px',
-                            cursor: 'pointer',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '0.3rem',
-                            fontSize: '0.75rem',
-                            fontWeight: 600,
-                            minHeight: '32px'
-                          }}
-                          title="Message Stylist"
-                        >
-                          <MessageSquare size={12} /> Chat
-                        </button>
-                        {(app.status === 'pending' || app.status === 'approved') && (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              openRescheduleModal(app);
-                            }}
-                            style={{
-                              background: 'rgba(245, 158, 11, 0.1)',
-                              border: '1px solid rgba(245, 158, 11, 0.25)',
-                              color: '#d97706',
-                              padding: '0.35rem 0.55rem',
-                              borderRadius: '8px',
-                              cursor: 'pointer',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '0.25rem',
-                              fontSize: '0.75rem',
-                              fontWeight: 600,
-                              minHeight: '32px'
-                            }}
-                            title="Reschedule Booking"
-                          >
-                            <RotateCcw size={12} /> Reschedule
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteAppointment(app.id || app._id);
-                          }}
-                          style={{
-                            background: 'rgba(239, 68, 68, 0.08)',
-                            border: '1px solid rgba(239, 68, 68, 0.25)',
-                            color: '#ef4444',
-                            padding: '0.35rem 0.55rem',
-                            borderRadius: '8px',
-                            cursor: 'pointer',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '0.25rem',
-                            fontSize: '0.75rem',
-                            fontWeight: 600,
-                            minHeight: '32px'
-                          }}
-                          title="Delete Booking"
-                        >
-                          <Trash2 size={12} /> Delete
-                        </button>
-                        <span className={`status-badge status-${app.status}`}>
-                          {app.status}
-                        </span>
-                        <Eye size={15} color="var(--text-subtle)" />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div style={{ padding: '4rem 1.5rem', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
-                  <CalendarX2 size={48} style={{ color: 'var(--border-strong)' }} />
-                  <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>No appointments match your filter.</p>
-                  <button 
-                    onClick={() => navigate('/book')}
-                    className="btn btn-secondary" 
-                    style={{ fontSize: '0.85rem' }}
-                  >
-                    Schedule One Now
-                  </button>
-                </div>
-              )}
-            </div>
+          {/* MY APPOINTMENTS — Redesigned Premium View */}
+          <div className="bento-span-7">
+            <MyAppointments
+              appointments={appointments}
+              loading={apptLoading}
+              onOpen={(app) => setSelectedAppointment(app)}
+              onChat={(app) => setChatAppointment(app)}
+              onReschedule={(app) => openRescheduleModal(app)}
+              onDelete={(app) => handleDeleteAppointment(app.id || app._id)}
+              onPay={(app) => handlePayAppointment(app)}
+              onReview={(app) => {
+                setSelectedAppointment(app);
+                setIsReviewModalOpen(true);
+              }}
+              onBook={() => navigate('/book')}
+              onClearHistory={handleClearHistory}
+            />
           </div>
 
           {/* BENTO SPAN 5: VERIFIED CAMPUS SPECIALISTS & EXPERTS */}
