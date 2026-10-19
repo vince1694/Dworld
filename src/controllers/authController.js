@@ -590,6 +590,9 @@ const getExperts = async (req, res, next) => {
             servicesByExpert[key].push(svc);
         }
 
+        // Identify experts who have no services registered yet
+        const expertsWithoutServices = experts.filter(exp => !servicesByExpert[String(exp._id)] || servicesByExpert[String(exp._id)].length === 0);
+
         // Fix #9: Use per-expert upsert instead of insertMany to prevent duplicate
         // default services accumulating each time the 60s cache expires.
         if (expertsWithoutServices.length > 0) {
