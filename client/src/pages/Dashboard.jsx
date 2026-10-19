@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNotify } from '../context/NotificationContext';
 import { useSearchParams, useNavigate } from 'react-router-dom';
@@ -64,10 +64,19 @@ const Dashboard = () => {
       return raw ? JSON.parse(raw) : [];
     } catch { return []; }
   });
-  const [appointments, setAppointments] = useState([]);
-  // loading=false immediately — we show skeleton shimmer on individual sections
+  const [appointments, setAppointments] = useState(() => {
+    try {
+      const raw = sessionStorage.getItem('dworld_user_appointments');
+      return raw ? JSON.parse(raw) : [];
+    } catch { return []; }
+  });
+  // loading=false immediately — individual sections show cached data immediately
   const [loading, setLoading] = useState(false);
-  const [apptLoading, setApptLoading] = useState(true);
+  const [apptLoading, setApptLoading] = useState(() => {
+    try {
+      return !sessionStorage.getItem('dworld_user_appointments');
+    } catch { return true; }
+  });
 
   // Lightbox Modal State
   const [lightbox, setLightbox] = useState({
@@ -144,14 +153,15 @@ const Dashboard = () => {
   }, [searchParams]);
 
   const fetchData = async () => {
-    // Fast path: fetch appointments immediately (they change frequently)
-    setApptLoading(true);
+    // If no appointments cached yet, show skeleton, otherwise keep existing view
+    if (!sessionStorage.getItem('dworld_user_appointments')) {
+      setApptLoading(true);
+    }
     try {
-      const [appointmentsRes] = await Promise.all([
-        axios.get(`${API_URL}/appointments/my-appointments`),
-      ]);
+      const appointmentsRes = await axios.get(`${API_URL}/appointments/my-appointments`);
       if (appointmentsRes.data.success) {
         setAppointments(appointmentsRes.data.data);
+        sessionStorage.setItem('dworld_user_appointments', JSON.stringify(appointmentsRes.data.data));
       }
     } catch (err) {
       console.error('Failed to fetch appointments', err);
@@ -229,6 +239,8 @@ const Dashboard = () => {
   };
 
   const handleCancelAppointment = async (appointmentId) => {
+    // Optimistic UI status update
+    setAppointments(prev => prev.map(a => (a._id === appointmentId || a.id === appointmentId) ? { ...a, status: 'cancelled' } : a));
     try {
       const res = await axios.patch(`${API_URL}/appointments/${appointmentId}/status`, { status: 'cancelled' });
       if (res.data.success) {
@@ -238,6 +250,7 @@ const Dashboard = () => {
       }
     } catch (err) {
       addToast(err.response?.data?.message || 'Failed to cancel appointment.', 'error');
+      fetchData(); // Rollback on error
     }
   };
 
@@ -359,15 +372,18 @@ const Dashboard = () => {
       cancelText: 'Keep Booking',
       type: 'danger',
       onConfirm: async () => {
+        // Optimistic UI deletion
+        setAppointments(prev => prev.filter(a => a._id !== appointmentId && a.id !== appointmentId));
+        setSelectedAppointment(null);
         try {
           const res = await axios.delete(`${API_URL}/appointments/${appointmentId}`);
           if (res.data.success) {
             addToast('Booking deleted successfully.', 'info');
-            setSelectedAppointment(null);
             fetchData();
           }
         } catch (err) {
           addToast(err.response?.data?.message || 'Failed to delete booking.', 'error');
+          fetchData(); // Rollback
         } finally {
           setConfirmModal(prev => ({ ...prev, isOpen: false }));
         }
@@ -384,6 +400,8 @@ const Dashboard = () => {
       cancelText: 'Cancel',
       type: 'warning',
       onConfirm: async () => {
+        // Optimistic UI clear of completed/cancelled items
+        setAppointments(prev => prev.filter(a => a.status === 'pending' || a.status === 'approved'));
         try {
           const res = await axios.delete(`${API_URL}/appointments/clear-history`);
           if (res.data.success) {
@@ -392,6 +410,7 @@ const Dashboard = () => {
           }
         } catch (err) {
           addToast('Failed to clear booking history.', 'error');
+          fetchData(); // Rollback
         } finally {
           setConfirmModal(prev => ({ ...prev, isOpen: false }));
         }
@@ -454,22 +473,43 @@ const Dashboard = () => {
     }
   };
 
-  // Compute metrics
-  const pendingCount = appointments.filter(a => a.status === 'pending').length;
-  const approvedCount = appointments.filter(a => a.status === 'approved').length;
-  const completedCount = appointments.filter(a => a.status === 'completed').length;
-  const totalCount = appointments.length;
+  // Memoized Metrics (Single-pass O(N) calculation)
+  const { pendingCount, approvedCount, completedCount, totalCount, nextUpcoming } = useMemo(() => {
+    let pending = 0, approved = 0, completed = 0;
+    let upcoming = null;
+    for (let i = 0; i < appointments.length; i++) {
+      const a = appointments[i];
+      if (a.status === 'pending') {
+        pending++;
+        if (!upcoming) upcoming = a;
+      } else if (a.status === 'approved') {
+        approved++;
+        if (!upcoming) upcoming = a;
+      } else if (a.status === 'completed') {
+        completed++;
+      }
+    }
+    return {
+      pendingCount: pending,
+      approvedCount: approved,
+      completedCount: completed,
+      totalCount: appointments.length,
+      nextUpcoming: upcoming
+    };
+  }, [appointments]);
 
-  const nextUpcoming = appointments.find(a => a.status === 'approved' || a.status === 'pending');
-
-  // Filtered Appointments
-  const filteredAppointments = appointments.filter(app => {
-    const matchesStatus = filterStatus === 'all' ? true : app.status === filterStatus;
-    const serviceName = app.service_id?.name || '';
-    const matchesSearch = serviceName.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          app.date.includes(searchQuery);
-    return matchesStatus && matchesSearch;
-  });
+  // Memoized Filtered Appointments
+  const filteredAppointments = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    return appointments.filter(app => {
+      if (filterStatus !== 'all' && app.status !== filterStatus) return false;
+      if (!query) return true;
+      const serviceName = (app.service_id?.name || '').toLowerCase();
+      const specialistName = (app.stylist_id?.name || '').toLowerCase();
+      const dateStr = app.date || '';
+      return serviceName.includes(query) || specialistName.includes(query) || dateStr.includes(query);
+    });
+  }, [appointments, filterStatus, searchQuery]);
 
   return (
     <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNotify } from '../context/NotificationContext';
 import { useSearchParams, useNavigate } from 'react-router-dom';
@@ -80,14 +80,28 @@ const ExpertDashboard = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get('tab') || 'appointments';
 
-  const [appointments, setAppointments] = useState([]);
-  const [services, setServices] = useState([]);
+  const [appointments, setAppointments] = useState(() => {
+    try {
+      const raw = sessionStorage.getItem('dworld_expert_appointments');
+      return raw ? JSON.parse(raw) : [];
+    } catch { return []; }
+  });
+  const [services, setServices] = useState(() => {
+    try {
+      const raw = sessionStorage.getItem('dworld_expert_services');
+      return raw ? JSON.parse(raw) : [];
+    } catch { return []; }
+  });
   // Start loading=false immediately — skeleton KPIs render at once
   const [loading, setLoading] = useState(false);
-  const [walletBalance, setWalletBalance] = useState(0);
+  const [walletBalance, setWalletBalance] = useState(user?.walletBalance || 0);
   const [walletTransactions, setWalletTransactions] = useState([]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [dataReady, setDataReady] = useState(false); // true once first fetch completes
+  const [dataReady, setDataReady] = useState(() => {
+    try {
+      return !!sessionStorage.getItem('dworld_expert_appointments');
+    } catch { return false; }
+  });
 
   // Lightbox Modal State
   const [lightbox, setLightbox] = useState({
@@ -262,15 +276,25 @@ const ExpertDashboard = () => {
 
   // Single batched fetch — all calls fire in parallel, no waterfall
   const fetchData = async () => {
-    setLoading(true);
+    if (!sessionStorage.getItem('dworld_expert_appointments')) {
+      setLoading(true);
+    }
     try {
       const [appRes, srvRes, walletRes] = await Promise.all([
         axios.get(`${API_URL}/appointments/stylist-dashboard`),
         axios.get(`${API_URL}/services/my-services`),
         axios.get(`${API_URL}/auth/wallet`)
       ]);
-      if (appRes.data.success) setAppointments(appRes.data.data.appointments || []);
-      if (srvRes.data.success) setServices(srvRes.data.data || []);
+      if (appRes.data.success) {
+        const apts = appRes.data.data.appointments || [];
+        setAppointments(apts);
+        sessionStorage.setItem('dworld_expert_appointments', JSON.stringify(apts));
+      }
+      if (srvRes.data.success) {
+        const srvs = srvRes.data.data || [];
+        setServices(srvs);
+        sessionStorage.setItem('dworld_expert_services', JSON.stringify(srvs));
+      }
       if (walletRes.data.success) {
         setWalletBalance(walletRes.data.data.walletBalance || 0);
         setWalletTransactions(walletRes.data.data.transactions || []);
@@ -304,10 +328,18 @@ const ExpertDashboard = () => {
   };
 
   const handleUpdateStatus = async (id, status) => {
+    // Optimistic status update
+    setAppointments(prev => prev.map(a => (a._id === id || a.id === id) ? { ...a, status } : a));
     try {
       const res = await axios.patch(`${API_URL}/appointments/${id}/status`, { status });
-      if (res.data.success) { addToast(`Appointment ${status}`, 'success'); fetchData(); }
-    } catch (err) { addToast('Failed to update appointment status.', 'error'); }
+      if (res.data.success) { 
+        addToast(`Appointment marked as ${status}! ✨`, 'success'); 
+        fetchData(); 
+      }
+    } catch (err) { 
+      addToast('Failed to update appointment status.', 'error'); 
+      fetchData(); // Rollback
+    }
   };
 
   const handleDeleteAppointment = (appointmentId) => {
@@ -318,6 +350,8 @@ const ExpertDashboard = () => {
       confirmText: 'Delete Appointment',
       type: 'danger',
       onConfirm: async () => {
+        // Optimistic deletion
+        setAppointments(prev => prev.filter(a => a._id !== appointmentId && a.id !== appointmentId));
         try {
           const res = await axios.delete(`${API_URL}/appointments/${appointmentId}`);
           if (res.data.success) {
@@ -326,6 +360,7 @@ const ExpertDashboard = () => {
           }
         } catch (err) {
           addToast(err.response?.data?.message || 'Failed to delete appointment.', 'error');
+          fetchData(); // Rollback
         } finally {
           setConfirmModal(prev => ({ ...prev, isOpen: false }));
         }
@@ -473,12 +508,20 @@ const ExpertDashboard = () => {
     }
   };
 
-  const pendingApps   = appointments.filter(a => a.status === 'pending').length;
-  const approvedApps  = appointments.filter(a => a.status === 'approved').length;
-  const completedApps = appointments.filter(a => a.status === 'completed').length;
-  const paidEarnings  = appointments
-    .filter(a => a.paymentStatus === 'paid')
-    .reduce((sum, a) => sum + (a.expertPayout || Math.round((parseFloat(a.service_id?.price) || 0) * 0.90)), 0);
+  const { pendingApps, approvedApps, completedApps, paidEarnings } = useMemo(() => {
+    let pending = 0, approved = 0, completed = 0, earnings = 0;
+    for (let i = 0; i < appointments.length; i++) {
+      const a = appointments[i];
+      if (a.status === 'pending') pending++;
+      else if (a.status === 'approved') approved++;
+      else if (a.status === 'completed') completed++;
+
+      if (a.paymentStatus === 'paid') {
+        earnings += (a.expertPayout || Math.round((parseFloat(a.service_id?.price) || 0) * 0.90));
+      }
+    }
+    return { pendingApps: pending, approvedApps: approved, completedApps: completed, paidEarnings: earnings };
+  }, [appointments]);
 
   const initials = (user?.name || 'E').split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase();
 

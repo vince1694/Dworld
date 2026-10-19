@@ -37,7 +37,7 @@ appointmentSchema.statics.create = async function(appointmentData) {
 appointmentSchema.statics.getByUser = function(userId) {
   return this.find({ user_id: userId })
              .populate('service_id')
-             .populate('stylist_id', 'name email phone specialty bio rating')
+             .populate('stylist_id', 'name email phone specialty bio rating avatar matricNo department address location')
              .sort({ date: -1, time: -1 })
              .lean();
 };
