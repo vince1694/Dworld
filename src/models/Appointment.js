@@ -24,13 +24,13 @@ appointmentSchema.index({ date: 1, time: 1 });                // date/time confl
 
 
 appointmentSchema.statics.create = async function(appointmentData) {
-  let { user_id, service_id, date, time, notes, stylist_id } = appointmentData;
+  let { user_id, service_id, date, time, notes, stylist_id, ...rest } = appointmentData;
   if (!stylist_id) {
     const Service = mongoose.model('Service');
     const service = await Service.findById(service_id);
     if (service) stylist_id = service.stylist_id;
   }
-  const apt = new this({ user_id, service_id, date, time, notes, stylist_id });
+  const apt = new this({ user_id, service_id, date, time, notes, stylist_id, ...rest });
   return await apt.save();
 };
 

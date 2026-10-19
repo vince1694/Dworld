@@ -13,7 +13,11 @@ import {
   FileText,
   CheckCircle2,
   AlertCircle,
-  Download
+  Download,
+  Wallet,
+  CreditCard,
+  Lock,
+  ShieldCheck
 } from 'lucide-react';
 import axios from 'axios';
 
@@ -29,7 +33,7 @@ const DEFAULT_SLOTS = [
 ];
 
 const BookingWizardModal = ({ isOpen, onClose, onBookingSuccess, preselectedServiceId }) => {
-  const { user } = useAuth();
+  const { user, refreshUser, updateUserCache } = useAuth();
   const [step, setStep] = useState(1);
   const [services, setServices] = useState([]);
   const [loadingServices, setLoadingServices] = useState(true);
@@ -44,6 +48,10 @@ const BookingWizardModal = ({ isOpen, onClose, onBookingSuccess, preselectedServ
   const [selectedTime, setSelectedTime] = useState('');
   const [notes, setNotes] = useState('');
   
+  // Payment States
+  const [paymentMethod, setPaymentMethod] = useState('wallet');
+  const [walletBalance, setWalletBalance] = useState(user?.walletBalance || 0);
+  const [confirmedBookingData, setConfirmedBookingData] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [bookingComplete, setBookingComplete] = useState(false);
@@ -52,6 +60,7 @@ const BookingWizardModal = ({ isOpen, onClose, onBookingSuccess, preselectedServ
     if (isOpen) {
       fetchServices();
       fetchVerifiedExperts();
+      fetchUserWallet();
       setStep(1);
       setBookingComplete(false);
       setErrorMsg('');
@@ -60,6 +69,20 @@ const BookingWizardModal = ({ isOpen, onClose, onBookingSuccess, preselectedServ
       }
     }
   }, [isOpen]);
+
+  const fetchUserWallet = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/auth/me`);
+      if (res.data?.success && res.data?.user) {
+        setWalletBalance(res.data.user.walletBalance || 0);
+        if (updateUserCache) updateUserCache({ walletBalance: res.data.user.walletBalance || 0 });
+      }
+    } catch (e) {
+      if (user?.walletBalance !== undefined) {
+        setWalletBalance(user.walletBalance);
+      }
+    }
+  };
 
   const fetchVerifiedExperts = async () => {
     try {
@@ -163,6 +186,13 @@ const BookingWizardModal = ({ isOpen, onClose, onBookingSuccess, preselectedServ
       return;
     }
 
+    const price = parseFloat(selectedService.price || 0);
+
+    if (paymentMethod === 'wallet' && walletBalance < price) {
+      setErrorMsg(`Insufficient wallet balance (₦${walletBalance.toLocaleString()}). Please select Paystack (Card / Bank Transfer) or top up your wallet.`);
+      return;
+    }
+
     try {
       setSubmitting(true);
       setErrorMsg('');
@@ -171,20 +201,114 @@ const BookingWizardModal = ({ isOpen, onClose, onBookingSuccess, preselectedServ
         stylist_id: selectedExpert ? (selectedExpert._id || selectedExpert.id) : (selectedService.stylist_id || null),
         date: selectedDate,
         time: selectedTime,
-        notes
+        notes,
+        paymentMethod: paymentMethod === 'wallet' ? 'wallet' : 'paystack'
       };
 
-      const res = await axios.post(`${API_URL}/appointments/book`, payload);
-      if (res.data.success) {
-        setBookingComplete(true);
-        if (onBookingSuccess) {
-          onBookingSuccess(res.data.data || res.data);
+      if (paymentMethod === 'wallet') {
+        const res = await axios.post(`${API_URL}/appointments/book`, payload);
+        if (res.data.success) {
+          const newBal = res.data.clientWalletBalance !== undefined ? res.data.clientWalletBalance : Math.max(0, walletBalance - price);
+          setWalletBalance(newBal);
+          if (updateUserCache) updateUserCache({ walletBalance: newBal });
+          if (refreshUser) refreshUser();
+          setConfirmedBookingData(res.data.data);
+          setBookingComplete(true);
+          if (onBookingSuccess) {
+            onBookingSuccess(res.data.data || res.data);
+          }
+        } else {
+          throw new Error(res.data.message || 'Payment processing failed');
+        }
+      } else if (paymentMethod === 'paystack') {
+        // Create appointment awaiting Paystack payment
+        const res = await axios.post(`${API_URL}/appointments/book`, { ...payload, paymentMethod: 'unpaid' });
+        if (!res.data.success) {
+          throw new Error(res.data.message || 'Failed to initialize booking');
+        }
+        const bookedApt = res.data.data;
+        const aptId = bookedApt._id || bookedApt.id;
+
+        // Ensure Paystack inline script is ready
+        if (typeof window.PaystackPop === 'undefined') {
+          const script = document.createElement('script');
+          script.src = 'https://js.paystack.co/v1/inline.js';
+          script.async = true;
+          document.head.appendChild(script);
+          await new Promise((resolve) => { script.onload = resolve; script.onerror = resolve; });
+        }
+
+        let publicKey = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY || '';
+        try {
+          const configRes = await axios.get(`${API_URL}/payments/config`);
+          if (configRes.data.success && configRes.data.publicKey) {
+            publicKey = configRes.data.publicKey;
+          }
+        } catch (e) {}
+
+        const userEmail = (user?.email && user.email.trim()) || 'student@dworld.ink';
+
+        if (typeof window.PaystackPop !== 'undefined' && publicKey) {
+          const handler = window.PaystackPop.setup({
+            key: publicKey,
+            email: userEmail,
+            amount: Math.round(price * 100),
+            currency: 'NGN',
+            ref: 'APT-' + Date.now() + '-' + Math.floor(Math.random() * 1000),
+            metadata: {
+              purpose: 'appointment_pay',
+              appointment_id: aptId,
+              user_id: user?.id || user?._id
+            },
+            callback: async (response) => {
+              try {
+                setSubmitting(true);
+                const verifyRes = await axios.post(`${API_URL}/payments/verify`, {
+                  reference: response.reference
+                });
+                if (verifyRes.data.success) {
+                  bookedApt.paymentStatus = 'paid';
+                  setConfirmedBookingData(bookedApt);
+                  if (refreshUser) refreshUser();
+                  setBookingComplete(true);
+                  if (onBookingSuccess) {
+                    onBookingSuccess(bookedApt);
+                  }
+                } else {
+                  setErrorMsg(verifyRes.data.message || 'Payment verification failed');
+                }
+              } catch (err) {
+                setErrorMsg('Payment verification failed. Please contact support.');
+              } finally {
+                setSubmitting(false);
+              }
+            },
+            onClose: () => {
+              setSubmitting(false);
+            }
+          });
+          handler.openIframe();
+        } else {
+          // Fallback to server initialize
+          const initRes = await axios.post(`${API_URL}/payments/initialize`, {
+            amount: price,
+            email: userEmail,
+            purpose: 'appointment_pay',
+            appointment_id: aptId
+          });
+          if (initRes.data.success && initRes.data.data?.authorization_url) {
+            window.location.href = initRes.data.data.authorization_url;
+          } else {
+            throw new Error('Unable to start Paystack checkout. Please try again.');
+          }
         }
       }
     } catch (err) {
-      setErrorMsg(err.response?.data?.message || 'Booking failed. Please check date/time availability.');
+      setErrorMsg(err.response?.data?.message || err.message || 'Booking failed. Please check date/time availability.');
     } finally {
-      setSubmitting(false);
+      if (paymentMethod !== 'paystack') {
+        setSubmitting(false);
+      }
     }
   };
 
@@ -583,6 +707,123 @@ const BookingWizardModal = ({ isOpen, onClose, onBookingSuccess, preselectedServ
                     💡 Your assigned verified specialist will review your exact design request before your session.
                   </span>
                 </div>
+
+                {/* PAYMENT METHOD SELECTION */}
+                <div style={{ marginTop: '1.5rem', marginBottom: '1rem' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem', fontWeight: 700, color: 'var(--text-main)', fontSize: '0.9rem' }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <Lock size={16} color="var(--primary)" /> Select Payment Method
+                    </span>
+                    <span style={{ fontSize: '0.75rem', color: '#10b981', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                      <ShieldCheck size={14} /> Escrow Protected
+                    </span>
+                  </label>
+
+                  {/* Wallet Option */}
+                  <div
+                    onClick={() => { setPaymentMethod('wallet'); setErrorMsg(''); }}
+                    style={{
+                      padding: '1rem 1.15rem',
+                      borderRadius: '14px',
+                      border: '2px solid',
+                      borderColor: paymentMethod === 'wallet' ? 'var(--primary)' : 'var(--border-light)',
+                      background: paymentMethod === 'wallet' ? 'rgba(99, 102, 241, 0.08)' : 'var(--surface)',
+                      cursor: 'pointer',
+                      marginBottom: '0.75rem',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <div style={{
+                          width: 38,
+                          height: 38,
+                          borderRadius: '10px',
+                          background: 'rgba(99, 102, 241, 0.15)',
+                          color: 'var(--primary)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}>
+                          <Wallet size={19} />
+                        </div>
+                        <div>
+                          <strong style={{ fontSize: '0.925rem', color: 'var(--text-main)', display: 'block' }}>
+                            D.WORLD Student Wallet
+                          </strong>
+                          <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                            Instant 1-Click Payment • Funds disbursed instantly
+                          </span>
+                        </div>
+                      </div>
+                      <div style={{ textAlign: 'right' }}>
+                        <span style={{ fontSize: '0.72rem', color: 'var(--text-subtle)', display: 'block' }}>Balance</span>
+                        <strong style={{
+                          fontSize: '0.95rem',
+                          color: walletBalance >= (selectedService?.price || 0) ? '#10b981' : '#ef4444'
+                        }}>
+                          ₦{(walletBalance || 0).toLocaleString()}
+                        </strong>
+                      </div>
+                    </div>
+
+                    {walletBalance < (selectedService?.price || 0) && paymentMethod === 'wallet' && (
+                      <div style={{ marginTop: '0.65rem', padding: '0.5rem 0.75rem', borderRadius: '8px', background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.2)', color: '#ef4444', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                        <AlertCircle size={14} />
+                        <span>Low wallet balance. Select Paystack below to pay directly with Card / Bank Transfer.</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Paystack Option */}
+                  <div
+                    onClick={() => { setPaymentMethod('paystack'); setErrorMsg(''); }}
+                    style={{
+                      padding: '1rem 1.15rem',
+                      borderRadius: '14px',
+                      border: '2px solid',
+                      borderColor: paymentMethod === 'paystack' ? 'var(--primary)' : 'var(--border-light)',
+                      background: paymentMethod === 'paystack' ? 'rgba(99, 102, 241, 0.08)' : 'var(--surface)',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <div style={{
+                          width: 38,
+                          height: 38,
+                          borderRadius: '10px',
+                          background: 'rgba(16, 185, 129, 0.15)',
+                          color: '#10b981',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}>
+                          <CreditCard size={19} />
+                        </div>
+                        <div>
+                          <strong style={{ fontSize: '0.925rem', color: 'var(--text-main)', display: 'block' }}>
+                            Debit Card / Bank Transfer (Paystack)
+                          </strong>
+                          <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                            Secure inline checkout with Nigerian debit cards or transfer
+                          </span>
+                        </div>
+                      </div>
+                      <span style={{
+                        fontSize: '0.72rem',
+                        fontWeight: 700,
+                        color: '#047857',
+                        background: '#d1fae5',
+                        padding: '0.2rem 0.55rem',
+                        borderRadius: '6px'
+                      }}>
+                        Instant Verified
+                      </span>
+                    </div>
+                  </div>
+                </div>
               </motion.div>
             )}
 
@@ -602,11 +843,16 @@ const BookingWizardModal = ({ isOpen, onClose, onBookingSuccess, preselectedServ
                 <button 
                   type="button" 
                   onClick={handleConfirmBooking} 
-                  disabled={submitting}
+                  disabled={submitting || (paymentMethod === 'wallet' && walletBalance < (selectedService?.price || 0))}
                   className="btn btn-primary"
-                  style={{ minWidth: '160px' }}
+                  style={{ minWidth: '180px' }}
                 >
-                  {submitting ? 'Confirming...' : 'Confirm Booking'}
+                  {submitting 
+                    ? 'Processing...' 
+                    : paymentMethod === 'wallet' 
+                      ? `Pay ₦${(selectedService?.price || 0).toLocaleString()} & Confirm`
+                      : `Pay via Paystack (₦${(selectedService?.price || 0).toLocaleString()})`
+                  }
                 </button>
               )}
             </div>
@@ -633,11 +879,28 @@ const BookingWizardModal = ({ isOpen, onClose, onBookingSuccess, preselectedServ
             </div>
 
             <h3 style={{ fontSize: '1.5rem', marginBottom: '0.5rem', fontFamily: 'Outfit' }}>
-              Appointment Reserved!
+              Booking Confirmed & Paid! 🎉
             </h3>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', maxWidth: '420px', margin: '0 auto 1.5rem' }}>
-              Your appointment for <strong style={{ color: 'var(--text-main)' }}>{selectedService?.name}</strong> on <strong style={{ color: 'var(--primary)' }}>{selectedDate} at {selectedTime}</strong> has been successfully requested.
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', maxWidth: '440px', margin: '0 auto 1rem' }}>
+              Your appointment for <strong style={{ color: 'var(--text-main)' }}>{selectedService?.name}</strong> on <strong style={{ color: 'var(--primary)' }}>{selectedDate} at {selectedTime}</strong> has been secured!
             </p>
+
+            <div style={{
+              background: 'rgba(16, 185, 129, 0.08)',
+              border: '1px solid rgba(16, 185, 129, 0.25)',
+              borderRadius: '12px',
+              padding: '0.85rem 1.25rem',
+              maxWidth: '420px',
+              margin: '0 auto 1.5rem',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
+              <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Amount Paid:</span>
+              <strong style={{ fontSize: '1.1rem', color: '#10b981', fontFamily: 'Outfit' }}>
+                ₦{(selectedService?.price || 0).toLocaleString()}
+              </strong>
+            </div>
 
             {/* 1-Click Calendar Add */}
             <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', marginBottom: '1.75rem', flexWrap: 'wrap' }}>

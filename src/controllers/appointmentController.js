@@ -5,7 +5,8 @@ const { createNotificationHelper } = require('./notificationController');
 
 const bookAppointment = async (req, res, next) => {
     try {
-        let { service_id, date, time, notes, stylist_id } = req.body;
+        let { service_id, date, time, notes, stylist_id, paymentMethod, payment_method } = req.body;
+        const selectedPaymentMethod = paymentMethod || payment_method || null;
         const user_id = req.user?.id;
 
         if (!user_id) {
@@ -59,16 +60,96 @@ const bookAppointment = async (req, res, next) => {
             }
         }
 
+        const amount = parseFloat(service?.price || 0);
+        let paymentStatus = 'unpaid';
+        let amountPaid = 0;
+        let commissionRate = 0.10;
+        let commissionAmount = 0;
+        let expertPayout = 0;
+        let clientWalletBalance = undefined;
+
+        // If client chose instant wallet checkout
+        if (selectedPaymentMethod === 'wallet') {
+            const clientUser = await User.findById(user_id);
+            if (!clientUser) {
+                return res.status(404).json({ success: false, message: 'Client account not found.' });
+            }
+
+            if ((clientUser.walletBalance || 0) < amount) {
+                return res.status(400).json({
+                    success: false,
+                    message: `Insufficient wallet balance (₦${(clientUser.walletBalance || 0).toLocaleString()}). Please top up at least ₦${(amount - (clientUser.walletBalance || 0)).toLocaleString()} or pay via Paystack.`
+                });
+            }
+
+            commissionAmount = Math.round(amount * commissionRate);
+            expertPayout = amount - commissionAmount;
+
+            // Debit client wallet
+            clientUser.walletBalance -= amount;
+            clientUser.transactions.push({
+                type: 'payment',
+                amount: amount,
+                description: `Payment for ${service?.name || 'Appointment'}`,
+                reference_id: `PAY-W-${Date.now()}`
+            });
+            await clientUser.save();
+            clientWalletBalance = clientUser.walletBalance;
+
+            // Credit 90% to Expert Wallet (10% platform fee retained)
+            if (targetStylistId) {
+                const expertUser = await User.findById(targetStylistId);
+                if (expertUser) {
+                    expertUser.walletBalance = (expertUser.walletBalance || 0) + expertPayout;
+                    expertUser.transactions.push({
+                        type: 'earning',
+                        amount: expertPayout,
+                        description: `Earned from ${clientUser.name} for ${service?.name || 'Service'} (₦${amount.toLocaleString()} - 10% D.WORLD fee ₦${commissionAmount.toLocaleString()})`,
+                        reference_id: `EARN-W-${Date.now()}`
+                    });
+                    await expertUser.save();
+
+                    // Send notification to expert
+                    await createNotificationHelper(
+                        targetStylistId,
+                        'New Confirmed Booking! 📅',
+                        `${clientUser.name} booked "${service?.name || 'Service'}" for ${date} at ${time}. Payment of ₦${amount.toLocaleString()} received (₦${expertPayout.toLocaleString()} added to your wallet)!`,
+                        'booking'
+                    );
+                }
+            }
+
+            paymentStatus = 'paid';
+            amountPaid = amount;
+        }
+
         // Book appointment
-        const apt = await Appointment.create({ user_id, service_id: (service ? service._id : cleanServiceId), date, time, notes, stylist_id: targetStylistId });
+        const apt = await Appointment.create({
+            user_id,
+            service_id: (service ? service._id : cleanServiceId),
+            date,
+            time,
+            notes,
+            stylist_id: targetStylistId,
+            paymentStatus,
+            amountPaid,
+            commissionRate,
+            commissionAmount,
+            expertPayout
+        });
 
         // Mark slot as temporarily reserved
         await TimeSlot.markUnavailable(date, time);
 
-        // Note: Expert is NOT notified until payment has been successfully completed
-        // (via wallet pay or Paystack verification), preventing unpaid cancelled bookings from reaching the expert dashboard.
-
-        res.status(201).json({ success: true, message: 'Appointment booked successfully. Awaiting payment.', data: apt });
+        res.status(201).json({
+            success: true,
+            message: paymentStatus === 'paid'
+                ? `Appointment booked and paid successfully (₦${expertPayout.toLocaleString()} credited to specialist)!`
+                : 'Appointment reserved successfully. Awaiting payment.',
+            data: apt,
+            clientWalletBalance,
+            paymentStatus
+        });
     } catch (error) {
         console.error('Booking Error:', error);
         res.status(500).json({ success: false, message: error.message || 'Booking failed. Please try again.' });
@@ -335,6 +416,10 @@ const payAppointment = async (req, res, next) => {
 
         if (appointment.paymentStatus === 'paid') {
             return res.status(400).json({ success: false, message: 'Appointment has already been paid for' });
+        }
+
+        if (req.user.role !== 'admin' && appointment.user_id?.toString() !== clientId) {
+            return res.status(403).json({ success: false, message: 'Not authorized to pay for this appointment' });
         }
 
         const amount = parseFloat(appointment.service_id?.price || 0);
