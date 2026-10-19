@@ -19,6 +19,8 @@ const appointmentSchema = new mongoose.Schema({
 // ── Performance indexes ────────────────────────────────────────────────────────
 appointmentSchema.index({ user_id: 1, createdAt: -1 });      // getByUser
 appointmentSchema.index({ stylist_id: 1, createdAt: -1 });   // getByStylist
+appointmentSchema.index({ stylist_id: 1, date: -1, time: -1 }); // getByStylist sorted
+appointmentSchema.index({ service_id: 1, date: -1, time: -1 }); // getByStylist via service
 appointmentSchema.index({ status: 1 });                       // status filter
 appointmentSchema.index({ date: 1, time: 1 });                // date/time conflict checks
 

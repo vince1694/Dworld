@@ -80,6 +80,13 @@ const ExpertDashboard = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get('tab') || 'appointments';
 
+  // Instant cache read from sessionStorage
+  const hasCachedData = (() => {
+    try {
+      return !!sessionStorage.getItem('dworld_expert_appointments');
+    } catch { return false; }
+  })();
+
   const [appointments, setAppointments] = useState(() => {
     try {
       const raw = sessionStorage.getItem('dworld_expert_appointments');
@@ -92,16 +99,26 @@ const ExpertDashboard = () => {
       return raw ? JSON.parse(raw) : [];
     } catch { return []; }
   });
-  // Start loading=false immediately — skeleton KPIs render at once
-  const [loading, setLoading] = useState(false);
-  const [walletBalance, setWalletBalance] = useState(user?.walletBalance || 0);
-  const [walletTransactions, setWalletTransactions] = useState([]);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [dataReady, setDataReady] = useState(() => {
+  const [walletBalance, setWalletBalance] = useState(() => {
     try {
-      return !!sessionStorage.getItem('dworld_expert_appointments');
-    } catch { return false; }
+      const raw = sessionStorage.getItem('dworld_expert_wallet_bal');
+      if (raw !== null) return JSON.parse(raw);
+    } catch {}
+    return user?.walletBalance || 0;
   });
+  const [walletTransactions, setWalletTransactions] = useState(() => {
+    try {
+      const raw = sessionStorage.getItem('dworld_expert_wallet_txs');
+      if (raw) return JSON.parse(raw);
+    } catch {}
+    return [];
+  });
+
+  // If cached data is present, display instantly (loading=false); otherwise show skeleton on frame 1 (loading=true)
+  const [loading, setLoading] = useState(!hasCachedData);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [dataReady, setDataReady] = useState(hasCachedData);
 
   // Lightbox Modal State
   const [lightbox, setLightbox] = useState({
@@ -246,10 +263,13 @@ const ExpertDashboard = () => {
   const [savingAvailability, setSavingAvailability] = useState(false);
   const [chatAppointment, setChatAppointment] = useState(null);
 
+  // 1. Initial mount fetch (runs once on load, loads stale cache instantly and revalidates)
   useEffect(() => { 
     fetchData(); 
+  }, []);
 
-    // Handle return from Paystack activation
+  // 2. Paystack activation return check (runs only when payment callback params exist)
+  useEffect(() => {
     const reference = searchParams.get('reference') || searchParams.get('trxref');
     const isActParam = searchParams.get('activated');
     if (reference) {
@@ -260,7 +280,7 @@ const ExpertDashboard = () => {
             setShowActivationModal(false);
             setActivationDismissed(false);
             if (refreshUser) refreshUser();
-            fetchData();
+            fetchData(true);
             navigate('/expert', { replace: true });
           }
         })
@@ -269,15 +289,18 @@ const ExpertDashboard = () => {
         });
     } else if (isActParam) {
       if (refreshUser) refreshUser();
-      fetchData();
+      fetchData(true);
       navigate('/expert', { replace: true });
     }
   }, [searchParams]);
 
-  // Single batched fetch — all calls fire in parallel, no waterfall
-  const fetchData = async () => {
-    if (!sessionStorage.getItem('dworld_expert_appointments')) {
+  // Single batched fetch — all calls fire in parallel, stale-while-revalidate pattern
+  const fetchData = async (forceShowLoading = false) => {
+    const hasCache = !!sessionStorage.getItem('dworld_expert_appointments');
+    if (!hasCache || forceShowLoading) {
       setLoading(true);
+    } else {
+      setIsRefreshing(true);
     }
     try {
       const [appRes, srvRes, walletRes] = await Promise.all([
@@ -296,8 +319,12 @@ const ExpertDashboard = () => {
         sessionStorage.setItem('dworld_expert_services', JSON.stringify(srvs));
       }
       if (walletRes.data.success) {
-        setWalletBalance(walletRes.data.data.walletBalance || 0);
-        setWalletTransactions(walletRes.data.data.transactions || []);
+        const bal = walletRes.data.data.walletBalance || 0;
+        const txs = walletRes.data.data.transactions || [];
+        setWalletBalance(bal);
+        setWalletTransactions(txs);
+        sessionStorage.setItem('dworld_expert_wallet_bal', JSON.stringify(bal));
+        sessionStorage.setItem('dworld_expert_wallet_txs', JSON.stringify(txs));
       }
       // Sync availability from AuthContext user (no extra /auth/me call needed)
       if (user?.workingDays) setWorkingDays(user.workingDays);
@@ -306,6 +333,7 @@ const ExpertDashboard = () => {
       console.error('Error fetching expert data', err); 
     } finally { 
       setLoading(false); 
+      setIsRefreshing(false);
       setDataReady(true);
     }
   };
@@ -633,18 +661,27 @@ const ExpertDashboard = () => {
         }
 
         .kpi-card {
-          border-radius: 16px; padding: 1.25rem;
+          border-radius: 18px; padding: 1.25rem 1.35rem;
           background: var(--bg-card); border: 1px solid var(--border-light);
           display: flex; flex-direction: column; gap: 0.5rem;
-          transition: transform 0.15s ease, box-shadow 0.15s ease;
+          transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease, border-color 0.2s ease;
+          position: relative; overflow: hidden;
         }
-        .kpi-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.12); }
+        .kpi-card:hover { transform: translateY(-3px); box-shadow: 0 10px 28px rgba(0,0,0,0.08); }
         .expert-appt-card {
-          padding: 1.1rem 1.25rem; border-radius: 14px;
+          padding: 1.25rem 1.35rem; border-radius: 16px;
           background: var(--bg-card); border: 1px solid var(--border-light);
-          transition: box-shadow 0.15s ease;
+          transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+          position: relative;
         }
-        .expert-appt-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.1); }
+        .expert-appt-card:hover { 
+          box-shadow: 0 8px 24px rgba(0,0,0,0.06); 
+          border-color: rgba(99,102,241,0.25);
+        }
+        .expert-appt-card.status-pending { border-left: 4px solid #f59e0b; }
+        .expert-appt-card.status-approved { border-left: 4px solid #10b981; }
+        .expert-appt-card.status-completed { border-left: 4px solid #6366f1; }
+        .expert-appt-card.status-cancelled { border-left: 4px solid #ef4444; opacity: 0.82; }
 
         /* activation pulse */
         @keyframes softPulse {
@@ -904,33 +941,197 @@ const ExpertDashboard = () => {
           {/* Main Content */}
           <main className="expert-content">
 
-            {/* ── KPI Stats ── */}
+            {/* ── Studio Overview Hero Banner ── */}
+            <div style={{
+              borderRadius: '20px',
+              padding: '1.4rem 1.6rem',
+              background: 'linear-gradient(135deg, rgba(99,102,241,0.08) 0%, rgba(168,85,247,0.06) 50%, rgba(16,185,129,0.04) 100%)',
+              border: '1px solid rgba(99,102,241,0.16)',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '1rem',
+              boxShadow: '0 4px 20px rgba(0,0,0,0.02)'
+            }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.35rem', flexWrap: 'wrap' }}>
+                  <h2 style={{ margin: 0, fontSize: '1.35rem', fontFamily: 'Outfit', fontWeight: 800, color: 'var(--text-main)' }}>
+                    Welcome back, {user?.name?.split(' ')[0] || 'Specialist'} 👋
+                  </h2>
+                  {user?.isActivated ? (
+                    <span style={{ fontSize: '0.72rem', padding: '0.2rem 0.65rem', borderRadius: '999px', background: 'rgba(16,185,129,0.12)', color: '#059669', fontWeight: 800, border: '1px solid rgba(16,185,129,0.25)', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                      <Shield size={11} /> Verified Provider
+                    </span>
+                  ) : (
+                    <span style={{ fontSize: '0.72rem', padding: '0.2rem 0.65rem', borderRadius: '999px', background: 'rgba(245,158,11,0.12)', color: '#d97706', fontWeight: 800, border: '1px solid rgba(245,158,11,0.25)' }}>
+                      ⚡ Pending Activation
+                    </span>
+                  )}
+                  {isRefreshing && (
+                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                      ● Updating in background...
+                    </span>
+                  )}
+                </div>
+                <p style={{ margin: 0, fontSize: '0.84rem', color: 'var(--text-muted)' }}>
+                  {user?.specialty || 'Campus Specialist'} · {appointments.length} total client bookings
+                </p>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  onClick={() => setSearchParams({ tab: 'availability' })}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.45rem',
+                    padding: '0.6rem 1rem',
+                    borderRadius: '12px',
+                    border: '1px solid var(--border-light)',
+                    background: 'var(--bg-card)',
+                    color: 'var(--text-main)',
+                    fontSize: '0.82rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease'
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--primary)'}
+                  onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border-light)'}
+                >
+                  <Clock size={14} color="var(--primary)" /> Studio Hours
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSearchParams({ tab: 'wallet' })}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.45rem',
+                    padding: '0.6rem 1.15rem',
+                    borderRadius: '12px',
+                    border: '1px solid rgba(99,102,241,0.28)',
+                    background: 'linear-gradient(135deg, rgba(99,102,241,0.12), rgba(168,85,247,0.12))',
+                    color: 'var(--primary)',
+                    fontSize: '0.82rem',
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  <Wallet size={14} /> Wallet: ₦{Number(walletBalance || 0).toLocaleString()}
+                </button>
+              </div>
+            </div>
+
+            {/* ── KPI Stats Bento ── */}
             <div className="kpi-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '1rem' }}>
               {loading ? [
-                { label: 'Confirmed', color: 'var(--primary)', bg: 'rgba(99,102,241,0.1)' },
-                { label: 'Pending', color: '#d97706', bg: 'rgba(245,158,11,0.1)' },
-                { label: 'Completed', color: '#059669', bg: 'rgba(16,185,129,0.1)' },
-                { label: 'Paid Earnings', bg: 'linear-gradient(135deg, var(--primary), var(--secondary))', gradient: true }
-              ].map(({ label, bg, gradient }) => (
-                <div key={label} className="kpi-card" style={{ background: bg, border: gradient ? 'none' : '1px solid var(--border-light)' }}>
+                { label: 'Confirmed', sub: 'Upcoming Sessions' },
+                { label: 'Pending', sub: 'Requires Action' },
+                { label: 'Completed', sub: 'Finished Services' },
+                { label: 'Paid Earnings', sub: 'Available Payout', gradient: true }
+              ].map(({ label, sub, gradient }) => (
+                <div key={label} className="kpi-card" style={{ padding: '1.25rem', borderRadius: '18px', background: gradient ? 'linear-gradient(135deg, #4f46e5, #7c3aed)' : 'var(--bg-card)', border: gradient ? 'none' : '1px solid var(--border-light)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: '0.72rem', color: gradient ? 'rgba(255,255,255,0.5)' : 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</span>
-                    <div className="skeleton-shimmer" style={{ width: 16, height: 16, borderRadius: 4 }} />
+                    <span style={{ fontSize: '0.72rem', color: gradient ? 'rgba(255,255,255,0.7)' : 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</span>
+                    <div className="skeleton-shimmer" style={{ width: 34, height: 34, borderRadius: 10 }} />
                   </div>
-                  <div className="skeleton-shimmer" style={{ height: '2rem', width: '60%', borderRadius: 6, marginTop: 4 }} />
+                  <div className="skeleton-shimmer" style={{ height: '2.1rem', width: '55%', borderRadius: 8, marginTop: '0.65rem' }} />
+                  <div className="skeleton-shimmer" style={{ height: '0.8rem', width: '70%', borderRadius: 4, marginTop: '0.35rem' }} />
                 </div>
               )) : [
-                { label: 'Confirmed', value: approvedApps, color: 'var(--primary)', bg: 'rgba(99,102,241,0.1)', icon: CalendarCheck },
-                { label: 'Pending', value: pendingApps, color: '#d97706', bg: 'rgba(245,158,11,0.1)', icon: Clock },
-                { label: 'Completed', value: completedApps, color: '#059669', bg: 'rgba(16,185,129,0.1)', icon: CheckCircle },
-                { label: 'Paid Earnings', value: `₦${paidEarnings.toLocaleString()}`, color: 'white', bg: 'linear-gradient(135deg, var(--primary), var(--secondary))', icon: TrendingUp, gradient: true },
-              ].map(({ label, value, color, bg, icon: Icon, gradient }) => (
-                <div key={label} className="kpi-card" style={{ background: bg, border: gradient ? 'none' : '1px solid var(--border-light)' }}>
+                { 
+                  label: 'Confirmed', 
+                  sub: 'Upcoming Sessions', 
+                  value: approvedApps, 
+                  color: 'var(--primary)', 
+                  bg: 'linear-gradient(135deg, rgba(99,102,241,0.08), rgba(99,102,241,0.02))', 
+                  border: 'rgba(99,102,241,0.22)',
+                  icon: CalendarCheck, 
+                  iconBg: 'rgba(99,102,241,0.14)',
+                  tab: 'appointments'
+                },
+                { 
+                  label: 'Pending', 
+                  sub: 'Awaiting Action', 
+                  value: pendingApps, 
+                  color: '#d97706', 
+                  bg: 'linear-gradient(135deg, rgba(245,158,11,0.08), rgba(245,158,11,0.02))', 
+                  border: 'rgba(245,158,11,0.25)',
+                  icon: Clock, 
+                  iconBg: 'rgba(245,158,11,0.14)',
+                  badge: pendingApps > 0 ? `${pendingApps} new` : null,
+                  tab: 'appointments'
+                },
+                { 
+                  label: 'Completed', 
+                  sub: 'Delivered Services', 
+                  value: completedApps, 
+                  color: '#059669', 
+                  bg: 'linear-gradient(135deg, rgba(16,185,129,0.08), rgba(16,185,129,0.02))', 
+                  border: 'rgba(16,185,129,0.22)',
+                  icon: CheckCircle, 
+                  iconBg: 'rgba(16,185,129,0.14)',
+                  tab: 'appointments'
+                },
+                { 
+                  label: 'Paid Earnings', 
+                  sub: 'Direct Net Payout', 
+                  value: `₦${paidEarnings.toLocaleString()}`, 
+                  color: '#ffffff', 
+                  bg: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)', 
+                  border: 'transparent',
+                  icon: TrendingUp, 
+                  iconBg: 'rgba(255,255,255,0.2)',
+                  gradient: true,
+                  tab: 'wallet'
+                },
+              ].map(({ label, sub, value, color, bg, border, icon: Icon, iconBg, gradient, badge, tab }) => (
+                <div 
+                  key={label} 
+                  onClick={() => setSearchParams({ tab })}
+                  className="kpi-card" 
+                  style={{ 
+                    background: bg, 
+                    border: `1px solid ${border}`,
+                    borderRadius: '18px',
+                    padding: '1.25rem 1.35rem',
+                    cursor: 'pointer'
+                  }}
+                >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: '0.72rem', color: gradient ? 'rgba(255,255,255,0.75)' : 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</span>
-                    <Icon size={16} color={gradient ? 'rgba(255,255,255,0.8)' : color} />
+                    <span style={{ fontSize: '0.73rem', color: gradient ? 'rgba(255,255,255,0.85)' : 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                      {label}
+                    </span>
+                    <div style={{
+                      width: 34,
+                      height: 34,
+                      borderRadius: 10,
+                      background: iconBg,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: gradient ? '#ffffff' : color,
+                      flexShrink: 0
+                    }}>
+                      <Icon size={18} />
+                    </div>
                   </div>
-                  <div style={{ fontSize: '1.8rem', fontWeight: 900, color, fontFamily: 'Outfit', lineHeight: 1.1 }}>{value}</div>
+                  <div style={{ fontSize: '1.85rem', fontWeight: 900, color, fontFamily: 'Outfit', lineHeight: 1.1, marginTop: '0.45rem' }}>
+                    {value}
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '0.3rem' }}>
+                    <span style={{ fontSize: '0.75rem', color: gradient ? 'rgba(255,255,255,0.72)' : 'var(--text-muted)', fontWeight: 500 }}>
+                      {sub}
+                    </span>
+                    {badge && (
+                      <span style={{ fontSize: '0.68rem', padding: '0.12rem 0.5rem', borderRadius: '999px', background: '#d97706', color: '#fff', fontWeight: 800 }}>
+                        {badge}
+                      </span>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
@@ -975,80 +1176,185 @@ const ExpertDashboard = () => {
                         </span>
                       </div>
                       <div className="card-body" style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                        {appointments.length > 0 ? appointments.map(app => (
-                          <div key={app.id || app._id} className="expert-appt-card">
-                            {/* Top */}
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
-                                <div style={{ width: 40, height: 40, borderRadius: '10px', background: 'rgba(99,102,241,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary)', flexShrink: 0 }}>
-                                  <User size={20} />
+                        {appointments.length > 0 ? appointments.map(app => {
+                          const clientName = app.user_id?.name || app.client_name || 'Client';
+                          const clientAvatar = app.user_id?.avatar;
+                          const clientInitials = clientName.split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase();
+                          const matric = app.user_id?.matricNo;
+                          const serviceName = app.service_id?.name || 'Specialty Session';
+                          const servicePrice = app.service_id?.price || 0;
+                          const locationText = app.service_id?.location || 'Campus Studio / Main Salon';
+
+                          return (
+                            <div key={app.id || app._id} className={`expert-appt-card status-${app.status || 'pending'}`}>
+                              {/* Top Row: Client Info & Status Badge */}
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.85rem', flexWrap: 'wrap', gap: '0.65rem' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+                                  {/* Client Avatar */}
+                                  <div 
+                                    onClick={() => clientAvatar && openLightbox(clientAvatar, clientName, 'Client Profile Photo')}
+                                    style={{ 
+                                      width: 44, 
+                                      height: 44, 
+                                      borderRadius: '12px', 
+                                      background: 'linear-gradient(135deg, rgba(99,102,241,0.15), rgba(168,85,247,0.15))', 
+                                      display: 'flex', 
+                                      alignItems: 'center', 
+                                      justifyContent: 'center', 
+                                      color: 'var(--primary)', 
+                                      fontWeight: 800,
+                                      fontSize: '0.95rem',
+                                      flexShrink: 0,
+                                      overflow: 'hidden',
+                                      cursor: clientAvatar ? 'zoom-in' : 'default',
+                                      border: '1.5px solid var(--border-light)'
+                                    }}
+                                  >
+                                    {clientAvatar ? (
+                                      <img src={clientAvatar} alt={clientName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                    ) : (
+                                      <span>{clientInitials || <User size={20} />}</span>
+                                    )}
+                                  </div>
+                                  <div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
+                                      <span style={{ fontWeight: 800, color: 'var(--text-main)', fontSize: '0.98rem', fontFamily: 'Outfit' }}>
+                                        {clientName}
+                                      </span>
+                                      {matric && (
+                                        <span style={{ fontSize: '0.68rem', padding: '1px 6px', borderRadius: '4px', background: 'rgba(99,102,241,0.1)', color: 'var(--primary)', fontWeight: 700, letterSpacing: '0.02em' }}>
+                                          {matric}
+                                        </span>
+                                      )}
+                                    </div>
+                                    <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'block', marginTop: '0.15rem' }}>
+                                      {serviceName} · <strong style={{ color: 'var(--text-main)' }}>₦{servicePrice.toLocaleString()}</strong>
+                                    </span>
+                                  </div>
                                 </div>
-                                <div>
-                                  <span style={{ fontWeight: 700, color: 'var(--text-main)', fontSize: '0.95rem', display: 'block', fontFamily: 'Outfit' }}>
-                                    {app.user_id?.name || app.client_name || 'Client'}
-                                  </span>
-                                  <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                                    {app.service_id?.name || 'Session'} · <strong>₦{(app.service_id?.price || 0).toLocaleString()}</strong>
+
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                  <span style={{ padding: '0.3rem 0.85rem', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: 800, textTransform: 'capitalize', background: statusBg(app.status), color: statusColor(app.status), border: `1px solid ${statusColor(app.status)}30` }}>
+                                    ● {app.status}
                                   </span>
                                 </div>
                               </div>
-                              <span style={{ padding: '0.25rem 0.75rem', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: 700, background: statusBg(app.status), color: statusColor(app.status) }}>
-                                {app.status}
-                              </span>
-                            </div>
-                            {/* Date */}
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.85rem' }}>
-                              <Clock size={13} color="var(--primary)" /> {app.date} at {app.time}
-                              {app.paymentStatus === 'paid' ? (
-                                <span style={{ marginLeft: '0.5rem', fontSize: '0.72rem', padding: '0.15rem 0.5rem', borderRadius: '9999px', background: 'rgba(16,185,129,0.12)', color: '#059669', fontWeight: 700 }}>PAID</span>
-                              ) : (
-                                <span style={{ marginLeft: '0.5rem', fontSize: '0.72rem', padding: '0.15rem 0.5rem', borderRadius: '9999px', background: 'rgba(245,158,11,0.12)', color: '#d97706', fontWeight: 700 }}>UNPAID</span>
+
+                              {/* Details: Date, Time, Location & Payment Tag */}
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap', fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.85rem', background: 'var(--bg-main)', padding: '0.55rem 0.85rem', borderRadius: '10px' }}>
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontWeight: 600, color: 'var(--text-main)' }}>
+                                  <Clock size={13} color="var(--primary)" /> {app.date} at {app.time}
+                                </span>
+                                <span>·</span>
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+                                  <MapPin size={13} color="var(--text-muted)" /> {locationText}
+                                </span>
+                                <span style={{ marginLeft: 'auto' }}>
+                                  {app.paymentStatus === 'paid' ? (
+                                    <span style={{ fontSize: '0.72rem', padding: '0.2rem 0.6rem', borderRadius: '9999px', background: 'rgba(16,185,129,0.12)', color: '#059669', fontWeight: 800, border: '1px solid rgba(16,185,129,0.25)' }}>
+                                      ✓ PAID (₦{servicePrice.toLocaleString()})
+                                    </span>
+                                  ) : (
+                                    <span style={{ fontSize: '0.72rem', padding: '0.2rem 0.6rem', borderRadius: '9999px', background: 'rgba(245,158,11,0.12)', color: '#d97706', fontWeight: 800, border: '1px solid rgba(245,158,11,0.25)' }}>
+                                      ⏳ UNPAID
+                                    </span>
+                                  )}
+                                </span>
+                              </div>
+
+                              {/* Notes if provided */}
+                              {app.notes && (
+                                <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontStyle: 'italic', marginBottom: '0.85rem', paddingLeft: '0.5rem', borderLeft: '2px solid var(--border-light)' }}>
+                                  "{app.notes}"
+                                </div>
                               )}
-                            </div>
-                            {/* Actions */}
-                            <div className="appt-actions" style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
-                              <button onClick={() => setChatAppointment(app)} style={{ padding: '0.38rem 0.7rem', fontSize: '0.775rem', color: 'var(--primary)', background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: '8px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontWeight: 600 }}>
-                                <MessageSquare size={12} /> Chat
-                              </button>
-                              <a href={getGoogleCalendarUrl(app)} target="_blank" rel="noopener noreferrer" className="btn btn-secondary" style={{ padding: '0.38rem 0.6rem', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '0.25rem', textDecoration: 'none', minHeight: '32px' }}>
-                                <Calendar size={12} color="var(--primary)" /> Cal
-                              </a>
-                              <button onClick={() => downloadIcsFile(app)} className="btn btn-secondary" style={{ padding: '0.38rem 0.6rem', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '0.25rem', minHeight: '32px' }}>
-                                <Download size={12} color="var(--secondary)" /> .ics
-                              </button>
-                              <div style={{ marginLeft: 'auto', display: 'flex', gap: '0.35rem' }}>
-                                {app.status !== 'approved' && app.status !== 'completed' && (
-                                  <button onClick={() => handleUpdateStatus(app.id || app._id, 'approved')} className="btn btn-secondary" style={{ padding: '0.38rem 0.65rem', fontSize: '0.775rem', color: '#059669', minHeight: '32px' }}>
-                                    <CheckCircle size={13} /> Accept
-                                  </button>
-                                )}
-                                {app.status === 'approved' && (
-                                  <button onClick={() => handleUpdateStatus(app.id || app._id, 'completed')} className="btn btn-primary" style={{ padding: '0.38rem 0.65rem', fontSize: '0.775rem', minHeight: '32px' }}>
-                                    <CheckCircle size={13} /> Done
-                                  </button>
-                                )}
-                                {app.status !== 'cancelled' && app.status !== 'completed' && (
-                                  <button onClick={() => handleUpdateStatus(app.id || app._id, 'cancelled')} className="btn btn-secondary" style={{ padding: '0.38rem 0.55rem', fontSize: '0.775rem', color: '#ef4444', minHeight: '32px' }} title="Cancel Appointment">
-                                    <XCircle size={13} />
-                                  </button>
-                                )}
+
+                              {/* Actions Bar */}
+                              <div className="appt-actions" style={{ display: 'flex', gap: '0.45rem', alignItems: 'center', flexWrap: 'wrap' }}>
                                 <button 
-                                  type="button"
-                                  onClick={() => handleDeleteAppointment(app.id || app._id)} 
-                                  className="btn btn-outline" 
-                                  style={{ padding: '0.38rem 0.55rem', fontSize: '0.775rem', color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.25)', minHeight: '32px' }}
-                                  title="Delete Appointment"
+                                  onClick={() => setChatAppointment(app)} 
+                                  style={{ padding: '0.42rem 0.8rem', fontSize: '0.78rem', color: 'var(--primary)', background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.22)', borderRadius: '10px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontWeight: 700 }}
                                 >
-                                  <Trash2 size={13} />
+                                  <MessageSquare size={13} /> Chat with Client
                                 </button>
+                                <a 
+                                  href={getGoogleCalendarUrl(app)} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer" 
+                                  className="btn btn-secondary" 
+                                  style={{ padding: '0.42rem 0.75rem', fontSize: '0.78rem', display: 'inline-flex', alignItems: 'center', gap: '0.3rem', textDecoration: 'none', minHeight: '34px', borderRadius: '10px' }}
+                                >
+                                  <Calendar size={13} color="var(--primary)" /> Cal
+                                </a>
+                                <button 
+                                  onClick={() => downloadIcsFile(app)} 
+                                  className="btn btn-secondary" 
+                                  style={{ padding: '0.42rem 0.75rem', fontSize: '0.78rem', display: 'inline-flex', alignItems: 'center', gap: '0.3rem', minHeight: '34px', borderRadius: '10px' }}
+                                >
+                                  <Download size={13} color="var(--secondary)" /> .ics
+                                </button>
+
+                                <div style={{ marginLeft: 'auto', display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+                                  {app.status !== 'approved' && app.status !== 'completed' && app.status !== 'cancelled' && (
+                                    <button 
+                                      onClick={() => handleUpdateStatus(app.id || app._id, 'approved')} 
+                                      className="btn btn-secondary" 
+                                      style={{ padding: '0.42rem 0.85rem', fontSize: '0.78rem', color: '#059669', minHeight: '34px', borderRadius: '10px', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                                    >
+                                      <CheckCircle size={14} /> Accept
+                                    </button>
+                                  )}
+                                  {app.status === 'approved' && (
+                                    <button 
+                                      onClick={() => handleUpdateStatus(app.id || app._id, 'completed')} 
+                                      className="btn btn-primary" 
+                                      style={{ padding: '0.42rem 0.95rem', fontSize: '0.78rem', minHeight: '34px', borderRadius: '10px', fontWeight: 800, display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                                    >
+                                      <CheckCircle size={14} /> Mark Completed
+                                    </button>
+                                  )}
+                                  {app.status !== 'cancelled' && app.status !== 'completed' && (
+                                    <button 
+                                      onClick={() => handleUpdateStatus(app.id || app._id, 'cancelled')} 
+                                      className="btn btn-secondary" 
+                                      style={{ padding: '0.42rem 0.65rem', fontSize: '0.78rem', color: '#ef4444', minHeight: '34px', borderRadius: '10px' }} 
+                                      title="Cancel Appointment"
+                                    >
+                                      <XCircle size={14} />
+                                    </button>
+                                  )}
+                                  <button 
+                                    type="button"
+                                    onClick={() => handleDeleteAppointment(app.id || app._id)} 
+                                    className="btn btn-outline" 
+                                    style={{ padding: '0.42rem 0.65rem', fontSize: '0.78rem', color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.25)', minHeight: '34px', borderRadius: '10px' }}
+                                    title="Delete Record"
+                                  >
+                                    <Trash2 size={14} />
+                                  </button>
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        )) : (
-                          <div style={{ padding: '4rem 2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-                            <CalendarRange size={40} style={{ opacity: 0.25, marginBottom: '1rem' }} />
-                            <p style={{ fontWeight: 600 }}>No appointments yet</p>
-                            <p style={{ fontSize: '0.85rem', marginTop: '0.25rem' }}>Client bookings will appear here once you're activated.</p>
+                          );
+                        }) : (
+                          <div style={{ padding: '4.5rem 2rem', textAlign: 'center', color: 'var(--text-muted)', background: 'var(--bg-main)', borderRadius: '16px', border: '1px dashed var(--border-light)' }}>
+                            <div style={{ width: 56, height: 56, borderRadius: '16px', background: 'rgba(99,102,241,0.08)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary)', marginBottom: '1rem' }}>
+                              <CalendarRange size={28} />
+                            </div>
+                            <h4 style={{ margin: '0 0 0.4rem', fontWeight: 800, color: 'var(--text-main)', fontSize: '1.05rem', fontFamily: 'Outfit' }}>
+                              No Appointments in Queue
+                            </h4>
+                            <p style={{ fontSize: '0.85rem', margin: '0 auto 1.25rem', maxWidth: '380px', lineHeight: 1.5 }}>
+                              Client bookings will appear here in real time. Share your professional link to start getting booked!
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() => setSearchParams({ tab: 'professional' })}
+                              className="btn btn-secondary"
+                              style={{ padding: '0.55rem 1.2rem', fontSize: '0.82rem', fontWeight: 700, borderRadius: '10px' }}
+                            >
+                              <Sparkles size={14} color="var(--primary)" /> View My Professional Page
+                            </button>
                           </div>
                         )}
                       </div>
