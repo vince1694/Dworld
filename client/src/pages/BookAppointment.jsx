@@ -524,14 +524,14 @@ const BookAppointment = () => {
           <div style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(3, 1fr)',
-            gap: '0.5rem',
+            gap: '0.4rem',
             background: 'var(--surface)',
-            padding: '0.65rem 0.85rem',
+            padding: '0.5rem 0.65rem',
             borderRadius: '16px',
             border: '1px solid var(--border-light)'
           }}>
             {[
-              { num: 1, title: 'Choose Specialist' },
+              { num: 1, title: 'Specialist' },
               { num: 2, title: 'Date & Time' },
               { num: 3, title: 'Review & Pay' }
             ].map(s => {
@@ -549,16 +549,17 @@ const BookAppointment = () => {
                     background: isActive ? 'linear-gradient(135deg, var(--primary), var(--secondary))' : isDone ? 'rgba(16, 185, 129, 0.15)' : 'transparent',
                     border: 'none',
                     borderRadius: '10px',
-                    padding: '0.55rem 0.75rem',
+                    padding: '0.55rem 0.4rem',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    gap: '0.5rem',
+                    gap: '0.4rem',
                     cursor: s.num <= step ? 'pointer' : 'default',
                     color: isActive ? '#fff' : isDone ? '#10b981' : 'var(--text-muted)',
                     transition: 'all 0.2s',
-                    fontSize: '0.825rem',
-                    fontWeight: isActive || isDone ? 700 : 500
+                    fontSize: 'clamp(0.72rem, 2.5vw, 0.825rem)',
+                    fontWeight: isActive || isDone ? 700 : 600,
+                    whiteSpace: 'nowrap'
                   }}
                 >
                   <span style={{
@@ -566,7 +567,8 @@ const BookAppointment = () => {
                     background: isActive ? '#fff' : isDone ? '#10b981' : 'rgba(255,255,255,0.1)',
                     color: isActive ? 'var(--primary)' : isDone ? '#fff' : 'inherit',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: '0.72rem', fontWeight: 900
+                    fontSize: '0.72rem', fontWeight: 900,
+                    flexShrink: 0
                   }}>
                     {isDone ? <Check size={13} strokeWidth={3} /> : s.num}
                   </span>
@@ -1010,7 +1012,7 @@ const BookAppointment = () => {
                 Checking available slots...
               </div>
             ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: '0.75rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(96px, 1fr))', gap: '0.65rem' }}>
                 {availableSlots.map(slot => {
                   const isSelected = selectedTime === slot;
                   return (
@@ -1019,14 +1021,14 @@ const BookAppointment = () => {
                       type="button"
                       onClick={() => setSelectedTime(slot)}
                       style={{
-                        padding: '0.85rem 0.75rem',
+                        padding: '0.85rem 0.5rem',
                         borderRadius: '12px',
                         border: '1.5px solid',
                         borderColor: isSelected ? 'var(--secondary)' : 'var(--border-light)',
                         background: isSelected ? 'rgba(245, 158, 11, 0.15)' : 'var(--surface)',
                         color: isSelected ? '#b45309' : 'var(--text-main)',
                         fontWeight: 700,
-                        fontSize: '0.875rem',
+                        fontSize: '0.85rem',
                         cursor: 'pointer',
                         textAlign: 'center',
                         transition: 'all 0.15s ease'

@@ -305,7 +305,7 @@ const WalletPage = () => {
               <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
                 SELECT QUICK AMOUNT
               </label>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '0.45rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(54px, 1fr))', gap: '0.45rem' }}>
                 {PRESET_AMOUNTS.map((amt) => (
                   <button
                     key={amt}
@@ -471,10 +471,11 @@ const WalletPage = () => {
                     padding: '1rem',
                     borderRadius: '14px',
                     border: '1px solid var(--border-light)',
-                    background: 'var(--surface)'
+                    background: 'var(--surface)',
+                    gap: '0.75rem'
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', minWidth: 0, flex: 1 }}>
                     <div style={{
                       width: 40, height: 40, borderRadius: '12px',
                       background: isPositive ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.12)',
@@ -484,8 +485,8 @@ const WalletPage = () => {
                     }}>
                       {isPositive ? <ArrowDownLeft size={20} /> : <ArrowUpRight size={20} />}
                     </div>
-                    <div>
-                      <strong style={{ fontSize: '0.925rem', color: 'var(--text-main)', display: 'block' }}>
+                    <div style={{ minWidth: 0 }}>
+                      <strong style={{ fontSize: '0.925rem', color: 'var(--text-main)', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {tx.description || (isPositive ? 'Wallet Top-Up' : 'Appointment Payment')}
                       </strong>
                       <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
@@ -495,7 +496,7 @@ const WalletPage = () => {
                     </div>
                   </div>
 
-                  <div style={{ textAlign: 'right' }}>
+                  <div style={{ textAlign: 'right', flexShrink: 0 }}>
                     <span style={{
                       fontSize: '1.05rem',
                       fontWeight: 800,

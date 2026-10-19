@@ -956,7 +956,11 @@ const ExpertDashboard = () => {
                             {/* Date */}
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.85rem' }}>
                               <Clock size={13} color="var(--primary)" /> {app.date} at {app.time}
-                              {app.paymentStatus === 'paid' && <span style={{ marginLeft: '0.5rem', fontSize: '0.72rem', padding: '0.15rem 0.5rem', borderRadius: '9999px', background: 'rgba(16,185,129,0.12)', color: '#059669', fontWeight: 700 }}>PAID</span>}
+                              {app.paymentStatus === 'paid' ? (
+                                <span style={{ marginLeft: '0.5rem', fontSize: '0.72rem', padding: '0.15rem 0.5rem', borderRadius: '9999px', background: 'rgba(16,185,129,0.12)', color: '#059669', fontWeight: 700 }}>PAID</span>
+                              ) : (
+                                <span style={{ marginLeft: '0.5rem', fontSize: '0.72rem', padding: '0.15rem 0.5rem', borderRadius: '9999px', background: 'rgba(245,158,11,0.12)', color: '#d97706', fontWeight: 700 }}>UNPAID</span>
+                              )}
                             </div>
                             {/* Actions */}
                             <div className="appt-actions" style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>

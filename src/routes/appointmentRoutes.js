@@ -29,7 +29,9 @@ router.post('/book', protect, bookAppointment);
 router.get('/my-appointments', protect, getUserAppointments);
 router.patch('/:id/reschedule', protect, rescheduleAppointment);
 router.post('/:id/pay', protect, payAppointment);
-router.post('/:id/pay-wallet', protect, payAppointment);
+// Fix #6: Removed dead /pay-wallet alias (identical handler — caused confusion)
+// Fix #5: /clear-history MUST stay above /:id — Express matches routes top-down
+// and 'clear-history' would otherwise be swallowed as an :id param.
 router.delete('/clear-history', protect, clearBookingHistory);
 router.delete('/:id/cancel-unpaid', protect, cancelUnpaidAppointment);
 router.delete('/:id', protect, deleteAppointment);

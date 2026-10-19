@@ -18,7 +18,8 @@ import {
   ChevronDown, 
   ChevronUp, 
   Grid, 
-  Users 
+  Users,
+  Images
 } from 'lucide-react';
 import BookingWizardModal from '../components/BookingWizardModal';
 import AIMatcherWidget from '../components/AIMatcherWidget';
@@ -117,14 +118,15 @@ const Services = () => {
     if (selectedCategory !== 'All') {
       const name = (srv.name || '').toLowerCase();
       const cat = (srv.category || '').toLowerCase();
+      const desc = (srv.description || '').toLowerCase();
+      const text = `${name} ${cat} ${desc}`;
 
-      if (selectedCategory === 'Hair' && !(cat.includes('hair') || name.includes('hair') || name.includes('wig') || name.includes('frontal') || name.includes('braid'))) return false;
-      if (selectedCategory === 'Nails' && !(cat.includes('nail') || name.includes('nail') || name.includes('manicure') || name.includes('pedicure'))) return false;
-      if (selectedCategory === 'Lashes' && !(cat.includes('lash') || name.includes('lash'))) return false;
-      if (selectedCategory === 'Makeup' && !(cat.includes('makeup') || name.includes('makeup') || name.includes('eyebrow'))) return false;
-      if (selectedCategory === 'Barbering' && !(cat.includes('barber') || name.includes('barber') || name.includes('haircut') || name.includes('male'))) return false;
-      if (selectedCategory === 'Skincare' && !(cat.includes('skincare') || name.includes('facial') || name.includes('waxing') || name.includes('treatment'))) return false;
-      if (selectedCategory === 'Wellness' && !(cat.includes('wellness') || name.includes('massage') || name.includes('pedicure'))) return false;
+      if (selectedCategory === 'Lash Techs' && !(text.includes('lash') || text.includes('extension') || text.includes('brow'))) return false;
+      if (selectedCategory === 'Nail Techs' && !(text.includes('nail') || text.includes('manicure') || text.includes('pedicure') || text.includes('acrylic') || text.includes('gel'))) return false;
+      if (selectedCategory === 'Hair Braider' && !(text.includes('braid') || text.includes('cornrow') || text.includes('knotless') || text.includes('twist') || text.includes('locs') || text.includes('hair'))) return false;
+      if (selectedCategory === 'Wig Installers' && !(text.includes('wig') || text.includes('frontal') || text.includes('closure') || text.includes('revamp') || text.includes('install'))) return false;
+      if (selectedCategory === 'Barber' && !(text.includes('barber') || text.includes('haircut') || text.includes('fade') || text.includes('male') || text.includes('shave'))) return false;
+      if (selectedCategory === 'Body Care' && !(text.includes('body') || text.includes('skin') || text.includes('facial') || text.includes('massage') || text.includes('wax') || text.includes('pedicure'))) return false;
     }
 
     return true;
@@ -166,47 +168,59 @@ const Services = () => {
         </p>
 
         {/* MASTER VIEW TOGGLE SWITCH (SERVICES VS EXPERTS) */}
-        <div style={{ display: 'inline-flex', background: '#f1f5f9', padding: '0.35rem', borderRadius: '9999px', border: '1px solid var(--border-light)', gap: '0.35rem' }}>
+        <div style={{ 
+          display: 'inline-flex', 
+          maxWidth: '100%',
+          background: '#f1f5f9', 
+          padding: '0.35rem', 
+          borderRadius: '9999px', 
+          border: '1px solid var(--border-light)', 
+          gap: '0.35rem',
+          flexWrap: 'wrap',
+          justifyContent: 'center'
+        }}>
           <button
             onClick={() => setSearchParams({ tab: 'services' })}
             style={{
-              padding: '0.55rem 1.5rem',
+              padding: '0.55rem clamp(0.9rem, 3vw, 1.5rem)',
               borderRadius: '9999px',
               border: 'none',
               background: activeTab === 'services' ? 'var(--primary)' : 'transparent',
               color: activeTab === 'services' ? 'white' : 'var(--text-muted)',
-              fontSize: '0.875rem',
+              fontSize: '0.85rem',
               fontWeight: 700,
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
               gap: '0.4rem',
               boxShadow: activeTab === 'services' ? '0 4px 12px rgba(79, 70, 229, 0.25)' : 'none',
-              transition: 'all 0.2s ease'
+              transition: 'all 0.2s ease',
+              whiteSpace: 'nowrap'
             }}
           >
-            <Grid size={16} /> Services Catalog ({services.length})
+            <Grid size={16} /> Services ({services.length})
           </button>
 
           <button
             onClick={() => setSearchParams({ tab: 'experts' })}
             style={{
-              padding: '0.55rem 1.5rem',
+              padding: '0.55rem clamp(0.9rem, 3vw, 1.5rem)',
               borderRadius: '9999px',
               border: 'none',
               background: activeTab === 'experts' ? 'var(--secondary)' : 'transparent',
               color: activeTab === 'experts' ? 'white' : 'var(--text-muted)',
-              fontSize: '0.875rem',
+              fontSize: '0.85rem',
               fontWeight: 700,
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
               gap: '0.4rem',
               boxShadow: activeTab === 'experts' ? '0 4px 12px rgba(124, 58, 237, 0.25)' : 'none',
-              transition: 'all 0.2s ease'
+              transition: 'all 0.2s ease',
+              whiteSpace: 'nowrap'
             }}
           >
-            <Users size={16} /> Verified Specialists ({experts.length})
+            <Users size={16} /> Specialists ({experts.length})
           </button>
         </div>
       </header>
@@ -216,7 +230,7 @@ const Services = () => {
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
           
           {/* Service Category Chips */}
-          <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center', flexWrap: 'wrap', marginBottom: '2rem' }}>
+          <div className="chips-scroller" style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center', flexWrap: 'wrap', marginBottom: '2rem' }}>
             {['All', 'Lash Techs', 'Nail Techs', 'Hair Braider', 'Wig Installers', 'Barber', 'Body Care'].map(cat => (
               <button
                 key={cat}

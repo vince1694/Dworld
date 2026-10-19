@@ -12,8 +12,8 @@ const getAppointmentMessages = async (req, res, next) => {
             return res.status(404).json({ success: false, message: 'Appointment not found' });
         }
 
-        const clientId = appointment.user_id?._id ? appointment.user_id._id.toString() : appointment.user_id?.toString();
-        const expertId = appointment.stylist_id?._id ? appointment.stylist_id._id.toString() : appointment.stylist_id?.toString();
+        const clientId = (appointment.user_id?._id || appointment.user_id)?.toString();
+        const expertId = (appointment.stylist_id?._id || appointment.stylist_id || appointment.service_id?.stylist_id?._id || appointment.service_id?.stylist_id)?.toString();
 
         if (req.user.role !== 'admin' && clientId !== userId && expertId !== userId) {
             return res.status(403).json({ success: false, message: 'Not authorized to view messages for this appointment' });
@@ -44,8 +44,8 @@ const sendAppointmentMessage = async (req, res, next) => {
             return res.status(404).json({ success: false, message: 'Appointment not found' });
         }
 
-        const clientId = appointment.user_id?._id ? appointment.user_id._id.toString() : appointment.user_id?.toString();
-        const expertId = appointment.stylist_id?._id ? appointment.stylist_id._id.toString() : appointment.stylist_id?.toString();
+        const clientId = (appointment.user_id?._id || appointment.user_id)?.toString();
+        const expertId = (appointment.stylist_id?._id || appointment.stylist_id || appointment.service_id?.stylist_id?._id || appointment.service_id?.stylist_id)?.toString();
 
         if (req.user.role !== 'admin' && clientId !== userId && expertId !== userId) {
             return res.status(403).json({ success: false, message: 'Not authorized to post messages for this appointment' });
@@ -81,16 +81,28 @@ const sendAppointmentMessage = async (req, res, next) => {
 const getAllUserConversations = async (req, res, next) => {
     try {
         const userId = req.user.id;
+        const Service = require('../models/Service');
+        let serviceIds = [];
+        try {
+            const expertServices = await Service.find({ stylist_id: userId }).select('_id').lean();
+            serviceIds = expertServices.map(s => s._id);
+        } catch (e) {}
+
+        const matchConditions = [
+            { user_id: userId },
+            { stylist_id: userId }
+        ];
+        if (serviceIds.length > 0) {
+            matchConditions.push({ service_id: { $in: serviceIds } });
+        }
+
         // Find all appointments involving this user
         const appointments = await Appointment.find({
-            $or: [
-                { user_id: userId },
-                { stylist_id: userId, paymentStatus: { $in: ['paid', 'refunded'] } }
-            ]
+            $or: matchConditions
         })
         .populate('service_id', 'name price duration category image')
-        .populate('user_id', 'name email role phone matricNo')
-        .populate('stylist_id', 'name email role phone matricNo specialty')
+        .populate('user_id', 'name email role phone matricNo avatar')
+        .populate('stylist_id', 'name email role phone matricNo specialty avatar')
         .sort({ updatedAt: -1 });
 
         // For each appointment, fetch the last message

@@ -63,9 +63,9 @@ userSchema.statics.findByEmail = function(email) {
   return this.findOne({ email });
 };
 
-userSchema.statics.findById = function(id) {
-  return this.findOne({ _id: id });
-};
+// Fix #20: Removed custom findById static \u2014 it shadowed Mongoose's built-in
+// findById() which is already equivalent to findOne({ _id: id }).
+// All User.findById() calls now use the native Mongoose implementation.
 
 userSchema.statics.update = function(id, data) {
   return this.findByIdAndUpdate(id, data, { new: true });

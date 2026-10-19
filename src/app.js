@@ -39,7 +39,26 @@ if (process.env.NODE_ENV !== 'production') {
     app.use(morgan('dev'));
 }
 
-app.use(cors());
+// Fix #12: Restrict CORS to known origins instead of allowing all (*)
+const ALLOWED_ORIGINS = [
+    'https://dworld.ink',
+    'https://www.dworld.ink',
+    process.env.CLIENT_URL,
+    'http://localhost:5173',
+    'http://localhost:3000'
+].filter(Boolean);
+
+app.use(cors({
+    origin: (origin, callback) => {
+        // Allow requests with no origin (mobile apps, Postman, server-to-server)
+        if (!origin || ALLOWED_ORIGINS.includes(origin)) {
+            callback(null, true);
+        } else {
+            callback(new Error(`CORS policy: origin ${origin} not allowed`));
+        }
+    },
+    credentials: true
+}));
 // Cloudinary avatar uploads use base64 — keep 10mb for /auth/avatar only, 2mb elsewhere
 app.use('/api/auth/avatar', express.json({ limit: '10mb' }));
 app.use('/api/auth/portfolio', express.json({ limit: '10mb' }));

@@ -238,7 +238,7 @@ const WalletModal = ({ isOpen, onClose, onWalletUpdated }) => {
 
           <form onSubmit={handleTopup}>
             {/* Quick Amount Chips */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '0.4rem', marginBottom: '0.85rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(58px, 1fr))', gap: '0.4rem', marginBottom: '0.85rem' }}>
               {['1000', '2000', '3000', '5000', '10000'].map(amt => (
                 <button
                   key={amt}

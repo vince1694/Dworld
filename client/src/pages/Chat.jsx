@@ -47,10 +47,12 @@ const Chat = () => {
 
   const messagesEndRef = useRef(null);
 
-  // 1. Fetch all conversations on mount
+  // 1. Fetch all conversations on mount & poll while visible
   useEffect(() => {
     fetchConversations();
-    const interval = setInterval(fetchConversationsSilently, 6000);
+    const interval = setInterval(() => {
+      if (!document.hidden) fetchConversationsSilently();
+    }, 6000);
     return () => clearInterval(interval);
   }, []);
 
@@ -68,11 +70,11 @@ const Chat = () => {
     }
   }, [activeAppointmentId, conversations]);
 
-  // 3. Poll active conversation messages
+  // 3. Poll active conversation messages while visible
   useEffect(() => {
     if (!activeAppointmentId) return;
     const interval = setInterval(() => {
-      fetchMessagesSilently(activeAppointmentId);
+      if (!document.hidden) fetchMessagesSilently(activeAppointmentId);
     }, 4000);
     return () => clearInterval(interval);
   }, [activeAppointmentId]);

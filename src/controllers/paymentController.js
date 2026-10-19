@@ -155,19 +155,20 @@ const verifyPayment = async (req, res, next) => {
         const metadata = data.metadata || {};
         const purpose = metadata.purpose || 'wallet_topup';
 
-        // Check if this reference has already been credited to prevent duplicate deposits
+        // Fix #2: Check reference globally FIRST to prevent any user replaying
+        // another user's Paystack reference for a free wallet top-up.
+        const globalDuplicate = await User.findOne({ 'transactions.reference_id': reference }).lean();
+        if (globalDuplicate) {
+            return res.status(200).json({
+                success: true,
+                message: 'Transaction already processed.',
+                walletBalance: (await User.findById(currentUserId).select('walletBalance').lean())?.walletBalance || 0
+            });
+        }
+
         const user = await User.findById(currentUserId);
         if (!user) {
             return res.status(404).json({ success: false, message: 'User account not found' });
-        }
-
-        const alreadyProcessed = user.transactions && user.transactions.some(t => t.reference_id === reference);
-        if (alreadyProcessed) {
-            return res.status(200).json({
-                success: true,
-                message: 'Transaction already credited.',
-                walletBalance: user.walletBalance
-            });
         }
 
         if (purpose === 'expert_activation') {

@@ -54,15 +54,28 @@ appointmentSchema.statics.updateStatus = function(id, status) {
   return this.findByIdAndUpdate(id, { status }, { new: true });
 };
 
-appointmentSchema.statics.getByStylist = function(stylistId) {
-  return this.find({ 
-    $or: [{ stylist_id: stylistId }],
-    paymentStatus: { $in: ['paid', 'refunded'] }
-  })
-  .populate('user_id', 'name email phone')
-  .populate('service_id', 'name price location')
-  .sort({ date: -1, time: -1 })
-  .lean();
+appointmentSchema.statics.getByStylist = async function(stylistId) {
+  const Service = mongoose.model('Service');
+  let serviceIds = [];
+  try {
+    const services = await Service.find({ stylist_id: stylistId }).select('_id').lean();
+    serviceIds = services.map(s => s._id);
+  } catch (e) {
+    // ignore lookup error
+  }
+
+  const stylistQuery = [
+    { stylist_id: stylistId }
+  ];
+  if (serviceIds.length > 0) {
+    stylistQuery.push({ service_id: { $in: serviceIds } });
+  }
+
+  return this.find({ $or: stylistQuery })
+    .populate('user_id', 'name email phone avatar matricNo')
+    .populate('service_id', 'name price location duration category image')
+    .sort({ date: -1, time: -1 })
+    .lean();
 };
 
 appointmentSchema.statics.checkExists = function(date, time) {

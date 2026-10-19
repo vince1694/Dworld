@@ -159,26 +159,22 @@ const Dashboard = () => {
       setApptLoading(false);
     }
 
-    // Background: fetch services + experts (cached in sessionStorage, rarely change)
-    const cachedServices = sessionStorage.getItem('dworld_services');
-    const cachedExperts = sessionStorage.getItem('dworld_experts');
-    if (!cachedServices || !cachedExperts) {
-      try {
-        const [servicesRes, expertsRes] = await Promise.all([
-          axios.get(`${API_URL}/services`),
-          axios.get(`${API_URL}/auth/experts`)
-        ]);
-        if (servicesRes.data.success) {
-          setServices(servicesRes.data.data);
-          sessionStorage.setItem('dworld_services', JSON.stringify(servicesRes.data.data));
-        }
-        if (expertsRes?.data?.success) {
-          setExperts(expertsRes.data.data || []);
-          sessionStorage.setItem('dworld_experts', JSON.stringify(expertsRes.data.data || []));
-        }
-      } catch (err) {
-        console.error('Failed to fetch services/experts', err);
+    // Background: revalidate services + experts (stale-while-revalidate pattern)
+    try {
+      const [servicesRes, expertsRes] = await Promise.all([
+        axios.get(`${API_URL}/services`),
+        axios.get(`${API_URL}/auth/experts`)
+      ]);
+      if (servicesRes.data?.success) {
+        setServices(servicesRes.data.data);
+        sessionStorage.setItem('dworld_services', JSON.stringify(servicesRes.data.data));
       }
+      if (expertsRes?.data?.success) {
+        setExperts(expertsRes.data.data || []);
+        sessionStorage.setItem('dworld_experts', JSON.stringify(expertsRes.data.data || []));
+      }
+    } catch (err) {
+      console.error('Failed to revalidate services/experts', err);
     }
   };
 

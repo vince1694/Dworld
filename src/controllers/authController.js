@@ -232,12 +232,15 @@ const login = async (req, res, next) => {
         }
 
         const userId = String(user._id || user.id);
-        const secret = process.env.JWT_SECRET || 'antigravity-secret-key-12345';
+        // Fix #10: Never fall back to a hardcoded secret — throw if missing in production
+        const secret = process.env.JWT_SECRET;
+        if (!secret) throw new Error('JWT_SECRET environment variable is not configured.');
 
+        // Fix #11: Standardise token lifetime — use env var (same as register flow)
         const token = jwt.sign(
             { id: userId, role: user.role },
             secret,
-            { expiresIn: '7d' }
+            { expiresIn: process.env.JWT_EXPIRES_IN || '30d' }
         );
 
         res.status(200).json({
@@ -448,8 +451,10 @@ const updateAvailability = async (req, res, next) => {
 
 const getMe = async (req, res, next) => {
     try {
+        // Fix #4: Always fetch fresh from DB — the JWT only contains { id, role },
+        // so the req.user shortcut (checking req.user.name) never fires anyway.
         const userId = req.user?.id || req.user?._id;
-        const user = (req.user && req.user.name) ? req.user : await User.findById(userId);
+        const user = await User.findById(userId).select('-password -resetOtp -resetOtpExpires');
         if (!user) {
             return res.status(404).json({ success: false, message: 'User not found' });
         }
@@ -480,7 +485,7 @@ const getMe = async (req, res, next) => {
 const getWallet = async (req, res, next) => {
     try {
         const userId = req.user?.id || req.user?._id;
-        const user = (req.user && req.user.walletBalance !== undefined) ? req.user : await User.findById(userId);
+        const user = await User.findById(userId).select('walletBalance transactions');
         if (!user) {
             return res.status(404).json({ success: false, message: 'User not found' });
         }
@@ -488,7 +493,8 @@ const getWallet = async (req, res, next) => {
             success: true,
             data: {
                 walletBalance: Number(user.walletBalance || 0),
-                transactions: (user.transactions || []).reverse()
+                // Fix #8: .slice() before .reverse() prevents in-place mutation of the document array
+                transactions: (user.transactions || []).slice().reverse()
             }
         });
     } catch (error) {
@@ -584,23 +590,33 @@ const getExperts = async (req, res, next) => {
             servicesByExpert[key].push(svc);
         }
 
-        // Collect experts that have zero services — create defaults in one batch
-        const expertsWithoutServices = experts.filter(e => !servicesByExpert[String(e._id)]?.length);
+        // Fix #9: Use per-expert upsert instead of insertMany to prevent duplicate
+        // default services accumulating each time the 60s cache expires.
         if (expertsWithoutServices.length > 0) {
-            const defaults = expertsWithoutServices.map(exp => ({
-                name: exp.specialty || 'Barber',
-                description: `${exp.name}'s professional campus service.`,
-                price: 3500,
-                duration: 45,
-                type: 'single',
-                category: 'Single Services',
-                location: exp.address || exp.location || 'Lead City University Campus',
-                stylist_id: exp._id
+            const upsertOps = expertsWithoutServices.map(exp => ({
+                updateOne: {
+                    filter: { stylist_id: exp._id },
+                    update: { $setOnInsert: {
+                        name: exp.specialty || 'Barber',
+                        description: `${exp.name}'s professional campus service.`,
+                        price: 3500,
+                        duration: 45,
+                        type: 'single',
+                        category: 'Single Services',
+                        location: exp.address || exp.location || 'Lead City University Campus',
+                        stylist_id: exp._id
+                    }},
+                    upsert: true
+                }
             }));
-            const created = await Service.insertMany(defaults, { ordered: false }).catch(() => []);
-            for (const svc of created) {
+            await Service.bulkWrite(upsertOps, { ordered: false }).catch(() => {});
+
+            // Re-fetch newly created services for these experts
+            const newSvcs = await Service.find({ stylist_id: { $in: expertsWithoutServices.map(e => e._id) } }).lean();
+            for (const svc of newSvcs) {
                 const key = String(svc.stylist_id);
-                servicesByExpert[key] = [svc];
+                if (!servicesByExpert[key]) servicesByExpert[key] = [];
+                if (!servicesByExpert[key].length) servicesByExpert[key].push(svc);
             }
         }
 

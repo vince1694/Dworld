@@ -16,6 +16,22 @@ axios.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
+// Check if JWT token is expired
+const isTokenExpired = (tok) => {
+  if (!tok) return true;
+  try {
+    const parts = tok.split('.');
+    if (parts.length !== 3) return false;
+    const payload = JSON.parse(atob(parts[1]));
+    if (payload.exp && Date.now() >= payload.exp * 1000) {
+      return true;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+};
+
 // Read cached user from localStorage for instant optimistic render
 const readCachedUser = () => {
   try {
@@ -31,17 +47,26 @@ const writeCachedUser = (u) => {
 };
 
 export const AuthProvider = ({ children }) => {
+  // Purge expired token immediately before seeding state
+  const initialToken = (() => {
+    const tok = localStorage.getItem('token');
+    if (tok && isTokenExpired(tok)) {
+      localStorage.removeItem('token');
+      writeCachedUser(null);
+      return null;
+    }
+    return tok;
+  })();
+
   // Seed from cache so user is available immediately — no spinner on reload
   const [user, setUser] = useState(() => {
-    const tok = localStorage.getItem('token');
-    return tok ? readCachedUser() : null;
+    return initialToken ? readCachedUser() : null;
   });
   // loading=false when a token is present and cached user exists (optimistic)
   const [loading, setLoading] = useState(() => {
-    const tok = localStorage.getItem('token');
-    return !tok || !readCachedUser(); // only block if no cache available
+    return !initialToken || !readCachedUser(); // only block if no cache available
   });
-  const [token, setToken] = useState(() => localStorage.getItem('token'));
+  const [token, setToken] = useState(() => initialToken);
 
   useEffect(() => {
     if (token) {
