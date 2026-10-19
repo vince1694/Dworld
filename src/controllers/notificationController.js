@@ -29,6 +29,38 @@ const markAllAsRead = async (req, res, next) => {
   }
 };
 
+const markAsRead = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+    await Notification.findOneAndUpdate({ _id: id, user_id: userId }, { read: true });
+    res.json({ success: true, message: 'Notification marked as read' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const deleteNotification = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+    await Notification.findOneAndDelete({ _id: id, user_id: userId });
+    res.json({ success: true, message: 'Notification removed' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const clearAllNotifications = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    await Notification.deleteMany({ user_id: userId });
+    res.json({ success: true, message: 'All notifications cleared' });
+  } catch (error) {
+    next(error);
+  }
+};
+
 const createNotificationHelper = async (userId, title, message, type = 'system') => {
   try {
     if (!userId) return;
@@ -43,4 +75,11 @@ const createNotificationHelper = async (userId, title, message, type = 'system')
   }
 };
 
-module.exports = { getNotifications, markAllAsRead, createNotificationHelper };
+module.exports = { 
+  getNotifications, 
+  markAllAsRead, 
+  markAsRead, 
+  deleteNotification, 
+  clearAllNotifications, 
+  createNotificationHelper 
+};

@@ -12,8 +12,7 @@ import {
   Sparkles, 
   ArrowRight,
   User,
-  Briefcase,
-  ShieldCheck
+  Briefcase
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -21,7 +20,7 @@ const Login = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const queryRole = searchParams.get('role');
   const [selectedRole, setSelectedRole] = useState(
-    queryRole === 'expert' || queryRole === 'admin' ? queryRole : 'user'
+    queryRole === 'expert' ? 'expert' : 'user'
   );
 
   const [email, setEmail] = useState('');
@@ -29,7 +28,7 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { login, logout } = useAuth();
+  const { login } = useAuth();
   const { notify } = useNotify();
   const navigate = useNavigate();
 
@@ -45,20 +44,6 @@ const Login = () => {
     setLoading(true);
     try {
       const user = await login(email, password);
-
-      // Check role authorization if Admin was selected
-      if (selectedRole === 'admin') {
-        if (user.role !== 'admin') {
-          logout();
-          const msg = 'ACCESS DENIED: Administrative clearance required to enter the Admin Console.';
-          setError(msg);
-          notify.error(msg);
-          return;
-        }
-        notify.success(`Welcome back, Administrator ${user.name || ''}! 🛡️`);
-        navigate('/admin');
-        return;
-      }
 
       // Check Specialist role selection
       if (selectedRole === 'expert') {
@@ -118,19 +103,6 @@ const Login = () => {
       registerText: 'Want to offer services?',
       registerAction: 'Register as a Specialist',
       registerLink: '/register?role=expert'
-    },
-    admin: {
-      badge: 'System Administration',
-      badgeIcon: <ShieldCheck size={12} />,
-      badgeBg: 'rgba(239, 68, 68, 0.1)',
-      badgeColor: '#dc2626',
-      title: 'Admin Console',
-      subtitle: 'Sign in with master credentials to access the console',
-      emailLabel: 'Admin Email Address',
-      emailPlaceholder: 'admin@dworld.ink',
-      registerText: 'Not an administrator?',
-      registerAction: 'Switch to Student Login',
-      registerLink: null
     }
   };
 
@@ -207,28 +179,17 @@ const Login = () => {
                 type="button"
                 onClick={() => handleRoleSelect('user')}
                 className={`role-segment-btn ${selectedRole === 'user' ? 'active' : ''}`}
-                style={{ fontSize: '0.825rem' }}
               >
-                <User size={15} />
-                <span>Student</span>
+                <User size={16} />
+                <span>Client / Student</span>
               </button>
               <button
                 type="button"
                 onClick={() => handleRoleSelect('expert')}
                 className={`role-segment-btn ${selectedRole === 'expert' ? 'active' : ''}`}
-                style={{ fontSize: '0.825rem' }}
               >
-                <Briefcase size={15} />
-                <span>Specialist</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => handleRoleSelect('admin')}
-                className={`role-segment-btn ${selectedRole === 'admin' ? 'active' : ''}`}
-                style={{ fontSize: '0.825rem' }}
-              >
-                <ShieldCheck size={15} />
-                <span>Admin</span>
+                <Briefcase size={16} />
+                <span>Service Specialist</span>
               </button>
             </div>
           </div>
@@ -316,14 +277,10 @@ const Login = () => {
                 fontWeight: 700,
                 borderRadius: '14px',
                 justifyContent: 'center',
-                boxShadow: selectedRole === 'admin'
-                  ? '0 8px 20px rgba(239, 68, 68, 0.25)'
-                  : selectedRole === 'expert'
+                boxShadow: selectedRole === 'expert'
                   ? '0 8px 20px rgba(168, 85, 247, 0.25)'
                   : '0 8px 20px rgba(79, 70, 229, 0.25)',
-                background: selectedRole === 'admin'
-                  ? 'linear-gradient(135deg, #ef4444, #b91c1c)'
-                  : selectedRole === 'expert'
+                background: selectedRole === 'expert'
                   ? 'linear-gradient(135deg, #9333ea, #6366f1)'
                   : undefined,
                 marginTop: '0.5rem',
@@ -336,9 +293,7 @@ const Login = () => {
               ) : (
                 <>
                   <span>
-                    {selectedRole === 'admin' 
-                      ? 'Enter Admin Console' 
-                      : selectedRole === 'expert' 
+                    {selectedRole === 'expert' 
                       ? 'Sign In as Specialist' 
                       : 'Sign In as Student'
                     }
