@@ -472,48 +472,7 @@ const SkeletonCard = () => (
   </div>
 );
 
-/* ─── STAT BANNER ─────────────────────────────────────── */
-const StatBanner = ({ appointments, loading }) => {
-  const stats = useMemo(() => {
-    let pending = 0, approved = 0, completed = 0, cancelled = 0;
-    for (const a of appointments) {
-      if (a.status === 'pending') pending++;
-      else if (a.status === 'approved') approved++;
-      else if (a.status === 'completed') completed++;
-      else if (a.status === 'cancelled') cancelled++;
-    }
-    const totalSpent = appointments
-      .filter(a => a.paymentStatus === 'paid')
-      .reduce((s, a) => s + (parseFloat(a.service_id?.price) || 0), 0);
-    return { pending, approved, completed, cancelled, totalSpent, total: appointments.length };
-  }, [appointments]);
 
-  const items = [
-    { label: 'Total', value: stats.total, icon: <CalendarClock size={18} />, color: '#6366f1', bg: 'rgba(99,102,241,0.1)' },
-    { label: 'Upcoming', value: stats.pending + stats.approved, icon: <Hourglass size={18} />, color: '#f59e0b', bg: 'rgba(245,158,11,0.1)' },
-    { label: 'Completed', value: stats.completed, icon: <CircleCheck size={18} />, color: '#10b981', bg: 'rgba(16,185,129,0.1)' },
-    { label: 'Total Spent', value: `₦${stats.totalSpent.toLocaleString()}`, icon: <Banknote size={18} />, color: '#8b5cf6', bg: 'rgba(139,92,246,0.1)' },
-  ];
-
-  return (
-    <div className="myappt-stat-grid">
-      {items.map((item, i) => (
-        <div key={i} className="myappt-stat-item">
-          <div className="stat-icon-circle" style={{ width: 40, height: 40, borderRadius: '12px', background: item.bg, color: item.color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            {item.icon}
-          </div>
-          <div style={{ minWidth: 0 }}>
-            {loading
-              ? <div className="stat-shimmer" style={{ height: '1.4rem', width: '3rem', borderRadius: 6 }} />
-              : <div className="stat-value" style={{ fontFamily: 'Outfit', fontWeight: 800, fontSize: '1.25rem', color: '#0f172a', lineHeight: 1.1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.value}</div>
-            }
-            <div className="stat-title" style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 600, marginTop: '0.15rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{item.label}</div>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-};
 
 /* ═══════════════════════════════════════════════════════
    MAIN COMPONENT
@@ -553,10 +512,6 @@ const MyAppointments = ({
   return (
     <div style={{ display: 'flex', flexDirection: 'column' }}>
 
-      {/* ── Stat Banner ── */}
-      <StatBanner appointments={appointments} loading={loading} />
-
-      {/* ── Controls Bar ── */}
       {/* ── Controls Bar ── */}
       <div className="myappt-controls-bar">
         {/* Search */}
@@ -651,14 +606,6 @@ const MyAppointments = ({
               </button>
             )}
 
-            {/* Book new */}
-            <button
-              onClick={onBook}
-              className="btn btn-primary"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.82rem', padding: '0.45rem 0.85rem', minHeight: 36, flexShrink: 0 }}
-            >
-              <CalendarPlus size={14} /> New Booking
-            </button>
           </div>
         </div>
       </div>

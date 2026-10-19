@@ -33,10 +33,10 @@ import {
   Share2,
   RotateCcw,
   Camera,
-  ZoomIn
+  ZoomIn,
+  Banknote
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import BookingWizardModal from '../components/BookingWizardModal';
 import ReviewModal from '../components/ReviewModal';
 import AppointmentChatModal from '../components/AppointmentChatModal';
 import ConfirmModal from '../components/ConfirmModal';
@@ -92,11 +92,7 @@ const Dashboard = () => {
   const avatarInputRef = useRef(null);
   
   // UI Controls
-  const [isWizardOpen, setIsWizardOpen] = useState(false);
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
-  const [preselectedServiceId, setPreselectedServiceId] = useState(null);
-  const [filterStatus, setFilterStatus] = useState('all');
-  const [searchQuery, setSearchQuery] = useState('');
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [chatAppointment, setChatAppointment] = useState(null);
 
@@ -475,56 +471,31 @@ const Dashboard = () => {
   };
 
   // Memoized Metrics (Single-pass O(N) calculation)
-  const { pendingCount, approvedCount, completedCount, totalCount, nextUpcoming } = useMemo(() => {
-    let pending = 0, approved = 0, completed = 0;
+  const { activeCount, completedCount, totalSpent, nextUpcoming } = useMemo(() => {
+    let active = 0, completed = 0, spent = 0;
     let upcoming = null;
     for (let i = 0; i < appointments.length; i++) {
       const a = appointments[i];
-      if (a.status === 'pending') {
-        pending++;
-        if (!upcoming) upcoming = a;
-      } else if (a.status === 'approved') {
-        approved++;
+      if (a.status === 'pending' || a.status === 'approved') {
+        active++;
         if (!upcoming) upcoming = a;
       } else if (a.status === 'completed') {
         completed++;
       }
+      if (a.paymentStatus === 'paid') {
+        spent += (parseFloat(a.service_id?.price) || 0);
+      }
     }
     return {
-      pendingCount: pending,
-      approvedCount: approved,
+      activeCount: active,
       completedCount: completed,
-      totalCount: appointments.length,
+      totalSpent: spent,
       nextUpcoming: upcoming
     };
   }, [appointments]);
 
-  // Memoized Filtered Appointments
-  const filteredAppointments = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
-    return appointments.filter(app => {
-      if (filterStatus !== 'all' && app.status !== filterStatus) return false;
-      if (!query) return true;
-      const serviceName = (app.service_id?.name || '').toLowerCase();
-      const specialistName = (app.stylist_id?.name || '').toLowerCase();
-      const dateStr = app.date || '';
-      return serviceName.includes(query) || specialistName.includes(query) || dateStr.includes(query);
-    });
-  }, [appointments, filterStatus, searchQuery]);
-
   return (
     <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-
-      {/* Booking Wizard Modal */}
-      <BookingWizardModal 
-        isOpen={isWizardOpen}
-        onClose={() => setIsWizardOpen(false)}
-        preselectedServiceId={preselectedServiceId}
-        onBookingSuccess={() => {
-          addToast('Booking successfully placed!', 'success');
-          fetchData();
-        }}
-      />
 
       {/* Expert Review Modal */}
       <ReviewModal 
@@ -664,26 +635,25 @@ const Dashboard = () => {
         }
       `}</style>
       <div className="bento-grid">
+        {/* Card 1: Upcoming & Active Bookings */}
         <div className="bento-card bento-span-3 dashboard-stat-card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.65rem' }}>
-            <span className="stat-label" style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 700 }}>CONFIRMED</span>
+            <span className="stat-label" style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 700 }}>UPCOMING SESSIONS</span>
             <div className="stat-icon-wrapper" style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(99, 102, 241, 0.12)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <CalendarCheck size={17} />
             </div>
           </div>
-          {apptLoading ? <div className="stat-shimmer" style={{ height: '2rem', width: '3rem' }} /> : <h2 style={{ margin: 0, color: 'var(--primary)' }}>{approvedCount}</h2>}
-        </div>
-
-        <div className="bento-card bento-span-3 dashboard-stat-card">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.65rem' }}>
-            <span className="stat-label" style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 700 }}>PENDING</span>
-            <div className="stat-icon-wrapper" style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(245, 158, 11, 0.12)', color: 'var(--warning)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Clock size={17} />
+          {apptLoading ? (
+            <div className="stat-shimmer" style={{ height: '2rem', width: '3rem' }} />
+          ) : (
+            <div>
+              <h2 style={{ margin: 0, color: 'var(--primary)', fontFamily: 'Outfit' }}>{activeCount}</h2>
+              <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.2rem', display: 'block' }}>Active & confirmed</span>
             </div>
-          </div>
-          {apptLoading ? <div className="stat-shimmer" style={{ height: '2rem', width: '3rem' }} /> : <h2 style={{ margin: 0, color: 'var(--warning)' }}>{pendingCount}</h2>}
+          )}
         </div>
 
+        {/* Card 2: Completed Appointments */}
         <div className="bento-card bento-span-3 dashboard-stat-card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.65rem' }}>
             <span className="stat-label" style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 700 }}>COMPLETED</span>
@@ -691,17 +661,44 @@ const Dashboard = () => {
               <Award size={17} />
             </div>
           </div>
-          {apptLoading ? <div className="stat-shimmer" style={{ height: '2rem', width: '3rem' }} /> : <h2 style={{ margin: 0, color: 'var(--success)' }}>{completedCount}</h2>}
+          {apptLoading ? (
+            <div className="stat-shimmer" style={{ height: '2rem', width: '3rem' }} />
+          ) : (
+            <div>
+              <h2 style={{ margin: 0, color: 'var(--success)', fontFamily: 'Outfit' }}>{completedCount}</h2>
+              <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.2rem', display: 'block' }}>Fulfilled sessions</span>
+            </div>
+          )}
         </div>
 
+        {/* Card 3: Total Spent */}
         <div className="bento-card bento-span-3 dashboard-stat-card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.65rem' }}>
-            <span className="stat-label" style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 700 }}>TOTAL</span>
-            <div className="stat-icon-wrapper" style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(255, 255, 255, 0.05)', color: 'var(--text-main)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <TrendingUp size={17} />
+            <span className="stat-label" style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 700 }}>TOTAL SPENT</span>
+            <div className="stat-icon-wrapper" style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(139, 92, 246, 0.12)', color: '#8b5cf6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Banknote size={17} />
             </div>
           </div>
-          {apptLoading ? <div className="stat-shimmer" style={{ height: '2rem', width: '3rem' }} /> : <h2 style={{ margin: 0, color: 'var(--text-main)' }}>{totalCount}</h2>}
+          {apptLoading ? (
+            <div className="stat-shimmer" style={{ height: '2rem', width: '4rem' }} />
+          ) : (
+            <div>
+              <h2 style={{ margin: 0, color: '#8b5cf6', fontFamily: 'Outfit' }}>₦{totalSpent.toLocaleString()}</h2>
+              <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.2rem', display: 'block' }}>Paid services</span>
+            </div>
+          )}
+        </div>
+
+        {/* Card 4: Verified Specialists */}
+        <div className="bento-card bento-span-3 dashboard-stat-card">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.65rem' }}>
+            <span className="stat-label" style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 700 }}>SPECIALISTS</span>
+            <div className="stat-icon-wrapper" style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(245, 158, 11, 0.12)', color: '#f59e0b', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <ShieldCheck size={17} />
+            </div>
+          </div>
+          <h2 style={{ margin: 0, color: 'var(--text-main)', fontFamily: 'Outfit' }}>{experts.length}</h2>
+          <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.2rem', display: 'block' }}>Verified on campus</span>
         </div>
       </div>
 
