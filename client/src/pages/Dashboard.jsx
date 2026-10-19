@@ -514,10 +514,16 @@ const Dashboard = () => {
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', minWidth: 0 }}>
-            {/* Official D.WORLD Brand & App Logo */}
+            {/* User Profile Avatar */}
             <div style={{ position: 'relative', flexShrink: 0 }}>
               <div 
-                onClick={() => openLightbox('/logo-192.png', 'D.WORLD Official Logo', 'Campus Network PWA')}
+                onClick={() => {
+                  if (user?.avatar) {
+                    openLightbox(user.avatar, user?.name || 'Profile Photo', 'Your D.WORLD Profile');
+                  } else {
+                    avatarInputRef.current?.click();
+                  }
+                }}
                 style={{ 
                   width: '58px', 
                   height: '58px', 
@@ -531,18 +537,51 @@ const Dashboard = () => {
                   cursor: 'pointer',
                   border: '2.5px solid #ffffff',
                   outline: '2px solid rgba(79, 70, 229, 0.25)',
-                  transition: 'transform 0.2s ease, box-shadow 0.2s ease'
+                  transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+                  fontWeight: 800,
+                  fontSize: '1.3rem',
+                  color: '#fff',
+                  fontFamily: 'Outfit, sans-serif'
                 }}
-                title="D.WORLD Official Logo"
+                title={user?.avatar ? 'View profile photo' : 'Click to upload profile photo'}
                 onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.05)'}
                 onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
               >
-                <img 
-                  src="/logo-192.png" 
-                  alt="D.WORLD Official Logo" 
-                  style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
-                />
+                {user?.avatar ? (
+                  <img 
+                    src={user.avatar} 
+                    alt={user?.name || 'Profile'} 
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                  />
+                ) : (
+                  (user?.name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()) || 'U'
+                )}
               </div>
+              {/* Camera overlay hint when no avatar */}
+              {!user?.avatar && (
+                <div
+                  onClick={() => avatarInputRef.current?.click()}
+                  style={{
+                    position: 'absolute', bottom: -4, right: -4,
+                    width: 20, height: 20, borderRadius: '50%',
+                    background: 'var(--primary)', border: '2px solid #fff',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    cursor: 'pointer', boxShadow: '0 2px 6px rgba(0,0,0,0.2)'
+                  }}
+                  title="Upload profile photo"
+                >
+                  <Camera size={10} color="#fff" />
+                </div>
+              )}
+              {avatarUploading && (
+                <div style={{
+                  position: 'absolute', inset: 0, borderRadius: '16px',
+                  background: 'rgba(0,0,0,0.5)', display: 'flex',
+                  alignItems: 'center', justifyContent: 'center'
+                }}>
+                  <div style={{ width: 18, height: 18, border: '2px solid rgba(255,255,255,0.3)', borderTop: '2px solid #fff', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
+                </div>
+              )}
             </div>
 
             <div style={{ minWidth: 0 }}>
