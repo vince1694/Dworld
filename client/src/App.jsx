@@ -21,6 +21,7 @@ import BookAppointment from './pages/BookAppointment';
 import WalletPage from './pages/WalletPage';
 import Chat from './pages/Chat';
 import ExpertProfilePage from './pages/ExpertProfilePage';
+import AppointmentDetailsPage from './pages/AppointmentDetailsPage';
 
 const ProtectedRoute = ({ children, allowedRoles, redirectTo = '/login' }) => {
   const { user, loading } = useAuth();
@@ -110,6 +111,22 @@ function App() {
               <ProtectedRoute>
                 <AppLayout>
                   <Chat />
+                </AppLayout>
+              </ProtectedRoute>
+            } />
+
+            <Route path="/appointment/:id" element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <AppointmentDetailsPage />
+                </AppLayout>
+              </ProtectedRoute>
+            } />
+
+            <Route path="/appointments/:id" element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <AppointmentDetailsPage />
                 </AppLayout>
               </ProtectedRoute>
             } />

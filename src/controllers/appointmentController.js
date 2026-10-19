@@ -700,6 +700,32 @@ const cancelUnpaidAppointment = async (req, res, next) => {
     }
 };
 
+const getAppointmentById = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const userId = req.user.id;
+        const appointment = await Appointment.findById(id)
+            .populate('service_id')
+            .populate('stylist_id', 'name email phone specialty bio rating avatar matricNo department address location')
+            .populate('user_id', 'name email phone avatar matricNo department');
+
+        if (!appointment) {
+            return res.status(404).json({ success: false, message: 'Appointment not found' });
+        }
+
+        const clientId = (appointment.user_id?._id || appointment.user_id)?.toString();
+        const expertId = (appointment.stylist_id?._id || appointment.stylist_id || appointment.service_id?.stylist_id?._id || appointment.service_id?.stylist_id)?.toString();
+
+        if (req.user.role !== 'admin' && clientId !== userId && expertId !== userId) {
+            return res.status(403).json({ success: false, message: 'Unauthorized to view this appointment' });
+        }
+
+        res.status(200).json({ success: true, data: appointment });
+    } catch (error) {
+        next(error);
+    }
+};
+
 module.exports = {
     bookAppointment,
     getUserAppointments,
@@ -714,6 +740,7 @@ module.exports = {
     deleteAppointment,
     cancelUnpaidAppointment,
     clearBookingHistory,
-    rescheduleAppointment
+    rescheduleAppointment,
+    getAppointmentById
 };
 

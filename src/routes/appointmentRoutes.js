@@ -13,7 +13,8 @@ const {
     deleteAppointment,
     cancelUnpaidAppointment,
     clearBookingHistory,
-    rescheduleAppointment
+    rescheduleAppointment,
+    getAppointmentById
 } = require('../controllers/appointmentController');
 const { getAppointmentMessages, sendAppointmentMessage, getAllUserConversations } = require('../controllers/appointmentChatController');
 const { protect, adminOnly } = require('../middleware/authMiddleware');
@@ -44,5 +45,8 @@ router.patch('/:id/status', protect, updateAppointmentStatus);
 router.get('/slots/all', protect, adminOnly, getAllSlots);
 router.post('/slots', protect, adminOnly, createTimeSlot);
 router.delete('/slots/:id', protect, adminOnly, deleteTimeSlot);
+
+// Single appointment lookup (placed after all specific static routes)
+router.get('/:id', protect, getAppointmentById);
 
 module.exports = router;
