@@ -424,7 +424,7 @@ const BookingWizardModal = ({ isOpen, onClose, onBookingSuccess, preselectedServ
                     }}>
                       <VerifiedBadge size="small" text="VERIFIED" />
                       <span style={{ fontSize: '0.775rem', color: '#065f46', fontWeight: 700 }}>
-                        Verified Specialist: <strong style={{ color: '#047857' }}>{selectedExpert.name}</strong> • <span style={{ color: 'var(--primary)', fontWeight: 700 }}>{selectedExpert.matricNo || 'LCU/UG/22/04192'}</span> • <span style={{ color: 'var(--secondary)', fontWeight: 700 }}>{selectedExpert.department || 'Cosmetology & Campus Styling'}</span>
+                        Verified Specialist: <strong style={{ color: '#047857' }}>{selectedExpert.name}</strong> • <span style={{ color: 'var(--primary)', fontWeight: 700 }}>{selectedExpert.matricNo || 'Verified Student Stylist'}</span> • <span style={{ color: 'var(--secondary)', fontWeight: 700 }}>{selectedExpert.department || 'Cosmetology & Campus Styling'}</span>
                       </span>
                     </div>
                   )}
@@ -669,7 +669,7 @@ const BookingWizardModal = ({ isOpen, onClose, onBookingSuccess, preselectedServ
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.825rem' }}>
                         <span style={{ color: 'var(--text-subtle)' }}>Matric No:</span>
-                        <span style={{ fontWeight: 700, color: 'var(--text-main)' }}>{selectedExpert?.matricNo || 'LCU/UG/22/04192'}</span>
+                        <span style={{ fontWeight: 700, color: 'var(--text-main)' }}>{selectedExpert?.matricNo || 'Verified Student Stylist'}</span>
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.825rem' }}>
                         <span style={{ color: 'var(--text-subtle)' }}>Phone:</span>
@@ -677,7 +677,7 @@ const BookingWizardModal = ({ isOpen, onClose, onBookingSuccess, preselectedServ
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.825rem' }}>
                         <span style={{ color: 'var(--text-subtle)' }}>Email:</span>
-                        <span style={{ fontWeight: 600, color: 'var(--primary)' }}>{selectedExpert?.email || 'expert@lcu.edu.ng'}</span>
+                        <span style={{ fontWeight: 600, color: 'var(--primary)' }}>{selectedExpert?.email || 'expert@dworld.ink'}</span>
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.825rem' }}>
                         <span style={{ color: 'var(--text-subtle)' }}>Department:</span>

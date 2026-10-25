@@ -379,7 +379,7 @@ const Services = () => {
                         <div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.2rem', flexWrap: 'wrap' }}>
                             <h3 style={{ margin: 0, fontSize: '1.15rem', fontFamily: 'Outfit' }}>{exp.name}</h3>
-                            <VerifiedBadge size="small" text="OFFICIAL LCU SPECIALIST" />
+                            <VerifiedBadge size="small" text="OFFICIAL VERIFIED SPECIALIST" />
                           </div>
                           <span style={{ fontSize: '0.8rem', color: 'var(--primary)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
                             <Award size={13} /> {exp.specialty || 'General Specialist'}

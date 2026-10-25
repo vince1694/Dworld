@@ -32,7 +32,7 @@ const getTransporter = () => {
 };
 
 // ── Sender name (set your Gmail account display name to match this) ───────────
-const SENDER_NAME = 'D.WORLD LCU';
+const SENDER_NAME = 'D.WORLD';
 const SENDER_EMAIL = process.env.GMAIL_USER || 'ifeanyichukwubethel1@gmail.com';
 const FROM = `"${SENDER_NAME}" <${SENDER_EMAIL}>`;
 
@@ -77,7 +77,7 @@ const htmlWrap = (topBar, body) => `<!DOCTYPE html>
 const sendEmail = async ({ to, subject, html }) => {
     const brevoApiKey = (process.env.BREVO_API_KEY || '').trim();
     const senderEmail = (process.env.BREVO_SENDER_EMAIL || '1bethel312@gmail.com').trim();
-    const senderName = 'D.WORLD LCU';
+    const senderName = 'D.WORLD';
 
     // 1. If BREVO_API_KEY is configured, use Brevo REST API over HTTPS (Port 443)
     // Port 443 is NEVER blocked by Render or cloud firewalls
@@ -229,7 +229,7 @@ const sendWelcomeEmail = async (email, name, role = 'user') => {
             <p style="margin:0 0 16px;font-size:15px;font-weight:700;color:#f8fafc;">💡 How to Use D.WORLD in 5 Easy Steps:</p>
             <div style="display:flex;margin-bottom:14px;">
               <span style="display:inline-block;width:24px;height:24px;background:#10b981;color:#fff;border-radius:50%;text-align:center;line-height:24px;font-weight:700;font-size:12px;margin-right:12px;flex-shrink:0;">1</span>
-              <div><strong style="color:#e2e8f0;font-size:14px;">Browse Campus Experts</strong><br/><span style="color:#94a3b8;font-size:13px;">Discover student barbers, hair braiders, lash techs, and nail artists right inside LCU.</span></div>
+              <div><strong style="color:#e2e8f0;font-size:14px;">Browse Campus Experts</strong><br/><span style="color:#94a3b8;font-size:13px;">Discover student barbers, hair braiders, lash techs, and nail artists right on campus.</span></div>
             </div>
             <div style="display:flex;margin-bottom:14px;">
               <span style="display:inline-block;width:24px;height:24px;background:#10b981;color:#fff;border-radius:50%;text-align:center;line-height:24px;font-weight:700;font-size:12px;margin-right:12px;flex-shrink:0;">2</span>

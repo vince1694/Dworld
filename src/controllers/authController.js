@@ -177,7 +177,7 @@ const verifyRegistration = async (req, res, next) => {
             title: isExpert ? 'Welcome to the D.WORLD Expert Network!' : 'Welcome to D.WORLD!',
             message: isExpert
                 ? 'Welcome aboard! Activate your expert profile for ₦3,000 to start receiving student bookings.'
-                : 'Welcome to D.WORLD LCU! Browse top campus stylists, fund your student wallet, and book appointments in seconds.',
+                : 'Welcome to D.WORLD! Browse top campus stylists, fund your student wallet, and book appointments in seconds.',
             type: 'system'
         }).catch(notifErr => console.warn('[WELCOME NOTIFICATION NOTICE]:', notifErr.message));
 

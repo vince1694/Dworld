@@ -901,7 +901,7 @@ const Dashboard = () => {
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginBottom: '0.4rem' }}>
                 <span style={{ fontSize: '1.25rem' }}>🤝</span>
                 <strong style={{ fontSize: '0.95rem', color: 'var(--text-main)', fontFamily: 'Outfit' }}>
-                  Invite LCU Course Mates
+                  Invite Course Mates
                 </strong>
               </div>
               <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '0 0 0.85rem', lineHeight: 1.5 }}>

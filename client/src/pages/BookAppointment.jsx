@@ -475,7 +475,7 @@ const BookAppointment = () => {
                   D.WORLD VERIFIED SPECIALISTS
                 </span>
                 <span style={{ fontSize: '0.75rem', color: 'var(--text-subtle)' }}>•</span>
-                <span style={{ fontSize: '0.75rem', color: '#10b981', fontWeight: 700 }}>LCU Campus Network</span>
+                <span style={{ fontSize: '0.75rem', color: '#10b981', fontWeight: 700 }}>Verified Campus Network</span>
               </div>
               <h1 style={{ fontSize: 'clamp(1.5rem, 4vw, 2.2rem)', margin: 0, fontFamily: 'Outfit', color: 'var(--text-main)', letterSpacing: '-0.02em', fontWeight: 900 }}>
                 Book Verified Specialist
@@ -803,7 +803,7 @@ const BookAppointment = () => {
                                 <Star size={11} fill="#d97706" color="#d97706" /> {expert.rating || 4.9}
                               </span>
                               <span style={{ fontSize: '0.75rem', color: 'var(--text-subtle)', fontWeight: 600 }}>
-                                {expert.matricNo || 'LCU Certified Stylist'}
+                                {expert.matricNo || 'Certified Campus Stylist'}
                               </span>
                             </div>
                           </div>

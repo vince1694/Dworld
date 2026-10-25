@@ -104,7 +104,7 @@ const Login = () => {
       title: 'Welcome back',
       subtitle: 'Sign in to access your appointments & student wallet',
       emailLabel: 'Student Email Address',
-      emailPlaceholder: 'student@lcu.edu.ng or personal email',
+      emailPlaceholder: 'student@campus.edu.ng or personal email',
       registerText: "Don't have an account?",
       registerAction: 'Sign up as a Student',
       registerLink: '/register?role=user'
@@ -117,7 +117,7 @@ const Login = () => {
       title: 'Specialist Portal',
       subtitle: 'Sign in to manage your schedule, clients & wallet earnings',
       emailLabel: 'Specialist Email Address',
-      emailPlaceholder: 'specialist@lcu.edu.ng',
+      emailPlaceholder: 'specialist@campus.edu.ng or personal email',
       registerText: 'Want to offer services?',
       registerAction: 'Register as a Specialist',
       registerLink: '/register?role=expert'

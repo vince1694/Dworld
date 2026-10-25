@@ -322,7 +322,7 @@ const ExpertProfilePage = () => {
             fontSize: '0.75rem', 
             fontWeight: 700 
           }}>
-            <ShieldCheck size={13} /> Verified LCU Specialist
+            <ShieldCheck size={13} /> Verified Specialist
           </span>
           <span style={{ 
             display: 'inline-flex', 
@@ -410,7 +410,7 @@ const ExpertProfilePage = () => {
               <h1 style={{ margin: 0, fontSize: 'clamp(1.4rem, 4vw, 1.85rem)', fontFamily: 'Outfit', fontWeight: 800, color: 'var(--text-main)' }}>
                 {expert.name}
               </h1>
-              <VerifiedBadge size="medium" text="OFFICIAL LCU SPECIALIST" />
+              <VerifiedBadge size="medium" text="OFFICIAL VERIFIED SPECIALIST" />
             </div>
 
             <p style={{ margin: '0 0 0.75rem', fontSize: '0.95rem', color: 'var(--primary)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>

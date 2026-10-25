@@ -209,7 +209,7 @@ const AppLayout = ({ children }) => {
             {!collapsed && (
               <div>
                 <span className="brand-text">D.WORLD</span>
-                <span className="brand-subtext">LCU Campus</span>
+                <span className="brand-subtext">Campus Hub</span>
               </div>
             )}
           </Link>
@@ -499,7 +499,7 @@ const AppLayout = ({ children }) => {
                 />
                 <div>
                   <span className="brand-text">D.WORLD</span>
-                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block' }}>LCU Campus</span>
+                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block' }}>Campus Hub</span>
                 </div>
               </div>
               <button className="mobile-close-btn" onClick={() => setMobileOpen(false)} aria-label="Close Navigation">
