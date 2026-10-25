@@ -294,7 +294,19 @@ const ExpertDashboard = () => {
     }
   }, [searchParams]);
 
-  // Single batched fetch — all calls fire in parallel, stale-while-revalidate pattern
+  // TTL helper — returns true if cache is older than maxAgeMs
+  const isCacheStale = (key, maxAgeMs = 5 * 60 * 1000) => {
+    try {
+      const ts = sessionStorage.getItem(`${key}_ts`);
+      if (!ts) return true;
+      return Date.now() - parseInt(ts, 10) > maxAgeMs;
+    } catch { return true; }
+  };
+  const stampCache = (key) => {
+    try { sessionStorage.setItem(`${key}_ts`, Date.now().toString()); } catch {}
+  };
+
+  // Batched fetch — appointments always revalidate; services & wallet only after 5 min TTL
   const fetchData = async (forceShowLoading = false) => {
     const hasCache = !!sessionStorage.getItem('dworld_expert_appointments');
     if (!hasCache || forceShowLoading) {
@@ -302,23 +314,32 @@ const ExpertDashboard = () => {
     } else {
       setIsRefreshing(true);
     }
+
+    const servicesStale = isCacheStale('dworld_expert_services');
+    const walletStale   = isCacheStale('dworld_expert_wallet_bal');
+
     try {
-      const [appRes, srvRes, walletRes] = await Promise.all([
+      // Always fetch appointments (most time-sensitive)
+      // Conditionally fetch services & wallet only if stale
+      const requests = [
         axios.get(`${API_URL}/appointments/stylist-dashboard`),
-        axios.get(`${API_URL}/services/my-services`),
-        axios.get(`${API_URL}/auth/wallet`)
-      ]);
-      if (appRes.data.success) {
+        servicesStale ? axios.get(`${API_URL}/services/my-services`) : Promise.resolve(null),
+        walletStale   ? axios.get(`${API_URL}/auth/wallet`)           : Promise.resolve(null),
+      ];
+
+      const [appRes, srvRes, walletRes] = await Promise.all(requests);
+
+      if (appRes?.data?.success) {
         const apts = appRes.data.data.appointments || [];
         setAppointments(apts);
         try { sessionStorage.setItem('dworld_expert_appointments', JSON.stringify(apts)); } catch {}
       }
-      if (srvRes.data.success) {
+      if (srvRes?.data?.success) {
         const srvs = srvRes.data.data || [];
         setServices(srvs);
-        try { sessionStorage.setItem('dworld_expert_services', JSON.stringify(srvs)); } catch {}
+        try { sessionStorage.setItem('dworld_expert_services', JSON.stringify(srvs)); stampCache('dworld_expert_services'); } catch {}
       }
-      if (walletRes.data.success) {
+      if (walletRes?.data?.success) {
         const bal = walletRes.data.data.walletBalance || 0;
         const txs = walletRes.data.data.transactions || [];
         setWalletBalance(bal);
@@ -326,6 +347,7 @@ const ExpertDashboard = () => {
         try {
           sessionStorage.setItem('dworld_expert_wallet_bal', JSON.stringify(bal));
           sessionStorage.setItem('dworld_expert_wallet_txs', JSON.stringify(txs));
+          stampCache('dworld_expert_wallet_bal');
         } catch {}
       }
       // Sync availability from AuthContext user (no extra /auth/me call needed)
@@ -341,6 +363,7 @@ const ExpertDashboard = () => {
   };
 
   const handleLogout = () => { logout(); navigate('/login'); };
+
   const toggleDay = (day) => {
     if (workingDays.includes(day)) {
       if (workingDays.length === 1) { addToast('Must keep at least one working day.', 'error'); return; }

@@ -60,26 +60,44 @@ appointmentSchema.statics.updateStatus = function(id, status) {
 
 appointmentSchema.statics.getByStylist = async function(stylistId) {
   const Service = mongoose.model('Service');
-  let serviceIds = [];
-  try {
-    const services = await Service.find({ stylist_id: stylistId }).select('_id').lean();
-    serviceIds = services.map(s => s._id);
-  } catch (e) {
-    // ignore lookup error
-  }
 
-  const stylistQuery = [
-    { stylist_id: stylistId }
-  ];
-  if (serviceIds.length > 0) {
-    stylistQuery.push({ service_id: { $in: serviceIds } });
-  }
+  // Run service ID lookup in parallel with a direct stylist_id query
+  const [services, directApts] = await Promise.all([
+    Service.find({ stylist_id: stylistId }).select('_id').lean(),
+    this.find({ stylist_id: stylistId })
+      .populate('user_id', 'name email phone avatar matricNo')
+      .populate('service_id', 'name price location duration category image')
+      .sort({ date: -1, time: -1 })
+      .lean()
+  ]);
 
-  return this.find({ $or: stylistQuery })
+  const serviceIds = services.map(s => s._id);
+
+  // Only do a second query if the stylist has services with appointments via service_id
+  // that weren't caught by the stylist_id direct query
+  if (serviceIds.length === 0) return directApts;
+
+  const directAptIds = new Set(directApts.map(a => a._id.toString()));
+
+  const serviceApts = await this.find({
+    service_id: { $in: serviceIds },
+    stylist_id: { $exists: false }
+  })
     .populate('user_id', 'name email phone avatar matricNo')
     .populate('service_id', 'name price location duration category image')
     .sort({ date: -1, time: -1 })
     .lean();
+
+  // Merge, dedup, re-sort
+  const merged = [
+    ...directApts,
+    ...serviceApts.filter(a => !directAptIds.has(a._id.toString()))
+  ];
+  merged.sort((a, b) => {
+    if (b.date !== a.date) return b.date.localeCompare(a.date);
+    return b.time.localeCompare(a.time);
+  });
+  return merged;
 };
 
 appointmentSchema.statics.checkExists = function(date, time) {
