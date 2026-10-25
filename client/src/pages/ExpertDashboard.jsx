@@ -538,7 +538,7 @@ const ExpertDashboard = () => {
     }
   };
 
-  const { pendingApps, approvedApps, completedApps, paidEarnings } = useMemo(() => {
+  const { pendingApps, approvedApps, completedApps, paidEarnings, totalBookings } = useMemo(() => {
     let pending = 0, approved = 0, completed = 0, earnings = 0;
     for (let i = 0; i < appointments.length; i++) {
       const a = appointments[i];
@@ -546,11 +546,12 @@ const ExpertDashboard = () => {
       else if (a.status === 'approved') approved++;
       else if (a.status === 'completed') completed++;
 
-      if (a.paymentStatus === 'paid') {
+      // Only count earnings from paid appointments that are approved or completed (not cancelled)
+      if (a.paymentStatus === 'paid' && (a.status === 'approved' || a.status === 'completed')) {
         earnings += (a.expertPayout || Math.round((parseFloat(a.service_id?.price) || 0) * 0.90));
       }
     }
-    return { pendingApps: pending, approvedApps: approved, completedApps: completed, paidEarnings: earnings };
+    return { pendingApps: pending, approvedApps: approved, completedApps: completed, paidEarnings: earnings, totalBookings: appointments.length };
   }, [appointments]);
 
   const initials = (user?.name || 'E').split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase();
@@ -1089,6 +1090,17 @@ const ExpertDashboard = () => {
                   iconBg: 'rgba(255,255,255,0.2)',
                   gradient: true,
                   tab: 'wallet'
+                },
+                { 
+                  label: 'Total Bookings', 
+                  sub: 'All-time Appointments', 
+                  value: totalBookings, 
+                  color: '#0ea5e9', 
+                  bg: 'linear-gradient(135deg, rgba(14,165,233,0.08), rgba(14,165,233,0.02))', 
+                  border: 'rgba(14,165,233,0.22)',
+                  icon: CalendarRange, 
+                  iconBg: 'rgba(14,165,233,0.14)',
+                  tab: 'appointments'
                 },
               ].map(({ label, sub, value, color, bg, border, icon: Icon, iconBg, gradient, badge, tab }) => (
                 <div 
