@@ -153,6 +153,9 @@ function App() {
                 <ExpertDashboard />
               </ProtectedRoute>
             } />
+
+            {/* Fallback for unknown / 404 paths */}
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
           <PWAInstallBanner />
         </Router>
