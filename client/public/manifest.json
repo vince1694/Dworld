@@ -3,12 +3,24 @@
   "short_name": "D.World",
   "description": "Premium campus appointment booking, specialist scheduling, and service marketplace.",
   "start_url": "/",
+  "scope": "/",
   "id": "/",
+  "lang": "en",
+  "dir": "ltr",
   "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
   "background_color": "#0b0f19",
   "theme_color": "#4f46e5",
-  "orientation": "portrait",
-  "categories": ["lifestyle", "productivity", "utilities"],
+  "orientation": "portrait-primary",
+  "prefer_related_applications": false,
+  "related_applications": [],
+  "categories": ["lifestyle", "productivity", "utilities", "business"],
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  },
+  "edge_side_panel": {
+    "preferred_width": 480
+  },
   "icons": [
     {
       "src": "/pwa-192x192.png",
@@ -39,6 +51,22 @@
       "sizes": "1024x1024",
       "type": "image/png",
       "purpose": "any"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/pwa-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "D.World Mobile Campus Booking Experience"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "D.World Campus Appointments Marketplace"
     }
   ],
   "shortcuts": [

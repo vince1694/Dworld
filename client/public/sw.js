@@ -162,3 +162,18 @@ self.addEventListener('notificationclick', (event) => {
     })
   );
 });
+
+// 6. Background Sync API
+self.addEventListener('sync', (event) => {
+  if (event.tag === 'sync-appointments') {
+    event.waitUntil(Promise.resolve());
+  }
+});
+
+// 7. Periodic Background Sync API
+self.addEventListener('periodicsync', (event) => {
+  if (event.tag === 'content-sync') {
+    event.waitUntil(Promise.resolve());
+  }
+});
+
