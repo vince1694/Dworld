@@ -310,6 +310,18 @@ const ExpertDashboard = () => {
     }
   }, [searchParams]);
 
+  useEffect(() => {
+    if (activeTab === 'wallet') {
+      fetchMyPayouts();
+      axios.get(`${API_URL}/auth/wallet`).then(res => {
+        if (res.data?.success) {
+          setWalletBalance(res.data.data.walletBalance || 0);
+          setWalletTransactions(res.data.data.transactions || []);
+        }
+      }).catch(() => {});
+    }
+  }, [activeTab]);
+
   // TTL helper — returns true if cache is older than maxAgeMs
   const isCacheStale = (key, maxAgeMs = 5 * 60 * 1000) => {
     try {
@@ -335,12 +347,12 @@ const ExpertDashboard = () => {
     const walletStale   = isCacheStale('dworld_expert_wallet_bal');
 
     try {
-      // Always fetch appointments (most time-sensitive)
-      // Conditionally fetch services & wallet only if stale
+      // Always fetch appointments and fresh wallet data
+      // Conditionally fetch services only if stale
       const requests = [
         axios.get(`${API_URL}/appointments/stylist-dashboard`),
         servicesStale ? axios.get(`${API_URL}/services/my-services`) : Promise.resolve(null),
-        walletStale   ? axios.get(`${API_URL}/auth/wallet`)           : Promise.resolve(null),
+        axios.get(`${API_URL}/auth/wallet`)
       ];
 
       const [appRes, srvRes, walletRes] = await Promise.all(requests);

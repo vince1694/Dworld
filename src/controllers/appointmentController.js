@@ -580,15 +580,18 @@ const deleteAppointment = async (req, res, next) => {
         if (appointment.paymentStatus === 'paid' && appointment.status !== 'completed') {
             const refundAmount = appointment.amountPaid || 0;
             const User = require('../models/User');
+            const refundRef = `REFUND-DEL-${appointment._id}`;
+            const revRef = `REV-DEL-${appointment._id}`;
+
             if (appointment.user_id && refundAmount > 0) {
                 const clientUser = await User.findById(appointment.user_id);
-                if (clientUser) {
+                if (clientUser && !clientUser.transactions.some(t => t.reference_id === refundRef)) {
                     clientUser.walletBalance = (clientUser.walletBalance || 0) + refundAmount;
                     clientUser.transactions.push({
                         type: 'refund',
                         amount: refundAmount,
                         description: `100% Refund for deleted booking: ${appointment.service_id?.name || 'Service'}`,
-                        reference_id: `REFUND-DEL-${appointment._id}`
+                        reference_id: refundRef
                     });
                     await clientUser.save();
                 }
@@ -599,8 +602,8 @@ const deleteAppointment = async (req, res, next) => {
             const expertPayoutToReverse = appointment.expertPayout || Math.round(refundAmount * 0.9);
             if (expertId && expertPayoutToReverse > 0) {
                 const expertUser = await User.findById(expertId);
-                if (expertUser) {
-                    // Fix #3: log the ACTUAL deducted amount (wallet can't go below 0)
+                if (expertUser && !expertUser.transactions.some(t => t.reference_id === revRef)) {
+                    // Log the ACTUAL deducted amount (wallet can't go below 0)
                     const currentBal = expertUser.walletBalance || 0;
                     const actualDeducted = Math.min(currentBal, expertPayoutToReverse);
                     expertUser.walletBalance = currentBal - actualDeducted;
@@ -608,7 +611,7 @@ const deleteAppointment = async (req, res, next) => {
                         type: 'refund_deduction',
                         amount: actualDeducted,
                         description: `Payout reversed for deleted booking: ${appointment.service_id?.name || 'Service'}`,
-                        reference_id: `REV-DEL-${appointment._id}`
+                        reference_id: revRef
                     });
                     await expertUser.save();
                 }
