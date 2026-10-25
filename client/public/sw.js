@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dworld-pwa-v2';
+const CACHE_NAME = 'dworld-pwa-v3';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -49,8 +49,12 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Bypass external APIs like Paystack checkout or Brevo
-  if (url.origin.includes('paystack.co') || url.origin.includes('brevo.com')) {
+  // Bypass external APIs — Paystack checkout, CDN button styles, Brevo
+  if (
+    url.origin.includes('paystack.co') ||
+    url.origin.includes('paystack.com') ||
+    url.origin.includes('brevo.com')
+  ) {
     return;
   }
 
@@ -81,7 +85,9 @@ self.addEventListener('fetch', (event) => {
       caches.match(request).then((cachedResponse) => {
         const fetchPromise = fetch(request).then((networkResponse) => {
           if (networkResponse && networkResponse.status === 200) {
-            caches.open(CACHE_NAME).then((cache) => cache.put(request, networkResponse.clone()));
+            // Clone BEFORE consuming — fixes "body already used" error
+            const responseToCache = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, responseToCache));
           }
           return networkResponse;
         }).catch(() => cachedResponse);

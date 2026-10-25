@@ -174,11 +174,27 @@ const Dashboard = () => {
       ]);
       if (servicesRes.data?.success) {
         setServices(servicesRes.data.data);
-        sessionStorage.setItem('dworld_services', JSON.stringify(servicesRes.data.data));
+        try {
+          sessionStorage.setItem('dworld_services', JSON.stringify(servicesRes.data.data));
+        } catch { sessionStorage.removeItem('dworld_services'); }
       }
       if (expertsRes?.data?.success) {
-        setExperts(expertsRes.data.data || []);
-        sessionStorage.setItem('dworld_experts', JSON.stringify(expertsRes.data.data || []));
+        const fullExperts = expertsRes.data.data || [];
+        setExperts(fullExperts);
+        // Strip heavy fields (portfolio images, large avatars) before sessionStorage caching
+        // to prevent QuotaExceededError on browsers with tight storage quotas
+        try {
+          const slim = fullExperts.map(({ portfolio, bio, ...rest }) => ({
+            ...rest,
+            // Keep avatar only if it's a URL (not a base64 blob)
+            avatar: rest.avatar && !rest.avatar.startsWith('data:') ? rest.avatar : undefined
+          }));
+          sessionStorage.setItem('dworld_experts', JSON.stringify(slim));
+        } catch (storageErr) {
+          // Quota exceeded or Tracking Prevention — silently skip caching
+          console.warn('[Cache] Could not cache experts:', storageErr.message);
+          sessionStorage.removeItem('dworld_experts');
+        }
       }
     } catch (err) {
       console.error('Failed to revalidate services/experts', err);

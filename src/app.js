@@ -26,12 +26,13 @@ app.use(helmet({
     contentSecurityPolicy: {
         directives: {
             "default-src": ["'self'"],
-            "script-src": ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com", "https://js.paystack.co"],
-            "style-src": ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://cdnjs.cloudflare.com"],
-            "font-src": ["'self'", "https://fonts.gstatic.com", "https://cdnjs.cloudflare.com", "data:"],
-            "img-src": ["'self'", "data:", "https:"],
-            "frame-src": ["'self'", "https://checkout.paystack.com", "https://api.paystack.co"],
-            "connect-src": ["'self'", "https:", "http:", "https://api.paystack.co", "https://checkout.paystack.com"]
+            "script-src": ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com", "https://js.paystack.co", "https://*.paystack.com"],
+            "style-src": ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://cdnjs.cloudflare.com", "https://paystack.com", "https://*.paystack.com"],
+            "style-src-elem": ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://cdnjs.cloudflare.com", "https://paystack.com", "https://*.paystack.com"],
+            "font-src": ["'self'", "https://fonts.gstatic.com", "https://cdnjs.cloudflare.com", "https://paystack.com", "https://*.paystack.com", "data:"],
+            "img-src": ["'self'", "data:", "blob:", "https:"],
+            "frame-src": ["'self'", "https://checkout.paystack.com", "https://api.paystack.co", "https://*.paystack.com"],
+            "connect-src": ["'self'", "https:", "http:", "wss:", "https://api.paystack.co", "https://checkout.paystack.com", "https://*.paystack.com"]
         }
     }
 }));
