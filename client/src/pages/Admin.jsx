@@ -131,6 +131,11 @@ const Admin = () => {
       }
     } catch (err) {
       console.error('Error fetching admin users', err);
+    } finally {
+      setUsersLoading(false);
+    }
+  };
+
   const fetchPayouts = async () => {
     setPayoutsLoading(true);
     try {
