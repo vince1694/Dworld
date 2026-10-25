@@ -22,7 +22,8 @@ import {
   Plus,
   MessageSquare,
   Users,
-  Mail
+  Mail,
+  Banknote
 } from 'lucide-react';
 import axios from 'axios';
 import NotificationPanel from './NotificationPanel';
@@ -115,6 +116,7 @@ const AppLayout = ({ children }) => {
         { name: 'Global Bookings', path: '/admin?tab=appointments', tab: 'appointments', icon: <CalendarRange size={18} /> },
         { name: 'User Directory', path: '/admin?tab=users', tab: 'users', icon: <Users size={18} /> },
         { name: 'Platform Services', path: '/admin?tab=services', tab: 'services', icon: <PackagePlus size={18} /> },
+        { name: 'Payout Requests', path: '/admin?tab=payouts', tab: 'payouts', icon: <Banknote size={18} /> },
         { name: 'Support Inquiries', path: '/admin?tab=inquiries', tab: 'inquiries', icon: <Mail size={18} /> },
         { name: 'Services & Experts', path: '/services', icon: <UserCheck size={18} /> },
         { name: 'Admin Settings', path: '/admin?tab=profile', tab: 'profile', icon: <Shield size={18} /> },

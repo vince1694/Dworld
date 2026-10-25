@@ -1779,7 +1779,30 @@ const ExpertDashboard = () => {
                                     style={{ width: '100%', padding: '0.75rem 1rem 0.75rem 2.25rem', borderRadius: '12px', border: '1.5px solid var(--border-light)', background: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1rem', fontWeight: 700, boxSizing: 'border-box' }}
                                   />
                                 </div>
-                                <p style={{ margin: '0.3rem 0 0', fontSize: '0.75rem', color: 'var(--text-muted)' }}>Available: <strong style={{ color: '#10b981' }}>₦{walletBalance.toLocaleString()}</strong></p>
+                                <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                                  {[2000, 5000, 10000, walletBalance].filter(v => v >= 1000).map((v, i) => (
+                                    <button
+                                      key={i}
+                                      type="button"
+                                      onClick={() => setWithdrawForm(prev => ({ ...prev, amount: String(v) }))}
+                                      style={{
+                                        padding: '0.3rem 0.65rem',
+                                        borderRadius: '8px',
+                                        border: '1px solid var(--border-light)',
+                                        background: String(withdrawForm.amount) === String(v) ? 'var(--primary)' : 'var(--bg-main)',
+                                        color: String(withdrawForm.amount) === String(v) ? '#fff' : 'var(--text-main)',
+                                        fontSize: '0.75rem',
+                                        fontWeight: 700,
+                                        cursor: 'pointer'
+                                      }}
+                                    >
+                                      {v === walletBalance ? `Max (₦${v.toLocaleString()})` : `₦${v.toLocaleString()}`}
+                                    </button>
+                                  ))}
+                                  <span style={{ marginLeft: 'auto', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                    Available: <strong style={{ color: '#10b981' }}>₦{walletBalance.toLocaleString()}</strong>
+                                  </span>
+                                </div>
                               </div>
 
                               {/* Bank select */}

@@ -20,6 +20,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { useNotify } from '../context/NotificationContext';
 import { API_URL } from '../config/api';
+import WithdrawModal from '../components/WithdrawModal';
 
 const PRESET_AMOUNTS = [1000, 2000, 3000, 5000, 10000];
 
@@ -36,6 +37,7 @@ const WalletPage = () => {
   const [filterType, setFilterType] = useState('all');
   const [successBanner, setSuccessBanner] = useState('');
   const [errorBanner, setErrorBanner] = useState('');
+  const [isWithdrawModalOpen, setIsWithdrawModalOpen] = useState(false);
 
   useEffect(() => {
     fetchWalletData();
@@ -150,20 +152,42 @@ const WalletPage = () => {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
           <div>
             <h1 style={{ fontSize: 'clamp(1.5rem, 3.5vw, 2.2rem)', margin: 0, fontFamily: 'Outfit', color: 'var(--text-main)', letterSpacing: '-0.02em' }}>
-              Student Wallet & Balance
+              {['expert', 'stylist'].includes(user?.role) ? 'Specialist Wallet & Payouts' : 'Student Wallet & Balance'}
             </h1>
             <p style={{ margin: '0.35rem 0 0', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-              Instant deposits, 1-click appointment booking, and automated refund guarantee.
+              {['expert', 'stylist'].includes(user?.role) 
+                ? 'Instant payouts to your verified Nigerian bank account & client earnings tracker.'
+                : 'Instant deposits, 1-click appointment booking, and automated refund guarantee.'}
             </p>
           </div>
-          <button 
-            onClick={fetchWalletData} 
-            className="btn btn-secondary" 
-            style={{ padding: '0.55rem 1rem', borderRadius: '10px', fontSize: '0.85rem' }}
-            title="Refresh balance"
-          >
-            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> Refresh
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
+            <button
+              onClick={() => setIsWithdrawModalOpen(true)}
+              className="btn btn-outline"
+              style={{
+                padding: '0.55rem 1.1rem',
+                borderRadius: '10px',
+                fontSize: '0.85rem',
+                fontWeight: 700,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+                borderColor: 'rgba(245, 158, 11, 0.45)',
+                color: '#d97706',
+                background: 'rgba(245, 158, 11, 0.08)'
+              }}
+            >
+              <ArrowDownLeft size={15} style={{ transform: 'rotate(180deg)' }} /> Withdraw Funds
+            </button>
+            <button 
+              onClick={fetchWalletData} 
+              className="btn btn-secondary" 
+              style={{ padding: '0.55rem 1rem', borderRadius: '10px', fontSize: '0.85rem' }}
+              title="Refresh balance"
+            >
+              <RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> Refresh
+            </button>
+          </div>
         </div>
       </div>
 
@@ -258,7 +282,7 @@ const WalletPage = () => {
             </div>
 
             <span style={{ fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(255,255,255,0.7)' }}>
-              AVAILABLE STUDENT BALANCE
+              AVAILABLE {['expert', 'stylist'].includes(user?.role) ? 'SPECIALIST' : 'STUDENT'} BALANCE
             </span>
             <div style={{ fontSize: 'clamp(2.2rem, 5vw, 3rem)', fontWeight: 900, fontFamily: 'Outfit', lineHeight: 1.1, margin: '0.4rem 0 1.25rem' }}>
               ₦{walletBalance.toLocaleString()}
@@ -267,8 +291,10 @@ const WalletPage = () => {
 
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', borderTop: '1px solid rgba(255,255,255,0.12)', paddingTop: '1rem' }}>
             <div>
-              <span style={{ display: 'block', fontSize: '0.68rem', color: 'rgba(255,255,255,0.6)', textTransform: 'uppercase' }}>STUDENT ACCOUNT</span>
-              <strong style={{ fontSize: '0.95rem', letterSpacing: '0.02em' }}>{user?.name || 'Verified Student'}</strong>
+              <span style={{ display: 'block', fontSize: '0.68rem', color: 'rgba(255,255,255,0.6)', textTransform: 'uppercase' }}>
+                {['expert', 'stylist'].includes(user?.role) ? 'VERIFIED SPECIALIST' : 'STUDENT ACCOUNT'}
+              </span>
+              <strong style={{ fontSize: '0.95rem', letterSpacing: '0.02em' }}>{user?.name || 'Verified User'}</strong>
             </div>
             {user?.matricNo && (
               <div style={{ textAlign: 'right' }}>
@@ -528,6 +554,17 @@ const WalletPage = () => {
           </div>
         )}
       </div>
+
+      {/* ── Bank Withdrawal Modal ── */}
+      <WithdrawModal
+        isOpen={isWithdrawModalOpen}
+        onClose={() => setIsWithdrawModalOpen(false)}
+        walletBalance={walletBalance}
+        onSuccess={() => {
+          fetchWalletData();
+          if (refreshUser) refreshUser();
+        }}
+      />
 
     </div>
   );
