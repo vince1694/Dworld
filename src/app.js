@@ -92,6 +92,43 @@ app.use('/api/notifications', require('./routes/notificationRoutes'));
 app.use('/api/contact', require('./routes/contactRoutes'));
 app.use('/api/payments', require('./routes/paymentRoutes'));
 
+// Serve SEO and Crawler files directly with correct MIME types
+app.get('/robots.txt', (req, res) => {
+    const distFile = path.join(__dirname, '../client/dist/robots.txt');
+    const pubFile = path.join(__dirname, '../client/public/robots.txt');
+    if (fs.existsSync(distFile)) return res.type('text/plain').sendFile(distFile);
+    if (fs.existsSync(pubFile)) return res.type('text/plain').sendFile(pubFile);
+    res.type('text/plain').send("User-agent: *\nAllow: /\nDisallow: /admin\nDisallow: /dashboard\nDisallow: /wallet\nSitemap: https://dworld.ink/sitemap.xml\n");
+});
+
+app.get('/sitemap.xml', (req, res) => {
+    const distFile = path.join(__dirname, '../client/dist/sitemap.xml');
+    const pubFile = path.join(__dirname, '../client/public/sitemap.xml');
+    if (fs.existsSync(distFile)) return res.type('application/xml').sendFile(distFile);
+    if (fs.existsSync(pubFile)) return res.type('application/xml').sendFile(pubFile);
+    res.type('application/xml').send(`<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://dworld.ink/</loc>
+    <lastmod>2026-10-25</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://dworld.ink/register</loc>
+    <lastmod>2026-10-25</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://dworld.ink/login</loc>
+    <lastmod>2026-10-25</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+</urlset>`);
+});
+
 // Serve frontend static build
 const distPath = path.join(__dirname, '../client/dist');
 const fs = require('fs');
