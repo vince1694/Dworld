@@ -39,16 +39,11 @@ const initiateRegister = async (req, res, next) => {
             });
         }
 
-        // Validate LCU matric format
-        if (matricNo || cleanRole === 'user' || cleanRole === 'expert') {
-            const matricRegex = /^lcu\/ug\/\d{2}\/\d{4,5}$/i;
-            if (!matricNo || !matricRegex.test(matricNo.trim())) {
-                return res.status(400).json({ 
-                    success: false, 
-                    message: 'Access Denied: Invalid Lead City University Matriculation Number format. Expected format: LCU/UG/00/00000 (e.g. LCU/UG/22/04192)' 
-                });
-            }
+        // Matric number is optional
+        if (matricNo) {
             matricNo = matricNo.trim().toUpperCase();
+        } else {
+            matricNo = '';
         }
 
         // Check if email already exists
@@ -72,7 +67,7 @@ const initiateRegister = async (req, res, next) => {
             role: cleanRole,
             state: state || '',
             address: expertAddress,
-            location: expertAddress || 'Lead City University Campus',
+            location: expertAddress || 'Campus Central',
             matricNo,
             newServices,
             otp,
@@ -143,8 +138,8 @@ const verifyRegistration = async (req, res, next) => {
             role: validRole, 
             state, 
             address: address || '',
-            location: location || address || 'Lead City University Campus',
-            matricNo, 
+            location: location || address || 'Campus Central',
+            matricNo: matricNo || '', 
             isVerified: true,
             isActivated,
             activationFee: 3000 
@@ -162,12 +157,12 @@ const verifyRegistration = async (req, res, next) => {
                     duration: Number(svc.duration) || 45,
                     type: 'single',
                     category: svc.category || 'Single Services',
-                    location: address || location || svc.location || 'Lead City University Campus',
+                    location: address || location || svc.location || 'Campus Central',
                     stylist_id
                 });
                 await User.findByIdAndUpdate(stylist_id, {
                     specialty: svc.name,
-                    bio: `Specialized ${svc.name} expert at ${address || 'Lead City University Campus'}.`
+                    bio: `Specialized ${svc.name} expert at ${address || 'Campus Central'}.`
                 });
             }
         }
@@ -612,7 +607,7 @@ const getExperts = async (req, res, next) => {
                         duration: 45,
                         type: 'single',
                         category: 'Single Services',
-                        location: exp.address || exp.location || 'Lead City University Campus',
+                        location: exp.address || exp.location || 'Campus Central',
                         stylist_id: exp._id
                     }},
                     upsert: true
@@ -639,7 +634,7 @@ const getExperts = async (req, res, next) => {
                 role: exp.role,
                 phone: exp.phone || '',
                 address: exp.address || exp.location || '',
-                location: exp.location || exp.address || 'Lead City University Campus',
+                location: exp.location || exp.address || 'Campus Central',
                 matricNo: exp.matricNo || '',
                 department: exp.department || 'Campus Styling Specialist',
                 bio: exp.bio || 'Professional Verified Specialist',

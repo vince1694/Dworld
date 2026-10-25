@@ -57,7 +57,7 @@ const BASE_STYLES = `
 
 const footerHtml = () => `
   <div class="footer">
-    &copy; ${new Date().getFullYear()} <strong style="color:#6366f1;">D.WORLD</strong> &mdash; Lead City University Campus Services<br/>
+    &copy; ${new Date().getFullYear()} <strong style="color:#6366f1;">D.WORLD</strong> &mdash; Campus Appointments &amp; Styling<br/>
     <a href="https://dworld.ink" style="color:#818cf8;text-decoration:none;font-weight:600;font-size:12px;display:inline-block;margin-top:6px;">🌐 dworld.ink</a><br/>
     <span style="font-size:11px;color:#475569;display:inline-block;margin-top:4px;">This is an automated message from the D.WORLD Campus Platform.</span>
   </div>
@@ -121,7 +121,7 @@ const sendEmail = async ({ to, subject, html }) => {
 
 // ── 1. Registration OTP ───────────────────────────────────────────────────────
 const sendRegistrationOtpEmail = async (email, name, otp) => {
-    const topBar = `<div class="logo">D·WORLD</div><div class="logo-sub">Lead City University</div>`;
+    const topBar = `<div class="logo">D·WORLD</div><div class="logo-sub">Account Verification</div>`;
     const body = `
       <p class="title">Verify your email address 📬</p>
       <p class="txt">Hi <strong style="color:#e2e8f0;">${name || 'there'}</strong>,<br/>
@@ -194,7 +194,7 @@ const sendExpertActivationEmail = async (email, name) => {
 const sendWelcomeEmail = async (email, name, role = 'user') => {
     const isExpert = (role === 'expert' || role === 'stylist');
     const firstName = name ? name.split(' ')[0] : (isExpert ? 'Expert' : 'Student');
-    const topBar = `<div class="logo">D·WORLD</div><div class="logo-sub">${isExpert ? 'Expert Network' : 'Lead City University'}</div>`;
+    const topBar = `<div class="logo">D·WORLD</div><div class="logo-sub">${isExpert ? 'Expert Network' : 'Campus Marketplace'}</div>`;
 
     let stepsHtml = '';
     if (isExpert) {
@@ -257,7 +257,7 @@ const sendWelcomeEmail = async (email, name, role = 'user') => {
         <p style="margin:0;font-size:20px;font-weight:800;color:#34d399;">Welcome to D.WORLD!</p>
       </div>
       <p class="title">Hey ${firstName}! 👋</p>
-      <p class="txt">Your D.WORLD account is officially verified and ready. D.WORLD is built exclusively for Lead City University students to make campus appointments fast, reliable, and 100% cashless.</p>
+      <p class="txt">Your D.WORLD account is officially verified and ready. D.WORLD connects you with verified campus specialists to make appointments fast, reliable, and 100% cashless.</p>
       
       ${stepsHtml}
 
@@ -284,7 +284,7 @@ const sendContactInquiryEmail = async ({ name, email, message }) => {
     const adminEmail = 'beatsnitro101@gmail.com';
     const topBar = `
       <div class="logo">D.WORLD</div>
-      <div class="logo-sub">Campus Help Desk &bull; Lead City University</div>
+      <div class="logo-sub">Campus Help Desk &bull; D.World Support</div>
     `;
 
     const body = `

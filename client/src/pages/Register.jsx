@@ -276,17 +276,8 @@ const Register = () => {
     e.preventDefault();
     setError('');
 
-    // Pre-validate LCU matriculation format before sending
-    const matricRegex = /^lcu\/ug\/\d{2}\/\d{4,5}$/i;
-    if (!formData.matricNo || !matricRegex.test(formData.matricNo.trim())) {
-      const msg = 'Invalid Matric Number. Expected format: LCU/UG/00/00000 (e.g. LCU/UG/22/04192)';
-      setError(msg);
-      notify.warning(msg);
-      return;
-    }
-
     if ((formData.role === 'expert' || formData.role === 'stylist') && !formData.address?.trim()) {
-      const msg = 'Please enter your location or campus address (e.g. Unity Hall, Lead City University, Ibadan) so students can find you nearby.';
+      const msg = 'Please enter your location or address so clients can find you nearby.';
       setError(msg);
       notify.warning(msg);
       return;
@@ -415,7 +406,7 @@ const Register = () => {
                 textTransform: 'uppercase',
                 marginBottom: '0.75rem'
               }}>
-                <Sparkles size={12} /> Lead City University Portal
+                <Sparkles size={12} /> D.World Portal
               </div>
               <h1>Create an account</h1>
               <p>Book campus styling & services or register as a student expert</p>
@@ -526,67 +517,26 @@ const Register = () => {
                   </div>
                 </div>
 
-                {/* 2-Column Responsive Layout: Email & LCU Matric No */}
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))',
-                  gap: '1rem',
-                  marginBottom: '1.15rem'
-                }}>
-                  {/* Email */}
-                  <div className="input-group" style={{ margin: 0 }}>
-                    <label htmlFor="email">
-                      <span>Email Address</span>
-                      <span style={{ fontSize: '0.72rem', color: 'var(--text-subtle)', fontWeight: 500 }}>Active email</span>
-                    </label>
-                    <div className="auth-input-wrapper">
-                      <span className="auth-input-icon">
-                        <Mail size={18} />
-                      </span>
-                      <input
-                        id="email"
-                        name="email"
-                        type="email"
-                        placeholder="you@example.com"
-                        value={formData.email}
-                        onChange={handleChange}
-                        required
-                        className="auth-input-field"
-                      />
-                    </div>
-                  </div>
-
-                  {/* LCU Matriculation Number */}
-                  <div className="input-group" style={{ margin: 0 }}>
-                    <label htmlFor="matricNo">
-                      <span>LCU Matric No</span>
-                      <span style={{
-                        fontSize: '0.7rem',
-                        fontWeight: 700,
-                        color: 'var(--primary)',
-                        background: 'rgba(79, 70, 229, 0.08)',
-                        padding: '0.1rem 0.45rem',
-                        borderRadius: '6px'
-                      }}>
-                        LCU/UG/00/00000
-                      </span>
-                    </label>
-                    <div className="auth-input-wrapper">
-                      <span className="auth-input-icon">
-                        <ShieldCheck size={18} style={{ color: 'var(--primary)' }} />
-                      </span>
-                      <input
-                        id="matricNo"
-                        name="matricNo"
-                        type="text"
-                        placeholder="LCU/UG/22/04521"
-                        value={formData.matricNo || ''}
-                        onChange={handleChange}
-                        required
-                        className="auth-input-field"
-                        style={{ textTransform: 'uppercase', letterSpacing: '0.04em' }}
-                      />
-                    </div>
+                {/* Email Address */}
+                <div className="input-group" style={{ marginBottom: '1.15rem' }}>
+                  <label htmlFor="email">
+                    <span>Email Address</span>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-subtle)', fontWeight: 500 }}>Active email</span>
+                  </label>
+                  <div className="auth-input-wrapper">
+                    <span className="auth-input-icon">
+                      <Mail size={18} />
+                    </span>
+                    <input
+                      id="email"
+                      name="email"
+                      type="email"
+                      placeholder="you@example.com"
+                      value={formData.email}
+                      onChange={handleChange}
+                      required
+                      className="auth-input-field"
+                    />
                   </div>
                 </div>
 

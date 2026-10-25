@@ -51,11 +51,10 @@ const bookAppointment = async (req, res, next) => {
 
         if (targetStylistId) {
             const specialist = await User.findById(targetStylistId);
-            const matricRegex = /^LCU\/UG\/\d{2}\/\d{4,5}$/i;
-            if (!specialist || !specialist.matricNo || !matricRegex.test(specialist.matricNo.trim())) {
-                return res.status(403).json({
+            if (!specialist) {
+                return res.status(404).json({
                     success: false,
-                    message: 'Access Denied: Unverified specialist credentials or invalid Lead City University Matriculation Number.'
+                    message: 'Specialist account not found.'
                 });
             }
         }
