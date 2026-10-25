@@ -311,20 +311,22 @@ const ExpertDashboard = () => {
       if (appRes.data.success) {
         const apts = appRes.data.data.appointments || [];
         setAppointments(apts);
-        sessionStorage.setItem('dworld_expert_appointments', JSON.stringify(apts));
+        try { sessionStorage.setItem('dworld_expert_appointments', JSON.stringify(apts)); } catch {}
       }
       if (srvRes.data.success) {
         const srvs = srvRes.data.data || [];
         setServices(srvs);
-        sessionStorage.setItem('dworld_expert_services', JSON.stringify(srvs));
+        try { sessionStorage.setItem('dworld_expert_services', JSON.stringify(srvs)); } catch {}
       }
       if (walletRes.data.success) {
         const bal = walletRes.data.data.walletBalance || 0;
         const txs = walletRes.data.data.transactions || [];
         setWalletBalance(bal);
         setWalletTransactions(txs);
-        sessionStorage.setItem('dworld_expert_wallet_bal', JSON.stringify(bal));
-        sessionStorage.setItem('dworld_expert_wallet_txs', JSON.stringify(txs));
+        try {
+          sessionStorage.setItem('dworld_expert_wallet_bal', JSON.stringify(bal));
+          sessionStorage.setItem('dworld_expert_wallet_txs', JSON.stringify(txs));
+        } catch {}
       }
       // Sync availability from AuthContext user (no extra /auth/me call needed)
       if (user?.workingDays) setWorkingDays(user.workingDays);

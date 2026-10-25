@@ -620,6 +620,7 @@ const Admin = () => {
                       ))}
                     </div>
                   </div>
+                </div>
 
                 {/* User Stats KPI Row */}
                 <div style={{ display: 'flex', gap: '0.75rem', padding: '1rem 1.25rem', borderBottom: '1px solid var(--border-light)', flexWrap: 'wrap' }}>

@@ -158,7 +158,11 @@ const Dashboard = () => {
       const appointmentsRes = await axios.get(`${API_URL}/appointments/my-appointments`);
       if (appointmentsRes.data.success) {
         setAppointments(appointmentsRes.data.data);
-        sessionStorage.setItem('dworld_user_appointments', JSON.stringify(appointmentsRes.data.data));
+        try {
+          sessionStorage.setItem('dworld_user_appointments', JSON.stringify(appointmentsRes.data.data));
+        } catch {
+          // Ignore quota / tracking prevention errors
+        }
       }
     } catch (err) {
       console.error('Failed to fetch appointments', err);
