@@ -12,6 +12,8 @@ connectDB();
 const authRoutes = require('./routes/authRoutes');
 const serviceRoutes = require('./routes/serviceRoutes');
 const appointmentRoutes = require('./routes/appointmentRoutes');
+const fs = require('fs');
+const path = require('path');
 const { errorHandler } = require('./middleware/errorMiddleware');
 
 const app = express();
@@ -78,9 +80,13 @@ app.use(cors({
 // Cloudinary avatar uploads use base64 — keep 10mb for /auth/avatar only, 2mb elsewhere
 app.use('/api/auth/avatar', express.json({ limit: '10mb' }));
 app.use('/api/auth/portfolio', express.json({ limit: '10mb' }));
-app.use(express.json({ limit: '2mb' }));
+app.use(express.json({ 
+    limit: '2mb',
+    verify: (req, res, buf) => {
+        req.rawBody = buf;
+    }
+}));
 app.use(express.urlencoded({ extended: true, limit: '2mb' }));
-const path = require('path');
 
 
 // Routes
@@ -131,7 +137,6 @@ app.get('/sitemap.xml', (req, res) => {
 
 // Serve frontend static build
 const distPath = path.join(__dirname, '../client/dist');
-const fs = require('fs');
 if (fs.existsSync(distPath)) {
     app.use(express.static(distPath));
 

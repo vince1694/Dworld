@@ -46,7 +46,16 @@ const bookAppointment = async (req, res, next) => {
 
         const existing = await Appointment.findOne(conflictQuery);
         if (existing) {
-            return res.status(400).json({ success: false, message: 'This date and time slot is already booked for this specialist.' });
+            // If the slot was held by an unpaid checkout that expired (> 20 mins ago), release it
+            const isUnpaidExpired = existing.paymentStatus === 'unpaid' && 
+                (Date.now() - new Date(existing.createdAt).getTime()) > 20 * 60 * 1000;
+
+            if (isUnpaidExpired) {
+                existing.status = 'cancelled';
+                await existing.save();
+            } else {
+                return res.status(400).json({ success: false, message: 'This date and time slot is already booked for this specialist.' });
+            }
         }
 
         if (targetStylistId) {
@@ -215,6 +224,14 @@ const updateAppointmentStatus = async (req, res, next) => {
         const { status } = req.body;
         const appointmentId = req.params.id;
         const user = req.user;
+
+        const allowedStatuses = ['pending', 'approved', 'completed', 'cancelled'];
+        if (!status || !allowedStatuses.includes(status)) {
+            return res.status(400).json({ 
+                success: false, 
+                message: `Invalid appointment status. Allowed statuses: ${allowedStatuses.join(', ')}` 
+            });
+        }
 
         // Get appointment details with service info to verify ownership
         const appointment = await Appointment.findById(appointmentId).populate('service_id');

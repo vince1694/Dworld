@@ -16,6 +16,6 @@ router.post('/initialize', protect, initializePayment);
 router.post('/verify', protect, verifyPayment);
 
 // Webhook endpoint
-router.post('/webhook', express.raw({ type: 'application/json' }), paystackWebhook);
+router.post('/webhook', paystackWebhook);
 
 module.exports = router;

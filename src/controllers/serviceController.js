@@ -40,8 +40,18 @@ const createService = async (req, res, next) => {
 
 const updateService = async (req, res, next) => {
     try {
-        await Service.update(req.params.id, req.body);
-        res.status(200).json({ success: true, message: 'Service updated' });
+        const service = await Service.findById(req.params.id);
+        if (!service) {
+            return res.status(404).json({ success: false, message: 'Service not found' });
+        }
+
+        const isOwner = service.stylist_id && service.stylist_id.toString() === req.user.id.toString();
+        if (req.user.role !== 'admin' && !isOwner) {
+            return res.status(403).json({ success: false, message: 'Not authorized to modify this service' });
+        }
+
+        const updated = await Service.findByIdAndUpdate(req.params.id, req.body, { new: true });
+        res.status(200).json({ success: true, message: 'Service updated', data: updated });
     } catch (error) {
         next(error);
     }
@@ -49,7 +59,17 @@ const updateService = async (req, res, next) => {
 
 const deleteService = async (req, res, next) => {
     try {
-        await Service.delete(req.params.id);
+        const service = await Service.findById(req.params.id);
+        if (!service) {
+            return res.status(404).json({ success: false, message: 'Service not found' });
+        }
+
+        const isOwner = service.stylist_id && service.stylist_id.toString() === req.user.id.toString();
+        if (req.user.role !== 'admin' && !isOwner) {
+            return res.status(403).json({ success: false, message: 'Not authorized to delete this service' });
+        }
+
+        await Service.findByIdAndDelete(req.params.id);
         res.status(200).json({ success: true, message: 'Service deleted' });
     } catch (error) {
         next(error);

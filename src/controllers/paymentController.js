@@ -317,7 +317,8 @@ const verifyPayment = async (req, res, next) => {
 const paystackWebhook = async (req, res) => {
     try {
         const secret = PAYSTACK_SECRET;
-        const hash = crypto.createHmac('sha512', secret).update(JSON.stringify(req.body)).digest('hex');
+        const rawPayload = req.rawBody || JSON.stringify(req.body);
+        const hash = crypto.createHmac('sha512', secret).update(rawPayload).digest('hex');
 
         if (hash !== req.headers['x-paystack-signature']) {
             return res.status(400).send('Invalid webhook signature');

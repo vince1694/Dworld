@@ -349,10 +349,16 @@ const verifyOtp = async (req, res, next) => {
 const resetPassword = async (req, res, next) => {
     try {
         const { email, token, password } = req.body;
+        if (!email || !token || !password) {
+            return res.status(400).json({ success: false, message: 'Email, token, and new password are required' });
+        }
+
+        const cleanEmail = (email || '').trim().toLowerCase();
 
         try {
             const decoded = jwt.verify(token, process.env.JWT_SECRET);
-            if (decoded.email !== email || decoded.purpose !== 'reset-password') {
+            const decodedEmail = (decoded.email || '').trim().toLowerCase();
+            if (decodedEmail !== cleanEmail || decoded.purpose !== 'reset-password') {
                 throw new Error('Invalid token');
             }
         } catch (e) {
@@ -362,7 +368,10 @@ const resetPassword = async (req, res, next) => {
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
 
-        await User.updatePasswordByEmail(email, hashedPassword);
+        const updated = await User.updatePasswordByEmail(cleanEmail, hashedPassword);
+        if (!updated) {
+            return res.status(404).json({ success: false, message: 'No account found with this email' });
+        }
 
         res.json({ success: true, message: 'Password reset successful' });
     } catch (error) {

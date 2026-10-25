@@ -32,12 +32,18 @@ const protect = async (req, res, next) => {
 };
 
 const adminOnly = (req, res, next) => {
-    const allowedRoles = ['admin', 'stylist', 'expert'];
-    if (req.user && allowedRoles.includes(req.user.role)) {
-        next();
-    } else {
-        return res.status(403).json({ success: false, message: 'Access denied. Admin or Stylist role required.' });
+    if (req.user && req.user.role === 'admin') {
+        return next();
     }
+    return res.status(403).json({ success: false, message: 'Access denied. Administrative role required.' });
 };
 
-module.exports = { protect, adminOnly };
+const expertOrAdmin = (req, res, next) => {
+    const allowedRoles = ['admin', 'stylist', 'expert'];
+    if (req.user && allowedRoles.includes(req.user.role)) {
+        return next();
+    }
+    return res.status(403).json({ success: false, message: 'Access denied. Specialist or Admin role required.' });
+};
+
+module.exports = { protect, adminOnly, expertOrAdmin };

@@ -8,9 +8,33 @@
 const Appointment = require('../models/Appointment');
 const { sendAppointmentReminderEmail } = require('./sendEmail');
 
+const getLagosTimeParts = () => {
+    const lagosDateStr = new Intl.DateTimeFormat('en-CA', { 
+        timeZone: 'Africa/Lagos', 
+        year: 'numeric', 
+        month: '2-digit', 
+        day: '2-digit' 
+    }).format(new Date());
+
+    const timeParts = new Intl.DateTimeFormat('en-GB', {
+        timeZone: 'Africa/Lagos',
+        hour12: false,
+        hour: '2-digit',
+        minute: '2-digit'
+    }).formatToParts(new Date());
+
+    const hour = parseInt(timeParts.find(p => p.type === 'hour')?.value || '0', 10);
+    const minute = parseInt(timeParts.find(p => p.type === 'minute')?.value || '0', 10);
+
+    return {
+        todayStr: lagosDateStr,
+        currentTotalMinutes: hour * 60 + minute
+    };
+};
+
 const checkAndSendReminders = async () => {
     try {
-        const todayStr = new Date().toISOString().split('T')[0];
+        const { todayStr, currentTotalMinutes } = getLagosTimeParts();
         
         // Find appointments for today that are approved or pending, and not yet reminded
         const upcomingAppointments = await Appointment.find({
@@ -25,11 +49,6 @@ const checkAndSendReminders = async () => {
         if (!upcomingAppointments || upcomingAppointments.length === 0) {
             return;
         }
-
-        const now = new Date();
-        const currentHours = now.getHours();
-        const currentMinutes = now.getMinutes();
-        const currentTotalMinutes = currentHours * 60 + currentMinutes;
 
         for (const apt of upcomingAppointments) {
             if (!apt.user_id?.email || !apt.time) continue;
