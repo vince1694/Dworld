@@ -191,12 +191,16 @@ const BookAppointment = () => {
     if (selectedDate) {
       fetchSlots(selectedDate);
     }
-  }, [selectedDate]);
+  }, [selectedDate, selectedExpert]);
 
   const fetchSlots = async (dateStr) => {
     setLoadingSlots(true);
     try {
-      const res = await axios.get(`${API_URL}/appointments/slots?date=${dateStr}`);
+      const expertId = selectedExpert?._id || selectedExpert?.id || '';
+      const slotsUrl = expertId
+        ? `${API_URL}/appointments/slots?date=${dateStr}&stylist_id=${expertId}`
+        : `${API_URL}/appointments/slots?date=${dateStr}`;
+      const res = await axios.get(slotsUrl);
       if (res.data.success && Array.isArray(res.data.availableSlots) && res.data.availableSlots.length > 0) {
         setAvailableSlots(res.data.availableSlots);
         if (!res.data.availableSlots.includes(selectedTime)) {
@@ -307,13 +311,14 @@ const BookAppointment = () => {
     let createdAptId = null;
 
     try {
-      // 1. Create Appointment Record (initially reserved, pending payment)
+      // 1. Create Appointment Record (with atomic wallet payment if wallet chosen)
       const bookPayload = {
         service_id: selectedService._id || selectedService.id,
         date: selectedDate,
         time: selectedTime || availableSlots[0] || '10:00 AM',
         notes: clientNotes.trim(),
-        stylist_id: selectedExpert._id || selectedExpert.id
+        stylist_id: selectedExpert._id || selectedExpert.id,
+        paymentMethod: paymentMethod === 'wallet' ? 'wallet' : 'unpaid'
       };
 
       const bookRes = await axios.post(`${API_URL}/appointments/book`, bookPayload);
@@ -327,19 +332,28 @@ const BookAppointment = () => {
 
       // 2. Process Payment
       if (paymentMethod === 'wallet') {
-        const payRes = await axios.post(`${API_URL}/appointments/${aptId}/pay`);
-        if (payRes.data.success) {
-          bookedApt.paymentStatus = 'paid';
-          setWalletBalance(payRes.data.clientWalletBalance || (walletBalance - price));
-          setConfirmedBooking({
-            ...bookedApt,
-            service_id: selectedService,
-            stylist_id: selectedExpert
-          });
-          setStep(4); // Advance to confirmed screen
-        } else {
-          throw new Error(payRes.data.message || 'Payment processing failed');
+        let isPaid = bookedApt.paymentStatus === 'paid' || bookRes.data.paymentStatus === 'paid';
+        let updatedBalance = bookRes.data.clientWalletBalance;
+
+        // If not already settled in booking call, settle via pay endpoint
+        if (!isPaid) {
+          const payRes = await axios.post(`${API_URL}/appointments/${aptId}/pay`);
+          if (payRes.data.success) {
+            isPaid = true;
+            updatedBalance = payRes.data.clientWalletBalance;
+          } else {
+            throw new Error(payRes.data.message || 'Payment processing failed');
+          }
         }
+
+        bookedApt.paymentStatus = 'paid';
+        setWalletBalance(updatedBalance !== undefined ? updatedBalance : (walletBalance - price));
+        setConfirmedBooking({
+          ...bookedApt,
+          service_id: selectedService,
+          stylist_id: selectedExpert
+        });
+        setStep(4); // Advance to confirmed screen
       } else if (paymentMethod === 'paystack') {
         const userEmail = (user?.email && user.email.trim()) || 'client@dworld.com';
 

@@ -131,6 +131,7 @@ const WalletPage = () => {
     if (filterType === 'deposit') return t.type === 'deposit';
     if (filterType === 'payment') return t.type === 'payment';
     if (filterType === 'refund') return t.type === 'refund';
+    if (filterType === 'earning') return t.type === 'earning';
     return true;
   });
 
@@ -433,7 +434,7 @@ const WalletPage = () => {
 
           {/* Filter Pills */}
           <div style={{ display: 'flex', gap: '0.4rem', background: 'var(--bg-main)', padding: '0.25rem', borderRadius: '10px' }}>
-            {['all', 'deposit', 'payment', 'refund'].map(f => (
+            {['all', 'deposit', 'payment', 'refund', ...(user?.role === 'expert' || user?.role === 'stylist' || transactions.some(t => t.type === 'earning') ? ['earning'] : [])].map(f => (
               <button
                 key={f}
                 type="button"

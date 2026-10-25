@@ -3,6 +3,7 @@ const crypto = require('crypto');
 const User = require('../models/User');
 const Appointment = require('../models/Appointment');
 const Notification = require('../models/Notification');
+const { sendBookingConfirmationEmail, sendExpertActivationEmail } = require('../utils/sendEmail');
 
 const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET_KEY || '';
 const PAYSTACK_PUBLIC = process.env.PAYSTACK_PUBLIC_KEY || '';
@@ -210,6 +211,10 @@ const verifyPayment = async (req, res, next) => {
                 type: 'system'
             });
 
+            // Send activation email guide to expert
+            sendExpertActivationEmail(user.email, user.name)
+                .catch(err => console.warn('Activation email notice:', err.message));
+
             return res.status(200).json({
                 success: true,
                 message: 'Congratulations! Your expert account is now active and unlocked.',
@@ -272,6 +277,21 @@ const verifyPayment = async (req, res, next) => {
                         });
                     }
                 }
+
+                // Send booking confirmation email and client in-app notification
+                sendBookingConfirmationEmail(user.email, user.name, {
+                    service: appointment.service_id?.name || 'Campus Specialist Service',
+                    date: appointment.date,
+                    time: appointment.time,
+                    expert: (await User.findById(expertId).select('name'))?.name || 'Assigned Specialist'
+                }).catch(err => console.warn('Booking confirmation email notice:', err.message));
+
+                await Notification.create({
+                    user_id: user._id,
+                    title: 'Booking Confirmed & Paid! 🎉',
+                    message: `Your appointment for "${appointment.service_id?.name || 'Service'}" on ${appointment.date} at ${appointment.time} is confirmed via Paystack.`,
+                    type: 'payment'
+                });
 
                 return res.status(200).json({
                     success: true,
@@ -346,6 +366,9 @@ const paystackWebhook = async (req, res) => {
                             reference_id: reference
                         });
                         await user.save();
+
+                        sendExpertActivationEmail(user.email, user.name)
+                            .catch(err => console.warn('Webhook activation email notice:', err.message));
                     } else if (metadata.purpose === 'appointment_pay' && metadata.appointment_id) {
                         const appointment = await Appointment.findById(metadata.appointment_id).populate('service_id');
                         if (appointment && appointment.paymentStatus !== 'paid') {

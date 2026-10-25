@@ -134,7 +134,11 @@ const BookingWizardModal = ({ isOpen, onClose, onBookingSuccess, preselectedServ
 
   const fetchSlotsForDate = async (dateStr) => {
     try {
-      const res = await axios.get(`${API_URL}/appointments/slots?date=${dateStr}`);
+      const expertId = selectedExpert ? (selectedExpert._id || selectedExpert.id) : (selectedService?.stylist_id || '');
+      const slotsUrl = expertId
+        ? `${API_URL}/appointments/slots?date=${dateStr}&stylist_id=${expertId}`
+        : `${API_URL}/appointments/slots?date=${dateStr}`;
+      const res = await axios.get(slotsUrl);
       if (res.data.success && res.data.data && res.data.data.length > 0) {
         const slotsFromBackend = res.data.data.map(s => s.time || s);
         setAvailableSlots(slotsFromBackend);

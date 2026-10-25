@@ -2,6 +2,7 @@ const Appointment = require('../models/Appointment');
 const TimeSlot = require('../models/TimeSlot');
 const Service = require('../models/Service');
 const { createNotificationHelper } = require('./notificationController');
+const { sendBookingConfirmationEmail } = require('../utils/sendEmail');
 
 const bookAppointment = async (req, res, next) => {
     try {
@@ -129,6 +130,21 @@ const bookAppointment = async (req, res, next) => {
 
             paymentStatus = 'paid';
             amountPaid = amount;
+
+            // Send confirmation email and client in-app notification
+            sendBookingConfirmationEmail(clientUser.email, clientUser.name, {
+                service: service?.name || 'Campus Specialist Service',
+                date,
+                time,
+                expert: targetStylistId ? (await User.findById(targetStylistId).select('name'))?.name : 'Assigned Specialist'
+            }).catch(emailErr => console.warn('Booking confirmation email notice:', emailErr.message));
+
+            await createNotificationHelper(
+                user_id,
+                'Booking Confirmed & Paid! 🎉',
+                `Your appointment for "${service?.name || 'Service'}" on ${date} at ${time} is confirmed. ₦${amount.toLocaleString()} was deducted from your wallet.`,
+                'payment'
+            );
         }
 
         // Book appointment
@@ -490,6 +506,21 @@ const payAppointment = async (req, res, next) => {
                 );
             }
         }
+
+        // Send booking confirmation email and in-app notification to client
+        sendBookingConfirmationEmail(clientUser.email, clientUser.name, {
+            service: appointment.service_id?.name || 'Campus Styling Service',
+            date: appointment.date,
+            time: appointment.time,
+            expert: (await User.findById(expertId).select('name'))?.name || 'Assigned Specialist'
+        }).catch(emailErr => console.warn('Booking confirmation email notice:', emailErr.message));
+
+        await createNotificationHelper(
+            clientId,
+            'Booking Confirmed & Paid! 🎉',
+            `Your appointment for "${appointment.service_id?.name || 'Service'}" on ${appointment.date} at ${appointment.time} is confirmed. ₦${amount.toLocaleString()} was deducted from your wallet.`,
+            'payment'
+        );
 
         appointment.paymentStatus = 'paid';
         appointment.amountPaid = amount;
