@@ -1,9 +1,11 @@
 # Robots.txt for D.World (https://dworld.ink)
 User-agent: *
 Allow: /
+Allow: /services
 Allow: /login
 Allow: /register
 Allow: /forgot-password
+Allow: /contact
 
 # Disallow private user & administrative panels from crawling
 Disallow: /admin
