@@ -549,16 +549,26 @@ const Admin = () => {
                   </div>
 
                   <div className="admin-filter-row">
-                    <div style={{ position: 'relative', flex: '1 1 200px', minWidth: '160px' }}>
-                      <input 
-                        type="text" 
-                        placeholder="Search name, email, matric, location..."
-                        value={userSearchQuery}
-                        onChange={(e) => setUserSearchQuery(e.target.value)}
-                        onKeyDown={(e) => { if (e.key === 'Enter') fetchUsers(); }}
-                        style={{ width: '100%', padding: '0.45rem 0.85rem 0.45rem 2.2rem', borderRadius: '10px', border: '1px solid var(--border-light)', background: 'rgba(255,255,255,0.03)', color: 'var(--text-main)', fontSize: '0.85rem' }}
-                      />
-                      <Search size={14} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-subtle)' }} />
+                    <div style={{ position: 'relative', flex: '1 1 200px', minWidth: '160px', display: 'flex', gap: '0.5rem' }}>
+                      <div style={{ position: 'relative', flex: 1 }}>
+                        <input 
+                          type="text" 
+                          placeholder="Search name, email, matric, location..."
+                          value={userSearchQuery}
+                          onChange={(e) => setUserSearchQuery(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === 'Enter') fetchUsers(); }}
+                          style={{ width: '100%', padding: '0.45rem 0.85rem 0.45rem 2.2rem', borderRadius: '10px', border: '1px solid var(--border-light)', background: 'rgba(255,255,255,0.03)', color: 'var(--text-main)', fontSize: '0.85rem' }}
+                        />
+                        <Search size={14} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-subtle)' }} />
+                      </div>
+                      <button
+                        onClick={fetchUsers}
+                        className="btn btn-primary"
+                        style={{ padding: '0.45rem 0.85rem', fontSize: '0.8rem', flexShrink: 0 }}
+                        title="Search users"
+                      >
+                        <Search size={14} />
+                      </button>
                     </div>
 
                     {/* Role Filter Chips */}
@@ -610,6 +620,23 @@ const Admin = () => {
                       ))}
                     </div>
                   </div>
+
+                {/* User Stats KPI Row */}
+                <div style={{ display: 'flex', gap: '0.75rem', padding: '1rem 1.25rem', borderBottom: '1px solid var(--border-light)', flexWrap: 'wrap' }}>
+                  {[
+                    { label: 'Total Accounts', value: userSummary.totalUsers, color: '#6366f1', bg: 'rgba(99,102,241,0.1)', icon: <Users size={15} /> },
+                    { label: 'Total Experts', value: userSummary.totalExperts, color: '#7c3aed', bg: 'rgba(124,58,237,0.1)', icon: <UserCheck size={15} /> },
+                    { label: 'Active Experts', value: userSummary.activeExperts, color: '#059669', bg: 'rgba(16,185,129,0.1)', icon: <ShieldCheck size={15} /> },
+                    { label: 'Students', value: userSummary.totalStudents, color: '#d97706', bg: 'rgba(245,158,11,0.1)', icon: <User size={15} /> },
+                  ].map(stat => (
+                    <div key={stat.label} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.85rem', borderRadius: '10px', background: stat.bg, border: `1px solid ${stat.color}30`, flex: '1 1 120px', minWidth: '110px' }}>
+                      <span style={{ color: stat.color }}>{stat.icon}</span>
+                      <div>
+                        <div style={{ fontSize: '1.1rem', fontWeight: 800, fontFamily: 'Outfit', color: 'var(--text-main)', lineHeight: 1 }}>{stat.value}</div>
+                        <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{stat.label}</div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
 
                 <div className="card-body" style={{ padding: 0 }}>
@@ -684,6 +711,11 @@ const Admin = () => {
                             <span style={{ fontSize: '0.75rem', color: 'var(--text-subtle)' }}>
                               Wallet: ₦{(u.walletBalance || 0).toLocaleString()}
                             </span>
+                            {u.createdAt && (
+                              <span style={{ fontSize: '0.73rem', color: 'var(--text-subtle)' }}>
+                                Joined: {new Date(u.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                              </span>
+                            )}
                           </div>
 
                           {/* Status & Actions */}
@@ -706,6 +738,39 @@ const Admin = () => {
                               </span>
                             )}
 
+                            {/* Role changer — only for non-admin users */}
+                            {u._id !== user?.id && u.role !== 'admin' && (
+                              <select
+                                value={u.role}
+                                onChange={async (e) => {
+                                  const newRole = e.target.value;
+                                  try {
+                                    const res = await axios.patch(`${API_URL}/auth/admin/users/${u._id}/status`, { role: newRole });
+                                    if (res.data.success) {
+                                      addToast(`${u.name}'s role changed to ${newRole}.`, 'success');
+                                      fetchUsers();
+                                    }
+                                  } catch (err) {
+                                    addToast(err.response?.data?.message || 'Failed to change role.', 'error');
+                                  }
+                                }}
+                                style={{
+                                  padding: '0.35rem 0.6rem',
+                                  borderRadius: '8px',
+                                  border: '1px solid var(--border-light)',
+                                  background: 'rgba(255,255,255,0.04)',
+                                  color: 'var(--text-main)',
+                                  fontSize: '0.75rem',
+                                  fontWeight: 600,
+                                  cursor: 'pointer'
+                                }}
+                                title="Change user role"
+                              >
+                                <option value="user">Student</option>
+                                <option value="expert">Expert</option>
+                              </select>
+                            )}
+
                             {u.role === 'expert' && (
                               <button
                                 type="button"
@@ -718,7 +783,7 @@ const Admin = () => {
                                   color: u.isActivated ? '#d97706' : '#059669'
                                 }}
                               >
-                                <Power size={13} /> {u.isActivated ? 'Deactivate' : 'Activate (Free Override)'}
+                                <Power size={13} /> {u.isActivated ? 'Deactivate' : 'Activate'}
                               </button>
                             )}
 

@@ -6,6 +6,7 @@ import {
   CalendarRange, 
   PackagePlus, 
   User, 
+  Users,
   LogOut, 
   Menu, 
   X, 
@@ -30,6 +31,7 @@ const AdminLayout = ({ children }) => {
   const navItems = [
     { name: 'Global Bookings', path: '/admin?tab=appointments', tab: 'appointments', icon: <CalendarRange size={18} /> },
     { name: 'Platform Services', path: '/admin?tab=services', tab: 'services', icon: <PackagePlus size={18} /> },
+    { name: 'User Directory', path: '/admin?tab=users', tab: 'users', icon: <Users size={18} /> },
     { name: 'Admin Profile', path: '/admin?tab=profile', tab: 'profile', icon: <User size={18} /> },
   ];
 
