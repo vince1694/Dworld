@@ -179,15 +179,30 @@ app.get('/sitemap.xml', (req, res) => {
 </urlset>`);
 });
 
-// Serve frontend static build
+// Serve frontend static build with production-grade caching
 const distPath = path.join(__dirname, '../client/dist');
 if (fs.existsSync(distPath)) {
-    app.use(express.static(distPath));
+    // Fingerprinted static assets (JS, CSS) — cache permanently for 1 year
+    app.use('/assets', express.static(path.join(distPath, 'assets'), {
+        maxAge: '1y',
+        immutable: true
+    }));
+
+    // Other static files (images, icons, manifest)
+    app.use(express.static(distPath, {
+        maxAge: '1h',
+        setHeaders: (res, filePath) => {
+            if (filePath.endsWith('.html')) {
+                res.setHeader('Cache-Control', 'no-cache');
+            }
+        }
+    }));
 
     app.get('*path', (req, res) => {
         if (req.path.startsWith('/api')) {
             return res.status(404).json({ success: false, message: 'API route not found' });
         }
+        res.setHeader('Cache-Control', 'no-cache');
         res.sendFile(path.resolve(distPath, 'index.html'));
     });
 } else {

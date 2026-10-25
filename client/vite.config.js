@@ -14,18 +14,26 @@ export default defineConfig({
     }
   },
   build: {
-    chunkSizeWarningLimit: 1000,
+    target: 'es2020',
+    cssCodeSplit: true,
+    chunkSizeWarningLimit: 600,
     rollupOptions: {
       output: {
         manualChunks(id) {
-          if (id.includes('node_modules/react-dom') || id.includes('node_modules/react/')) {
+          if (id.includes('node_modules/react/') || id.includes('node_modules/react-dom/')) {
             return 'vendor-react';
           }
           if (id.includes('node_modules/react-router-dom') || id.includes('node_modules/react-router/')) {
             return 'vendor-router';
           }
-          if (id.includes('node_modules/date-fns')) {
-            return 'vendor-date';
+          if (id.includes('node_modules/framer-motion')) {
+            return 'vendor-motion';
+          }
+          if (id.includes('node_modules/lucide-react')) {
+            return 'vendor-icons';
+          }
+          if (id.includes('node_modules/axios')) {
+            return 'vendor-axios';
           }
         },
       },
