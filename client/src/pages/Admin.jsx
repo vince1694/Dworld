@@ -159,8 +159,8 @@ const Admin = () => {
       isOpen: true,
       title: isReject ? 'Reject Payout Request?' : 'Mark Payout as Completed?',
       message: isReject 
-        ? 'Are you sure you want to reject this withdrawal? The funds will be automatically refunded back to the specialist’s wallet balance.'
-        : 'Are you sure you want to mark this payout as completed? Confirm that you have transferred the funds to the specialist’s bank account.',
+        ? `Are you sure you want to reject this withdrawal? The funds will be automatically refunded back to the specialist's wallet balance.`
+        : `Are you sure you want to mark this payout as completed? Confirm that you have transferred the funds to the specialist's bank account.`,
       confirmText: isReject ? 'Reject & Refund' : 'Confirm Paid',
       type: isReject ? 'danger' : 'primary',
       onConfirm: async () => {
