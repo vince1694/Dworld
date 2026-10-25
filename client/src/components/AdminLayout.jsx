@@ -344,53 +344,6 @@ const AdminLayout = ({ children }) => {
         </main>
       </div>
 
-      {/* Admin Mobile Bottom Navigation Dock (max-width: 768px) */}
-      <nav 
-        className="admin-bottom-dock" 
-        style={{
-          display: 'none',
-          position: 'fixed',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          height: '60px',
-          background: 'rgba(15, 23, 42, 0.96)',
-          backdropFilter: 'blur(16px)',
-          borderTop: '1px solid rgba(239, 68, 68, 0.2)',
-          zIndex: 80,
-          alignItems: 'center',
-          justifyContent: 'space-around',
-          padding: '0 0.5rem',
-          paddingBottom: 'env(safe-area-inset-bottom)'
-        }}
-      >
-        {navItems.map((item) => {
-          const isActive = currentTab === item.tab;
-          return (
-            <Link
-              key={item.tab}
-              to={item.path}
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '3px',
-                color: isActive ? '#ef4444' : '#9ca3af',
-                textDecoration: 'none',
-                fontSize: '0.7rem',
-                fontWeight: isActive ? 700 : 500,
-                padding: '6px 12px',
-                borderRadius: '8px',
-                transition: 'all 0.15s ease'
-              }}
-            >
-              {item.icon}
-              <span>{item.name.replace('Global ', '').replace('Platform ', '').replace('Admin ', '')}</span>
-            </Link>
-          );
-        })}
-      </nav>
-
       <style>{`
         @media (min-width: 769px) {
           .admin-user-info { display: block !important; }

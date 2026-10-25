@@ -312,49 +312,86 @@ const updatePayoutStatusForAdmin = async (req, res, next) => {
             });
         }
 
-        // If rejecting: refund funds back into specialist's wallet
-        if (status === 'rejected') {
-            if (payout.user_id) {
-                const user = await User.findById(payout.user_id._id);
-                if (user) {
-                    user.walletBalance = (user.walletBalance || 0) + payout.amount;
-                    user.transactions.push({
-                        type: 'refund',
-                        amount: payout.amount,
-                        description: `Refund for rejected withdrawal: ${adminNotes || 'Request not approved'}`,
-                        reference_id: `REJ-REF-${payout.reference}`
-                    });
-                    await user.save();
+        if (payout.status === 'rejected') {
+            return res.status(400).json({
+                success: false,
+                message: 'This payout request has already been rejected and refunded.'
+            });
+        }
 
+        // Atomic transition: only match if still in an unprocessed status (pending or approved)
+        // This guarantees that concurrent multi-clicks never process more than once!
+        const validPreviousStatuses = ['pending', 'approved'];
+        const updatedPayout = await PayoutRequest.findOneAndUpdate(
+            { _id: id, status: { $in: validPreviousStatuses } },
+            {
+                $set: {
+                    status,
+                    adminNotes: adminNotes || payout.adminNotes,
+                    processedBy: req.user.id,
+                    processedAt: new Date()
+                }
+            },
+            { new: true }
+        ).populate('user_id');
+
+        if (!updatedPayout) {
+            return res.status(409).json({
+                success: false,
+                message: 'This payout request is currently being processed or has already been updated.'
+            });
+        }
+
+        // If rejecting: refund funds back into specialist's wallet with idempotent guarantee
+        if (status === 'rejected') {
+            if (updatedPayout.user_id) {
+                const refundRef = `REJ-REF-${updatedPayout.reference}`;
+                
+                // Idempotent atomic update: only increment balance and record refund if this ref does not exist yet!
+                const user = await User.findOneAndUpdate(
+                    {
+                        _id: updatedPayout.user_id._id,
+                        'transactions.reference_id': { $ne: refundRef }
+                    },
+                    {
+                        $inc: { walletBalance: updatedPayout.amount },
+                        $push: {
+                            transactions: {
+                                type: 'refund',
+                                amount: updatedPayout.amount,
+                                description: `Refund for rejected withdrawal: ${adminNotes || 'Request not approved'}`,
+                                reference_id: refundRef,
+                                date: new Date()
+                            }
+                        }
+                    },
+                    { new: true }
+                );
+
+                if (user) {
                     await createNotificationHelper(
                         user._id,
                         'Withdrawal Request Rejected ❌',
-                        `Your payout of ₦${payout.amount.toLocaleString()} was rejected${adminNotes ? ` (${adminNotes})` : ''}. ₦${payout.amount.toLocaleString()} has been restored to your wallet balance.`,
+                        `Your payout of ₦${updatedPayout.amount.toLocaleString()} was rejected${adminNotes ? ` (${adminNotes})` : ''}. ₦${updatedPayout.amount.toLocaleString()} has been restored to your wallet balance.`,
                         'payment'
                     );
                 }
             }
         } else if (status === 'completed') {
-            if (payout.user_id) {
+            if (updatedPayout.user_id) {
                 await createNotificationHelper(
-                    payout.user_id._id,
+                    updatedPayout.user_id._id,
                     'Payout Disbursed! 💸',
-                    `₦${payout.amount.toLocaleString()} has been sent to your ${payout.bankDetails.bankName} account (${payout.bankDetails.accountNumber})!`,
+                    `₦${updatedPayout.amount.toLocaleString()} has been sent to your ${updatedPayout.bankDetails.bankName} account (${updatedPayout.bankDetails.accountNumber})!`,
                     'payment'
                 );
             }
         }
 
-        payout.status = status;
-        payout.adminNotes = adminNotes || payout.adminNotes;
-        payout.processedBy = req.user.id;
-        payout.processedAt = new Date();
-        await payout.save();
-
         res.status(200).json({
             success: true,
             message: `Payout request marked as ${status}.`,
-            data: payout
+            data: updatedPayout
         });
     } catch (error) {
         next(error);

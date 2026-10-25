@@ -1086,9 +1086,6 @@ a {
   .admin-hide-mobile {
     display: none !important;
   }
-  .admin-bottom-dock {
-    display: flex !important;
-  }
   .admin-appt-card {
     flex-direction: column !important;
     align-items: flex-start !important;

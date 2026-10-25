@@ -31,7 +31,8 @@ import {
   Power,
   Banknote,
   Check,
-  ArrowDownToLine
+  ArrowDownToLine,
+  Loader
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ConfirmModal from '../components/ConfirmModal';
@@ -61,6 +62,7 @@ const Admin = () => {
   const [payoutsLoading, setPayoutsLoading] = useState(false);
   const [payoutStatusFilter, setPayoutStatusFilter] = useState('all');
   const [payoutSummary, setPayoutSummary] = useState({ totalPending: 0, totalCompleted: 0 });
+  const [processingPayoutId, setProcessingPayoutId] = useState(null);
 
   // Confirmation Modal State
   const [confirmModal, setConfirmModal] = useState({
@@ -70,6 +72,7 @@ const Admin = () => {
     confirmText: 'Confirm',
     cancelText: 'Cancel',
     type: 'danger',
+    loading: false,
     onConfirm: null
   });
   
@@ -154,6 +157,7 @@ const Admin = () => {
   };
 
   const handleUpdatePayoutStatus = (payoutId, newStatus) => {
+    if (processingPayoutId) return;
     const isReject = newStatus === 'rejected';
     setConfirmModal({
       isOpen: true,
@@ -163,8 +167,12 @@ const Admin = () => {
         : `Are you sure you want to mark this payout as completed? Confirm that you have transferred the funds to the specialist's bank account.`,
       confirmText: isReject ? 'Reject & Refund' : 'Confirm Paid',
       type: isReject ? 'danger' : 'primary',
+      loading: false,
       onConfirm: async () => {
+        if (processingPayoutId) return;
         try {
+          setProcessingPayoutId(payoutId);
+          setConfirmModal(prev => ({ ...prev, loading: true }));
           const res = await axios.patch(`${API_URL}/payouts/admin/${payoutId}/status`, {
             status: newStatus
           });
@@ -175,7 +183,8 @@ const Admin = () => {
         } catch (err) {
           notify.error(err.response?.data?.message || 'Failed to update payout status');
         } finally {
-          setConfirmModal(prev => ({ ...prev, isOpen: false }));
+          setProcessingPayoutId(null);
+          setConfirmModal(prev => ({ ...prev, isOpen: false, loading: false }));
         }
       }
     });
@@ -1004,18 +1013,52 @@ const Admin = () => {
                                 <button
                                   type="button"
                                   onClick={() => handleUpdatePayoutStatus(p._id, 'completed')}
+                                  disabled={!!processingPayoutId}
                                   className="btn btn-primary"
-                                  style={{ padding: '0.45rem 0.85rem', fontSize: '0.78rem', background: '#10b981', borderColor: '#059669', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+                                  style={{
+                                    padding: '0.45rem 0.85rem',
+                                    fontSize: '0.78rem',
+                                    background: '#10b981',
+                                    borderColor: '#059669',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.35rem',
+                                    opacity: processingPayoutId ? 0.6 : 1,
+                                    cursor: processingPayoutId ? 'not-allowed' : 'pointer'
+                                  }}
                                 >
-                                  <Check size={14} /> Mark Paid
+                                  {processingPayoutId === p._id ? (
+                                    <Loader size={14} className="animate-spin" />
+                                  ) : (
+                                    <Check size={14} />
+                                  )}
+                                  Mark Paid
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => handleUpdatePayoutStatus(p._id, 'rejected')}
+                                  disabled={!!processingPayoutId}
                                   className="btn btn-outline"
-                                  style={{ padding: '0.45rem 0.85rem', fontSize: '0.78rem', color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.4)' }}
+                                  style={{
+                                    padding: '0.45rem 0.85rem',
+                                    fontSize: '0.78rem',
+                                    color: '#ef4444',
+                                    borderColor: 'rgba(239, 68, 68, 0.4)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.35rem',
+                                    opacity: processingPayoutId ? 0.6 : 1,
+                                    cursor: processingPayoutId ? 'not-allowed' : 'pointer'
+                                  }}
                                 >
-                                  Reject & Refund
+                                  {processingPayoutId === p._id ? (
+                                    <>
+                                      <Loader size={14} className="animate-spin" />
+                                      <span>Rejecting...</span>
+                                    </>
+                                  ) : (
+                                    'Reject & Refund'
+                                  )}
                                 </button>
                               </div>
                             )}
@@ -1207,8 +1250,13 @@ const Admin = () => {
         confirmText={confirmModal.confirmText}
         cancelText={confirmModal.cancelText}
         type={confirmModal.type}
+        loading={confirmModal.loading || !!processingPayoutId}
         onConfirm={confirmModal.onConfirm}
-        onCancel={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+        onCancel={() => {
+          if (!confirmModal.loading && !processingPayoutId) {
+            setConfirmModal(prev => ({ ...prev, isOpen: false }));
+          }
+        }}
       />
 
     </div>
