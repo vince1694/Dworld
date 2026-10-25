@@ -135,6 +135,22 @@ const ExpertDashboard = () => {
   // Service Modal State (Edit Only)
   const [isServiceModalOpen, setIsServiceModalOpen] = useState(false);
   const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
+
+  // ── Withdrawal state ──────────────────────────────────────────────────────
+  const [showWithdrawPanel, setShowWithdrawPanel] = useState(false);
+  const [banks, setBanks] = useState([]);
+  const [banksLoading, setBanksLoading] = useState(false);
+  const [withdrawForm, setWithdrawForm] = useState({
+    amount: '',
+    bankCode: '',
+    bankName: '',
+    accountNumber: '',
+    accountName: ''
+  });
+  const [resolvingAccount, setResolvingAccount] = useState(false);
+  const [withdrawSubmitting, setWithdrawSubmitting] = useState(false);
+  const [myPayouts, setMyPayouts] = useState([]);
+  const [payoutsLoading, setPayoutsLoading] = useState(false);
   const [serviceForm, setServiceForm] = useState({ name: '', description: '', duration: '45', price: '', location: 'Main Studio', category: 'Hair Packages' });
   const [editingServiceId, setEditingServiceId] = useState(null);
 
@@ -363,6 +379,109 @@ const ExpertDashboard = () => {
   };
 
   const handleLogout = () => { logout(); navigate('/login'); };
+
+  // ── Withdrawal handlers ───────────────────────────────────────────────────
+  const fetchBanks = async () => {
+    if (banks.length > 0) return; // already loaded
+    setBanksLoading(true);
+    try {
+      const res = await axios.get(`${API_URL}/payouts/banks`);
+      if (res.data.success) setBanks(res.data.data || []);
+    } catch (err) {
+      notify.error('Could not load bank list. Please try again.');
+    } finally {
+      setBanksLoading(false);
+    }
+  };
+
+  const fetchMyPayouts = async () => {
+    setPayoutsLoading(true);
+    try {
+      const res = await axios.get(`${API_URL}/payouts/my-payouts`);
+      if (res.data.success) setMyPayouts(res.data.data || []);
+    } catch {}
+    finally { setPayoutsLoading(false); }
+  };
+
+  const handleOpenWithdraw = () => {
+    // Pre-fill saved bank details if expert has them
+    if (user?.bankDetails) {
+      setWithdrawForm(prev => ({
+        ...prev,
+        bankCode: user.bankDetails.bankCode || '',
+        bankName: user.bankDetails.bankName || '',
+        accountNumber: user.bankDetails.accountNumber || '',
+        accountName: user.bankDetails.accountName || ''
+      }));
+    }
+    fetchBanks();
+    fetchMyPayouts();
+    setShowWithdrawPanel(true);
+  };
+
+  const handleBankChange = (e) => {
+    const code = e.target.value;
+    const bank = banks.find(b => b.code === code);
+    setWithdrawForm(prev => ({ ...prev, bankCode: code, bankName: bank?.name || '', accountName: '' }));
+  };
+
+  const handleResolveAccount = async () => {
+    if (withdrawForm.accountNumber.length !== 10 || !withdrawForm.bankCode) {
+      notify.error('Enter a 10-digit account number and select a bank first.');
+      return;
+    }
+    setResolvingAccount(true);
+    try {
+      const res = await axios.post(`${API_URL}/payouts/resolve-account`, {
+        account_number: withdrawForm.accountNumber,
+        bank_code: withdrawForm.bankCode
+      });
+      if (res.data.success) {
+        setWithdrawForm(prev => ({ ...prev, accountName: res.data.data.account_name }));
+        notify.success(`Account verified: ${res.data.data.account_name}`);
+      }
+    } catch (err) {
+      notify.error(err.response?.data?.message || 'Could not verify account. Check your details.');
+      setWithdrawForm(prev => ({ ...prev, accountName: '' }));
+    } finally {
+      setResolvingAccount(false);
+    }
+  };
+
+  const handleSubmitWithdrawal = async (e) => {
+    e.preventDefault();
+    const amt = parseFloat(withdrawForm.amount);
+    if (!amt || amt < 1000) { notify.error('Minimum withdrawal is ₦1,000.'); return; }
+    if (amt > walletBalance) { notify.error(`Insufficient balance (₦${walletBalance.toLocaleString()}).`); return; }
+    if (!withdrawForm.accountName) { notify.error('Please verify your account name first.'); return; }
+    setWithdrawSubmitting(true);
+    try {
+      const res = await axios.post(`${API_URL}/payouts/request`, {
+        amount: amt,
+        bankName: withdrawForm.bankName,
+        bankCode: withdrawForm.bankCode,
+        accountNumber: withdrawForm.accountNumber,
+        accountName: withdrawForm.accountName
+      });
+      if (res.data.success) {
+        notify.success(`Withdrawal of ₦${amt.toLocaleString()} submitted! Admin will process within 24hrs.`);
+        setWalletBalance(res.data.walletBalance ?? (walletBalance - amt));
+        setWithdrawForm(prev => ({ ...prev, amount: '' }));
+        setShowWithdrawPanel(false);
+        // Bust wallet cache so next open re-fetches
+        try { sessionStorage.removeItem('dworld_expert_wallet_bal_ts'); } catch {}
+        fetchMyPayouts();
+        fetchData();
+      }
+    } catch (err) {
+      notify.error(err.response?.data?.message || 'Withdrawal request failed. Please try again.');
+    } finally {
+      setWithdrawSubmitting(false);
+    }
+  };
+
+  const payoutStatusColor = (s) => ({ pending: '#f59e0b', approved: '#6366f1', completed: '#10b981', rejected: '#ef4444' }[s] || '#94a3b8');
+  const payoutStatusBg   = (s) => ({ pending: 'rgba(245,158,11,0.12)', approved: 'rgba(99,102,241,0.12)', completed: 'rgba(16,185,129,0.12)', rejected: 'rgba(239,68,68,0.1)' }[s] || 'rgba(148,163,184,0.1)');
 
   const toggleDay = (day) => {
     if (workingDays.includes(day)) {
@@ -1569,7 +1688,30 @@ const ExpertDashboard = () => {
                             onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'}
                             onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}
                           >
-                            <Plus size={18} strokeWidth={2.5} /> Top Up Wallet
+                            <Plus size={18} strokeWidth={2.5} /> Top Up
+                          </button>
+                          <button
+                            onClick={handleOpenWithdraw}
+                            type="button"
+                            className="btn"
+                            style={{
+                              background: 'rgba(255,255,255,0.18)',
+                              color: '#ffffff',
+                              fontWeight: 800,
+                              fontSize: '0.92rem',
+                              border: '1.5px solid rgba(255,255,255,0.4)',
+                              padding: '0.75rem 1.4rem',
+                              borderRadius: '14px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.5rem',
+                              cursor: 'pointer',
+                              transition: 'transform 0.15s ease, background 0.15s ease'
+                            }}
+                            onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.background = 'rgba(255,255,255,0.28)'; }}
+                            onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.background = 'rgba(255,255,255,0.18)'; }}
+                          >
+                            <ArrowDownLeft size={18} strokeWidth={2.5} style={{ transform: 'rotate(180deg)' }} /> Withdraw
                           </button>
                           <div style={{
                             padding: '0.9rem',
@@ -1583,6 +1725,141 @@ const ExpertDashboard = () => {
                           </div>
                         </div>
                       </div>
+
+                      {/* ── Withdrawal Panel ── */}
+                      {showWithdrawPanel && (
+                        <div className="app-card" style={{ border: '1.5px solid rgba(245,158,11,0.35)', background: 'linear-gradient(135deg, rgba(245,158,11,0.05), rgba(251,191,36,0.02))' }}>
+                          <div className="card-header" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div>
+                              <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <ArrowDownLeft size={18} style={{ transform: 'rotate(180deg)', color: '#f59e0b' }} />
+                                Request Bank Withdrawal
+                              </h3>
+                              <p style={{ margin: '0.15rem 0 0', fontSize: '0.78rem', color: 'var(--text-muted)' }}>Minimum ₦1,000 · Processed within 24 hours by admin</p>
+                            </div>
+                            <button onClick={() => setShowWithdrawPanel(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '0.25rem' }}>
+                              <X size={20} />
+                            </button>
+                          </div>
+                          <div className="card-body" style={{ padding: '1.25rem' }}>
+                            <form onSubmit={handleSubmitWithdrawal} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+
+                              {/* Saved bank quick-fill banner */}
+                              {user?.bankDetails?.accountName && (
+                                <div style={{ padding: '0.85rem 1rem', borderRadius: '12px', background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap' }}>
+                                  <div>
+                                    <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 600 }}>SAVED BANK</p>
+                                    <p style={{ margin: '0.1rem 0 0', fontWeight: 700, fontSize: '0.9rem' }}>{user.bankDetails.accountName} · {user.bankDetails.bankName}</p>
+                                    <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-muted)' }}>{user.bankDetails.accountNumber}</p>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => setWithdrawForm(prev => ({ ...prev, ...user.bankDetails, accountName: user.bankDetails.accountName }))}
+                                    style={{ background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: '10px', padding: '0.5rem 1rem', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer' }}
+                                  >
+                                    Use Saved
+                                  </button>
+                                </div>
+                              )}
+
+                              {/* Amount */}
+                              <div>
+                                <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)', display: 'block', marginBottom: '0.35rem' }}>WITHDRAWAL AMOUNT</label>
+                                <div style={{ position: 'relative' }}>
+                                  <span style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', fontWeight: 800, color: 'var(--text-muted)', fontSize: '1rem' }}>₦</span>
+                                  <input
+                                    type="number"
+                                    min="1000"
+                                    max={walletBalance}
+                                    step="100"
+                                    value={withdrawForm.amount}
+                                    onChange={e => setWithdrawForm(prev => ({ ...prev, amount: e.target.value }))}
+                                    placeholder="e.g. 5000"
+                                    required
+                                    style={{ width: '100%', padding: '0.75rem 1rem 0.75rem 2.25rem', borderRadius: '12px', border: '1.5px solid var(--border-light)', background: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '1rem', fontWeight: 700, boxSizing: 'border-box' }}
+                                  />
+                                </div>
+                                <p style={{ margin: '0.3rem 0 0', fontSize: '0.75rem', color: 'var(--text-muted)' }}>Available: <strong style={{ color: '#10b981' }}>₦{walletBalance.toLocaleString()}</strong></p>
+                              </div>
+
+                              {/* Bank select */}
+                              <div>
+                                <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)', display: 'block', marginBottom: '0.35rem' }}>SELECT BANK</label>
+                                <select
+                                  value={withdrawForm.bankCode}
+                                  onChange={handleBankChange}
+                                  required
+                                  style={{ width: '100%', padding: '0.75rem 1rem', borderRadius: '12px', border: '1.5px solid var(--border-light)', background: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '0.9rem', boxSizing: 'border-box' }}
+                                >
+                                  <option value="">{banksLoading ? 'Loading banks…' : 'Choose your bank'}</option>
+                                  {banks.map(b => <option key={b.code} value={b.code}>{b.name}</option>)}
+                                </select>
+                              </div>
+
+                              {/* Account number + verify */}
+                              <div>
+                                <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)', display: 'block', marginBottom: '0.35rem' }}>ACCOUNT NUMBER</label>
+                                <div style={{ display: 'flex', gap: '0.65rem' }}>
+                                  <input
+                                    type="text"
+                                    maxLength={10}
+                                    value={withdrawForm.accountNumber}
+                                    onChange={e => setWithdrawForm(prev => ({ ...prev, accountNumber: e.target.value.replace(/\D/g,''), accountName: '' }))}
+                                    placeholder="10-digit NUBAN number"
+                                    required
+                                    style={{ flex: 1, padding: '0.75rem 1rem', borderRadius: '12px', border: '1.5px solid var(--border-light)', background: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '0.9rem' }}
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={handleResolveAccount}
+                                    disabled={resolvingAccount || withdrawForm.accountNumber.length !== 10 || !withdrawForm.bankCode}
+                                    style={{ padding: '0.75rem 1rem', borderRadius: '12px', background: resolvingAccount ? 'var(--border-light)' : 'var(--primary)', color: '#fff', border: 'none', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer', whiteSpace: 'nowrap', minWidth: '90px' }}
+                                  >
+                                    {resolvingAccount ? '…' : 'Verify'}
+                                  </button>
+                                </div>
+                              </div>
+
+                              {/* Verified account name */}
+                              {withdrawForm.accountName && (
+                                <div style={{ padding: '0.75rem 1rem', borderRadius: '12px', background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.3)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                  <CheckCircle size={16} color="#10b981" />
+                                  <span style={{ fontWeight: 700, color: '#059669', fontSize: '0.9rem' }}>{withdrawForm.accountName}</span>
+                                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>— verified</span>
+                                </div>
+                              )}
+
+                              <button
+                                type="submit"
+                                disabled={withdrawSubmitting || !withdrawForm.accountName}
+                                style={{ padding: '0.9rem', borderRadius: '14px', background: withdrawSubmitting || !withdrawForm.accountName ? 'var(--border-light)' : 'linear-gradient(135deg, #f59e0b, #d97706)', color: withdrawForm.accountName ? '#fff' : 'var(--text-muted)', border: 'none', fontWeight: 800, fontSize: '1rem', cursor: withdrawForm.accountName ? 'pointer' : 'not-allowed', transition: 'opacity 0.2s' }}
+                              >
+                                {withdrawSubmitting ? 'Submitting…' : `Request Withdrawal of ₦${parseFloat(withdrawForm.amount || 0).toLocaleString()}`}
+                              </button>
+                            </form>
+
+                            {/* Payout history */}
+                            {myPayouts.length > 0 && (
+                              <div style={{ marginTop: '1.5rem' }}>
+                                <p style={{ fontWeight: 700, fontSize: '0.82rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.65rem' }}>Your Withdrawal History</p>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                  {myPayouts.slice(0, 6).map((p) => (
+                                    <div key={p._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem 1rem', borderRadius: '12px', background: 'var(--bg-main)', border: '1px solid var(--border-light)' }}>
+                                      <div>
+                                        <p style={{ margin: 0, fontWeight: 700, fontSize: '0.88rem' }}>₦{Number(p.amount).toLocaleString()} → {p.bankDetails?.bankName}</p>
+                                        <p style={{ margin: 0, fontSize: '0.72rem', color: 'var(--text-muted)' }}>{new Date(p.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+                                      </div>
+                                      <span style={{ fontSize: '0.72rem', fontWeight: 800, padding: '3px 10px', borderRadius: '99px', background: payoutStatusBg(p.status), color: payoutStatusColor(p.status), textTransform: 'uppercase' }}>
+                                        {p.status}
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
 
                       {/* Transactions List */}
                       <div className="app-card">
