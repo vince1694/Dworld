@@ -145,7 +145,7 @@ const matchRequestWithAI = async (req, res, next) => {
             if (pLower.match(/body|skin|manicure|pedicure|scrub/i) && text.match(/body|pedicure|manicure/i)) score += 45;
 
             const matchPercentage = Math.min(99, Math.max(72, Math.floor(score + 50)));
-            const reason = `Verified specialist ${assignedExpert.name} at ${assignedExpert.address || assignedExpert.location || 'Lead City University'} matches "${srv.name}" (${matchPercentage}% match).`;
+            const reason = `Verified specialist ${assignedExpert.name} at ${assignedExpert.address || assignedExpert.location || 'Campus Area'} matches "${srv.name}" (${matchPercentage}% match).`;
 
             scoredServices.push({
                 service: {

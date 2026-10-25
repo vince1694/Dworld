@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 const transactionSchema = new mongoose.Schema({
-  type: { type: String, enum: ['deposit', 'payment', 'earning', 'refund', 'refund_deduction'], required: true },
+  type: { type: String, enum: ['deposit', 'payment', 'earning', 'refund', 'refund_deduction', 'withdrawal'], required: true },
   amount: { type: Number, required: true },
   description: { type: String, default: '' },
   reference_id: { type: String, default: '' },
@@ -25,6 +25,12 @@ const userSchema = new mongoose.Schema({
   rating: { type: Number, default: 4.9 },
   isVerified: { type: Boolean, default: true },
   walletBalance: { type: Number, default: 0 },
+  bankDetails: {
+    bankName: { type: String, default: '' },
+    bankCode: { type: String, default: '' },
+    accountNumber: { type: String, default: '' },
+    accountName: { type: String, default: '' }
+  },
   resetOtp: { type: String, default: null },
   resetOtpExpires: { type: Date, default: null },
   workingDays: { 

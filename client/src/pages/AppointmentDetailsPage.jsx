@@ -401,7 +401,7 @@ const AppointmentDetailsPage = () => {
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                   <h3 style={{ margin: 0, fontSize: '1.15rem', color: 'var(--text-main)', fontFamily: 'Outfit' }}>
-                    {stylist?.name || 'Lead City Specialist'}
+                    {stylist?.name || 'D.World Specialist'}
                   </h3>
                   <span style={{ fontSize: '0.68rem', padding: '0.15rem 0.45rem', borderRadius: '4px', background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', fontWeight: 700 }}>
                     VERIFIED
@@ -424,7 +424,7 @@ const AppointmentDetailsPage = () => {
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
               <MapPin size={16} color="var(--primary)" />
               <div style={{ fontSize: '0.85rem', color: 'var(--text-main)' }}>
-                {appointment.service_id?.location || stylist?.address || 'Lead City University Campus Studio'}
+                {appointment.service_id?.location || stylist?.address || 'Campus Area Studio'}
               </div>
             </div>
             {stylist?.phone && (

@@ -54,7 +54,7 @@ const Contact = () => {
               </div>
               <div>
                 <strong style={{ display: 'block', fontSize: '1.1rem', marginBottom: '0.5rem', color: 'var(--text-main)', fontFamily: 'Outfit' }}>University Campus</strong>
-                <span style={{ color: 'var(--text-muted)', fontSize: '0.95rem', lineHeight: '1.6' }}>Lead City University Campus<br/>Toll-Gate Area, Ibadan, Oyo State</span>
+                <span style={{ color: 'var(--text-muted)', fontSize: '0.95rem', lineHeight: '1.6' }}>Campus Hub, Ibadan<br/>Oyo State, Nigeria</span>
               </div>
             </div>
 

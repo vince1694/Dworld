@@ -77,6 +77,11 @@ const Services = () => {
   const { notify } = useNotify();
 
   const handleBookService = (serviceId) => {
+    if (!user) {
+      notify.info('Please sign in to schedule your appointment.');
+      navigate(`/login?redirect=${encodeURIComponent(`/book?serviceId=${serviceId}`)}`);
+      return;
+    }
     if (user && (user.role === 'expert' || user.role === 'stylist')) {
       notify.warning('Only customer accounts can book appointments. Experts cannot book appointments.');
       return;
@@ -164,7 +169,7 @@ const Services = () => {
           Campus Services & Verified Specialists
         </h1>
         <p style={{ color: 'var(--text-muted)', fontSize: '1.05rem', maxWidth: '680px', margin: '0 auto 2rem' }}>
-          Explore approved Lead City University stylists by location, specialty, and pricing.
+          Explore approved campus stylists by location, specialty, and pricing.
         </p>
 
         {/* MASTER VIEW TOGGLE SWITCH (SERVICES VS EXPERTS) */}

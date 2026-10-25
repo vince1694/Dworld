@@ -32,9 +32,14 @@ const Login = () => {
   const { notify } = useNotify();
   const navigate = useNavigate();
 
-  // If already authenticated, redirect smoothly to corresponding dashboard
+  // If already authenticated, redirect smoothly to corresponding dashboard or intended destination
   useEffect(() => {
     if (currentUser) {
+      const redirectUrl = searchParams.get('redirect');
+      if (redirectUrl) {
+        navigate(redirectUrl, { replace: true });
+        return;
+      }
       if (currentUser.role === 'admin') {
         navigate('/admin', { replace: true });
       } else if (currentUser.role === 'expert' || currentUser.role === 'stylist') {
@@ -43,7 +48,7 @@ const Login = () => {
         navigate('/dashboard', { replace: true });
       }
     }
-  }, [currentUser, navigate]);
+  }, [currentUser, navigate, searchParams]);
 
   const handleRoleSelect = (role) => {
     setSelectedRole(role);
@@ -64,9 +69,13 @@ const Login = () => {
     setLoading(true);
     try {
       const user = await login(cleanEmail, password);
+      const redirectUrl = searchParams.get('redirect');
 
-      // Route smoothly according to registered user role with zero hanging
-      if (user.role === 'admin') {
+      // Route smoothly according to registered user role or redirect destination
+      if (redirectUrl && (user.role === 'user' || user.role === 'customer')) {
+        notify.success(`Welcome back, ${user.name || 'there'}! 👋`);
+        navigate(redirectUrl, { replace: true });
+      } else if (user.role === 'admin') {
         notify.success(`Welcome back, Admin ${user.name || ''}!`);
         navigate('/admin', { replace: true });
       } else if (user.role === 'expert' || user.role === 'stylist') {
@@ -74,7 +83,7 @@ const Login = () => {
         navigate('/expert', { replace: true });
       } else {
         notify.success(`Welcome back, ${user.name || 'there'}! 👋`);
-        navigate('/dashboard', { replace: true });
+        navigate(redirectUrl || '/dashboard', { replace: true });
       }
     } catch (err) {
       const msg = err.response?.data?.message || (err.code === 'ECONNABORTED' 

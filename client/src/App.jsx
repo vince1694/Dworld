@@ -65,24 +65,14 @@ function App() {
             <Route path="/admin/login" element={<AdminLogin />} />
             <Route path="/register" element={<Register />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
-            <Route path="/services" element={
-              <ProtectedRoute>
-                <Services />
-              </ProtectedRoute>
-            } />
+            <Route path="/services" element={<Services />} />
             <Route path="/experts" element={<Navigate to="/services?tab=experts" replace />} />
             <Route path="/expert/:id" element={
-              <ProtectedRoute>
-                <AppLayout>
-                  <ExpertProfilePage />
-                </AppLayout>
-              </ProtectedRoute>
+              <AppLayout>
+                <ExpertProfilePage />
+              </AppLayout>
             } />
-            <Route path="/contact" element={
-              <ProtectedRoute>
-                <Contact />
-              </ProtectedRoute>
-            } />
+            <Route path="/contact" element={<Contact />} />
             
             <Route path="/book" element={
               <ProtectedRoute>

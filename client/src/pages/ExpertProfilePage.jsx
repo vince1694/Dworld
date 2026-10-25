@@ -219,13 +219,19 @@ const ExpertProfilePage = () => {
   };
 
   const handleBookingClick = (serviceId = null) => {
+    const targetUrl = serviceId 
+      ? `/book?expertId=${expertId}&serviceId=${serviceId}` 
+      : `/book?expertId=${expertId}`;
+
+    if (!user) {
+      notify.info('Please sign in to schedule an appointment with this specialist.');
+      navigate(`/login?redirect=${encodeURIComponent(targetUrl)}`);
+      return;
+    }
     if (isExpertUser) {
       notify.warning('Only customer accounts can book appointments. Experts cannot book appointments.');
       return;
     }
-    const targetUrl = serviceId 
-      ? `/book?expertId=${expertId}&serviceId=${serviceId}` 
-      : `/book?expertId=${expertId}`;
     navigate(targetUrl);
   };
 
@@ -408,7 +414,7 @@ const ExpertProfilePage = () => {
             </div>
 
             <p style={{ margin: '0 0 0.75rem', fontSize: '0.95rem', color: 'var(--primary)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-              <Award size={16} /> {expert.specialty || 'Lead City University Specialist'}
+              <Award size={16} /> {expert.specialty || 'D.World Specialist'}
             </p>
 
             {/* Address & Hours details */}
@@ -428,7 +434,7 @@ const ExpertProfilePage = () => {
                 width: 'fit-content'
               }}>
                 <MapPin size={15} color="#059669" />
-                <span>Address: <strong>{expert.address || expert.location || 'Lead City University Campus, Ibadan'}</strong></span>
+                <span>Address: <strong>{expert.address || expert.location || 'Campus Area, Ibadan'}</strong></span>
               </div>
 
               {/* Working Hours */}
@@ -841,7 +847,7 @@ const ExpertProfilePage = () => {
               {expert.name}
             </strong>
             <span style={{ color: '#94a3b8', fontSize: '0.75rem' }}>
-              📍 {expert.address || expert.location || 'Lead City University'}
+              📍 {expert.address || expert.location || 'Campus Area, Ibadan'}
             </span>
           </div>
         </div>

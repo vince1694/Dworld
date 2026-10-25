@@ -536,7 +536,7 @@ const BookingWizardModal = ({ isOpen, onClose, onBookingSuccess, preselectedServ
                             }}>
                               <MapPin size={12} color="#10b981" />
                               <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                {exp.address || exp.location || 'Lead City University Campus'}
+                                {exp.address || exp.location || 'Campus Area, Ibadan'}
                               </span>
                             </div>
 

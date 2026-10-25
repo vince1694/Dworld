@@ -28,7 +28,10 @@ import {
   UserCheck,
   UserX,
   ShieldCheck,
-  Power
+  Power,
+  Banknote,
+  Check,
+  ArrowDownToLine
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ConfirmModal from '../components/ConfirmModal';
@@ -52,6 +55,12 @@ const Admin = () => {
   const [userSearchQuery, setUserSearchQuery] = useState('');
   const [userRoleFilter, setUserRoleFilter] = useState('all');
   const [userStatusFilter, setUserStatusFilter] = useState('all');
+
+  // Payout Requests State
+  const [payouts, setPayouts] = useState([]);
+  const [payoutsLoading, setPayoutsLoading] = useState(false);
+  const [payoutStatusFilter, setPayoutStatusFilter] = useState('all');
+  const [payoutSummary, setPayoutSummary] = useState({ totalPending: 0, totalCompleted: 0 });
 
   // Confirmation Modal State
   const [confirmModal, setConfirmModal] = useState({
@@ -122,16 +131,58 @@ const Admin = () => {
       }
     } catch (err) {
       console.error('Error fetching admin users', err);
+  const fetchPayouts = async () => {
+    setPayoutsLoading(true);
+    try {
+      const res = await axios.get(`${API_URL}/payouts/admin/all`, {
+        params: { status: payoutStatusFilter }
+      });
+      if (res.data.success) {
+        setPayouts(res.data.data || []);
+        if (res.data.summary) setPayoutSummary(res.data.summary);
+      }
+    } catch (err) {
+      console.error('Error fetching admin payouts', err);
     } finally {
-      setUsersLoading(false);
+      setPayoutsLoading(false);
     }
+  };
+
+  const handleUpdatePayoutStatus = (payoutId, newStatus) => {
+    const isReject = newStatus === 'rejected';
+    setConfirmModal({
+      isOpen: true,
+      title: isReject ? 'Reject Payout Request?' : 'Mark Payout as Completed?',
+      message: isReject 
+        ? 'Are you sure you want to reject this withdrawal? The funds will be automatically refunded back to the specialist’s wallet balance.'
+        : 'Are you sure you want to mark this payout as completed? Confirm that you have transferred the funds to the specialist’s bank account.',
+      confirmText: isReject ? 'Reject & Refund' : 'Confirm Paid',
+      type: isReject ? 'danger' : 'primary',
+      onConfirm: async () => {
+        try {
+          const res = await axios.patch(`${API_URL}/payouts/admin/${payoutId}/status`, {
+            status: newStatus
+          });
+          if (res.data.success) {
+            notify.success(res.data.message || `Payout marked as ${newStatus}`);
+            fetchPayouts();
+          }
+        } catch (err) {
+          notify.error(err.response?.data?.message || 'Failed to update payout status');
+        } finally {
+          setConfirmModal(prev => ({ ...prev, isOpen: false }));
+        }
+      }
+    });
   };
 
   useEffect(() => {
     if (activeTab === 'users') {
       fetchUsers();
+    } else if (activeTab === 'payouts') {
+      fetchPayouts();
     }
-  }, [activeTab, userRoleFilter, userStatusFilter]);
+  }, [activeTab, userRoleFilter, userStatusFilter, payoutStatusFilter]);
 
   const handleToggleUserActivation = async (targetUser) => {
     try {
@@ -811,6 +862,165 @@ const Admin = () => {
                   ) : (
                     <div style={{ padding: '4rem 1.5rem', textAlign: 'center', color: 'var(--text-muted)' }}>
                       No user accounts found matching your filters.
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            )}
+
+            {/* PAYOUT REQUESTS TAB */}
+            {activeTab === 'payouts' && (
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="app-card">
+                <div className="card-header" style={{ flexWrap: 'wrap', gap: '0.85rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <Banknote size={20} color="#10b981" />
+                    <h3 style={{ margin: 0, fontSize: '1.1rem' }}>Specialist Payout Requests ({payouts.length})</h3>
+                  </div>
+
+                  <div className="admin-chips">
+                    {[
+                      { key: 'all', label: 'All Payouts' },
+                      { key: 'pending', label: `Pending (${payoutSummary.totalPending})` },
+                      { key: 'completed', label: `Completed (${payoutSummary.totalCompleted})` },
+                      { key: 'rejected', label: 'Rejected' }
+                    ].map(st => (
+                      <button
+                        key={st.key}
+                        onClick={() => setPayoutStatusFilter(st.key)}
+                        style={{
+                          padding: '0.4rem 0.75rem',
+                          borderRadius: '8px',
+                          border: '1px solid var(--border-light)',
+                          background: payoutStatusFilter === st.key ? '#10b981' : 'transparent',
+                          color: payoutStatusFilter === st.key ? '#fff' : 'var(--text-muted)',
+                          fontSize: '0.75rem',
+                          fontWeight: 600,
+                          cursor: 'pointer'
+                        }}
+                      >
+                        {st.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="card-body" style={{ padding: 0 }}>
+                  {payoutsLoading ? (
+                    <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                      Loading specialist payout requests...
+                    </div>
+                  ) : payouts.length > 0 ? (
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                      {payouts.map(p => {
+                        const statusColors = {
+                          pending: { color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.12)' },
+                          completed: { color: '#10b981', bg: 'rgba(16, 185, 129, 0.12)' },
+                          approved: { color: '#6366f1', bg: 'rgba(99, 102, 241, 0.12)' },
+                          rejected: { color: '#ef4444', bg: 'rgba(239, 68, 68, 0.12)' }
+                        };
+                        const sStyle = statusColors[p.status] || { color: '#94a3b8', bg: 'rgba(148, 163, 184, 0.1)' };
+
+                        return (
+                          <div key={p._id} className="admin-appt-row" style={{ flexWrap: 'wrap', gap: '1rem', padding: '1rem 1.25rem' }}>
+                            {/* Specialist info */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', flex: '1 1 220px', minWidth: 0 }}>
+                              <div style={{
+                                width: '42px',
+                                height: '42px',
+                                borderRadius: '50%',
+                                background: 'linear-gradient(135deg, rgba(79, 70, 229, 0.2), rgba(124, 58, 237, 0.25))',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                border: '1px solid var(--border-light)',
+                                color: 'var(--primary)',
+                                fontWeight: 800,
+                                fontFamily: 'Outfit',
+                                flexShrink: 0
+                              }}>
+                                {p.user_id?.name?.charAt(0)?.toUpperCase() || 'S'}
+                              </div>
+                              <div style={{ minWidth: 0 }}>
+                                <div style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                    {p.user_id?.name || 'Specialist'}
+                                  </span>
+                                </div>
+                                <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                                  {p.user_id?.phone || p.user_id?.email}
+                                </div>
+                                <div style={{ fontSize: '0.72rem', color: 'var(--text-subtle)' }}>
+                                  Ref: {p.reference}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Bank Details */}
+                            <div style={{ flex: '1 1 200px', minWidth: '180px' }}>
+                              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>
+                                Destination Account
+                              </div>
+                              <div style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-main)' }}>
+                                {p.bankDetails?.bankName}
+                              </div>
+                              <div style={{ fontSize: '0.82rem', fontFamily: 'monospace', color: 'var(--primary)', letterSpacing: '0.04em' }}>
+                                {p.bankDetails?.accountNumber}
+                              </div>
+                              <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+                                {p.bankDetails?.accountName}
+                              </div>
+                            </div>
+
+                            {/* Amount & Status */}
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', flex: '0 0 130px' }}>
+                              <span style={{ fontSize: '1.2rem', fontWeight: 900, fontFamily: 'Outfit', color: '#10b981' }}>
+                                ₦{p.amount.toLocaleString()}
+                              </span>
+                              <span style={{
+                                padding: '0.2rem 0.6rem',
+                                borderRadius: '9999px',
+                                background: sStyle.bg,
+                                color: sStyle.color,
+                                fontSize: '0.72rem',
+                                fontWeight: 800,
+                                textTransform: 'capitalize',
+                                marginTop: '0.25rem'
+                              }}>
+                                {p.status}
+                              </span>
+                              <span style={{ fontSize: '0.68rem', color: 'var(--text-subtle)', marginTop: '0.25rem' }}>
+                                {p.createdAt ? new Date(p.createdAt).toLocaleDateString() : ''}
+                              </span>
+                            </div>
+
+                            {/* Actions for Pending */}
+                            {p.status === 'pending' && (
+                              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                                <button
+                                  type="button"
+                                  onClick={() => handleUpdatePayoutStatus(p._id, 'completed')}
+                                  className="btn btn-primary"
+                                  style={{ padding: '0.45rem 0.85rem', fontSize: '0.78rem', background: '#10b981', borderColor: '#059669', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+                                >
+                                  <Check size={14} /> Mark Paid
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleUpdatePayoutStatus(p._id, 'rejected')}
+                                  className="btn btn-outline"
+                                  style={{ padding: '0.45rem 0.85rem', fontSize: '0.78rem', color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.4)' }}
+                                >
+                                  Reject & Refund
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div style={{ padding: '4rem 1.5rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                      No payout requests found in this filter.
                     </div>
                   )}
                 </div>

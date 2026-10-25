@@ -245,7 +245,7 @@ const sendWelcomeEmail = async (email, name, role = 'user') => {
             </div>
             <div style="display:flex;">
               <span style="display:inline-block;width:24px;height:24px;background:#10b981;color:#fff;border-radius:50%;text-align:center;line-height:24px;font-weight:700;font-size:12px;margin-right:12px;flex-shrink:0;">5</span>
-              <div><strong style="color:#e2e8f0;font-size:14px;">Rate & Review</strong><br/><span style="color:#94a3b8;font-size:13px;">Leave honest reviews to help your fellow Lead City students find top-tier talent.</span></div>
+              <div><strong style="color:#e2e8f0;font-size:14px;">Rate & Review</strong><br/><span style="color:#94a3b8;font-size:13px;">Leave honest reviews to help your fellow students find top-tier talent.</span></div>
             </div>
           </div>
         `;

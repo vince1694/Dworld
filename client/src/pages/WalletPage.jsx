@@ -103,7 +103,7 @@ const WalletPage = () => {
     setSubmitting(true);
     try {
       const userEmail = user?.email || '';
-      const userName = user?.name || 'Lead City Student';
+      const userName = user?.name || 'D.World Student';
 
       // Server-side initialization redirects directly to Paystack official gateway
       // Works 100% smoothly across iOS Safari, Android, and Desktop with zero popup blocks

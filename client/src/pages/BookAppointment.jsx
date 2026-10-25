@@ -177,7 +177,7 @@ const BookAppointment = () => {
           price: 3500,
           duration: 45,
           description: `${expert.name}'s verified campus specialty service.`,
-          location: expert.address || expert.location || 'Lead City University Campus',
+          location: expert.address || expert.location || 'Campus Area',
           stylist_id: expert._id || expert.id
         });
       }
@@ -634,7 +634,7 @@ const BookAppointment = () => {
               <Search size={18} style={{ position: 'absolute', left: '1.15rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
               <input
                 type="text"
-                placeholder="Search specialist by name or campus location (e.g. Unity Hall, Lead City University)..."
+                placeholder="Search specialist by name or campus location (e.g. Unity Hall, Ibadan campus)..."
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
                 style={{
@@ -718,7 +718,7 @@ const BookAppointment = () => {
                   description: `${expert.name}'s verified campus specialty appointment.`
                 };
 
-                const expertAddress = expert.address || expert.location || 'Lead City University Campus';
+                const expertAddress = expert.address || expert.location || 'Campus Area';
 
                 return (
                   <motion.div
@@ -954,7 +954,7 @@ const BookAppointment = () => {
                   <span style={{ color: 'var(--primary)', fontWeight: 700 }}>{selectedService.name} (₦{selectedService.price?.toLocaleString()})</span>
                   <span>•</span>
                   <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                    <MapPin size={13} color="#10b981" /> {selectedExpert.address || selectedExpert.location || 'Lead City University'}
+                    <MapPin size={13} color="#10b981" /> {selectedExpert.address || selectedExpert.location || 'Campus Area'}
                   </span>
                 </div>
               </div>
@@ -1180,7 +1180,7 @@ const BookAppointment = () => {
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Location Spot</span>
                   <span style={{ fontSize: '0.85rem', color: '#047857', fontWeight: 700, textAlign: 'right', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                    <MapPin size={14} color="#10b981" /> {selectedExpert.address || selectedExpert.location || 'Lead City University'}
+                    <MapPin size={14} color="#10b981" /> {selectedExpert.address || selectedExpert.location || 'Campus Area'}
                   </span>
                 </div>
 
@@ -1393,7 +1393,7 @@ const BookAppointment = () => {
             <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-light)', paddingBottom: '0.85rem', marginBottom: '0.85rem' }}>
               <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Location Spot</span>
               <strong style={{ fontSize: '0.85rem', color: '#047857' }}>
-                📍 {selectedExpert?.address || selectedExpert?.location || 'Lead City University'}
+                📍 {selectedExpert?.address || selectedExpert?.location || 'Campus Area'}
               </strong>
             </div>
 

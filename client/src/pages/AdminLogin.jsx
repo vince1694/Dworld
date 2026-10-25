@@ -285,7 +285,7 @@ const AdminLogin = () => {
               <ArrowLeft size={14} /> Back to Public Site
             </Link>
 
-            <span>Lead City University</span>
+            <span>D.World Platform</span>
           </div>
         </div>
       </motion.div>

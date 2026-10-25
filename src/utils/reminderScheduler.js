@@ -79,7 +79,7 @@ const checkAndSendReminders = async () => {
                         serviceName: apt.service_id?.name || 'Campus Styling Session',
                         date: apt.date,
                         time: apt.time,
-                        location: apt.stylist_id?.location || apt.service_id?.location || 'Lead City University Campus'
+                        location: apt.stylist_id?.location || apt.service_id?.location || 'Campus Area'
                     });
 
                     apt.reminderSent = true;

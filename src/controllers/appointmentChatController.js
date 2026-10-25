@@ -51,11 +51,21 @@ const sendAppointmentMessage = async (req, res, next) => {
             return res.status(403).json({ success: false, message: 'Not authorized to post messages for this appointment' });
         }
 
+        let finalPhotoUrl = photo_url || '';
+        if (finalPhotoUrl && finalPhotoUrl.startsWith('data:image')) {
+            try {
+                const { uploadImage } = require('../utils/cloudinary');
+                finalPhotoUrl = await uploadImage(finalPhotoUrl, 'dworld_chat_photos');
+            } catch (uploadErr) {
+                console.warn('Chat photo upload fallback:', uploadErr.message);
+            }
+        }
+
         const newMsg = await AppointmentMessage.create({
             appointment_id: id,
             sender_id: userId,
             text: text || '',
-            photo_url: photo_url || ''
+            photo_url: finalPhotoUrl
         });
 
         const populatedMsg = await AppointmentMessage.findById(newMsg._id).populate('sender_id', 'name role specialty');

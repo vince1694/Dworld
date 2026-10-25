@@ -196,7 +196,7 @@ const verifyPayment = async (req, res, next) => {
                         duration: 45,
                         type: 'single',
                         category: 'Single Services',
-                        location: user.address || user.location || 'Lead City University Campus',
+                        location: user.address || user.location || 'Campus Area',
                         stylist_id: user._id
                     });
                 }
@@ -232,6 +232,7 @@ const verifyPayment = async (req, res, next) => {
                 const expertPayout = amountPaidNaira - commissionAmount;
 
                 appointment.paymentStatus = 'paid';
+                appointment.escrowStatus = 'held';
                 appointment.amountPaid = amountPaidNaira;
                 appointment.commissionRate = commissionRate;
                 appointment.commissionAmount = commissionAmount;
@@ -242,40 +243,20 @@ const verifyPayment = async (req, res, next) => {
                 user.transactions.push({
                     type: 'payment',
                     amount: amountPaidNaira,
-                    description: `Direct Paystack payment for ${appointment.service_id?.name || 'Appointment'}`,
+                    description: `Paystack payment for ${appointment.service_id?.name || 'Appointment'} (Held in D.WORLD Escrow)`,
                     reference_id: reference
                 });
                 await user.save();
 
-                // Credit the expert (90% after 10% platform cut)
+                // True Escrow: Money is held in Escrow until session is marked completed!
                 let expertId = appointment.stylist_id || appointment.service_id?.stylist_id;
                 if (expertId) {
-                    const expert = await User.findById(expertId);
-                    if (expert) {
-                        expert.walletBalance = (expert.walletBalance || 0) + expertPayout;
-                        expert.transactions.push({
-                            type: 'earning',
-                            amount: expertPayout,
-                            description: `Earned from ${user.name} for ${appointment.service_id?.name || 'Service'} (₦${amountPaidNaira.toLocaleString()} - 10% D.WORLD fee ₦${commissionAmount.toLocaleString()})`,
-                            reference_id: `EARN-${reference}`
-                        });
-                        await expert.save();
-
-                        // Notify expert with confirmed booking & payment
-                        await Notification.create({
-                            user_id: expertId,
-                            title: 'New Confirmed Booking! 📅',
-                            message: `${user.name} booked "${appointment.service_id?.name || 'Service'}" for ${appointment.date} at ${appointment.time}. Payment confirmed (₦${expertPayout.toLocaleString()} added to your wallet)!`,
-                            type: 'booking'
-                        });
-
-                        await Notification.create({
-                            user_id: expertId,
-                            title: 'Payment Received! 💰',
-                            message: `You received ₦${expertPayout.toLocaleString()} (after 10% platform fee of ₦${commissionAmount.toLocaleString()}) from ${user.name} for "${appointment.service_id?.name || 'Service'}".`,
-                            type: 'payment'
-                        });
-                    }
+                    await Notification.create({
+                        user_id: expertId,
+                        title: 'New Confirmed Booking! 📅',
+                        message: `${user.name} booked "${appointment.service_id?.name || 'Service'}" for ${appointment.date} at ${appointment.time}. ₦${expertPayout.toLocaleString()} is locked in Escrow and will be released to your wallet upon session completion!`,
+                        type: 'booking'
+                    });
                 }
 
                 // Send booking confirmation email and client in-app notification
@@ -377,6 +358,7 @@ const paystackWebhook = async (req, res) => {
                             const expertPayout = amountPaidNaira - commissionAmount;
 
                             appointment.paymentStatus = 'paid';
+                            appointment.escrowStatus = 'held';
                             appointment.amountPaid = amountPaidNaira;
                             appointment.commissionRate = commissionRate;
                             appointment.commissionAmount = commissionAmount;
@@ -386,25 +368,10 @@ const paystackWebhook = async (req, res) => {
                             user.transactions.push({
                                 type: 'payment',
                                 amount: amountPaidNaira,
-                                description: `Paystack payment for ${appointment.service_id?.name || 'Appointment'}`,
+                                description: `Paystack payment for ${appointment.service_id?.name || 'Appointment'} (Held in D.WORLD Escrow)`,
                                 reference_id: reference
                             });
                             await user.save();
-
-                            let expertId = appointment.stylist_id || appointment.service_id?.stylist_id;
-                            if (expertId) {
-                                const expert = await User.findById(expertId);
-                                if (expert) {
-                                    expert.walletBalance = (expert.walletBalance || 0) + expertPayout;
-                                    expert.transactions.push({
-                                        type: 'earning',
-                                        amount: expertPayout,
-                                        description: `Earned from ${user.name} for ${appointment.service_id?.name || 'Service'} (₦${amountPaidNaira.toLocaleString()} - 10% D.WORLD fee ₦${commissionAmount.toLocaleString()})`,
-                                        reference_id: `EARN-${reference}`
-                                    });
-                                    await expert.save();
-                                }
-                            }
                         }
                     } else {
                         user.walletBalance = (user.walletBalance || 0) + amountPaidNaira;

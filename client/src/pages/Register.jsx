@@ -595,7 +595,7 @@ const Register = () => {
                         id="address"
                         name="address"
                         type="text"
-                        placeholder="e.g. Unity Hall, Lead City University, Ibadan"
+                        placeholder="e.g. Unity Hall, Campus Area, Ibadan"
                         value={formData.address}
                         onChange={handleChange}
                         required

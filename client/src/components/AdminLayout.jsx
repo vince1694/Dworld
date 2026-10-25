@@ -7,6 +7,7 @@ import {
   PackagePlus, 
   User, 
   Users,
+  Banknote,
   LogOut, 
   Menu, 
   X, 
@@ -32,6 +33,7 @@ const AdminLayout = ({ children }) => {
     { name: 'Global Bookings', path: '/admin?tab=appointments', tab: 'appointments', icon: <CalendarRange size={18} /> },
     { name: 'Platform Services', path: '/admin?tab=services', tab: 'services', icon: <PackagePlus size={18} /> },
     { name: 'User Directory', path: '/admin?tab=users', tab: 'users', icon: <Users size={18} /> },
+    { name: 'Payout Requests', path: '/admin?tab=payouts', tab: 'payouts', icon: <Banknote size={18} /> },
     { name: 'Admin Profile', path: '/admin?tab=profile', tab: 'profile', icon: <User size={18} /> },
   ];
 

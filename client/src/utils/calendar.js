@@ -53,7 +53,7 @@ export function getGoogleCalendarUrl(appointment) {
   const serviceName = appointment.service_id?.name || 'Campus Appointment';
   const expertName = appointment.stylist_id?.name || 'D.world Expert';
   const duration = appointment.service_id?.duration || 45;
-  const location = appointment.service_id?.location || 'Lead City University Campus Studio';
+  const location = appointment.service_id?.location || 'Campus Area Studio';
 
   const { startUtc, endUtc } = parseAppointmentDates(appointment.date, appointment.time, duration);
 
@@ -77,7 +77,7 @@ export function downloadIcsFile(appointment) {
   const serviceName = appointment.service_id?.name || 'Campus Appointment';
   const expertName = appointment.stylist_id?.name || 'D.world Expert';
   const duration = appointment.service_id?.duration || 45;
-  const location = appointment.service_id?.location || 'Lead City University Campus Studio';
+  const location = appointment.service_id?.location || 'Campus Area Studio';
 
   const { startUtc, endUtc } = parseAppointmentDates(appointment.date, appointment.time, duration);
 

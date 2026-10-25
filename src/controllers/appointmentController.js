@@ -99,33 +99,21 @@ const bookAppointment = async (req, res, next) => {
             clientUser.transactions.push({
                 type: 'payment',
                 amount: amount,
-                description: `Payment for ${service?.name || 'Appointment'}`,
-                reference_id: `PAY-W-${Date.now()}`
+                description: `Payment for ${service?.name || 'Appointment'} (Held in D.WORLD Escrow)`,
+                reference_id: `ESCROW-W-${Date.now()}`
             });
             await clientUser.save();
             clientWalletBalance = clientUser.walletBalance;
 
-            // Credit 90% to Expert Wallet (10% platform fee retained)
+            // True Escrow: Money is securely held in platform Escrow until appointment is completed!
             if (targetStylistId) {
-                const expertUser = await User.findById(targetStylistId);
-                if (expertUser) {
-                    expertUser.walletBalance = (expertUser.walletBalance || 0) + expertPayout;
-                    expertUser.transactions.push({
-                        type: 'earning',
-                        amount: expertPayout,
-                        description: `Earned from ${clientUser.name} for ${service?.name || 'Service'} (₦${amount.toLocaleString()} - 10% D.WORLD fee ₦${commissionAmount.toLocaleString()})`,
-                        reference_id: `EARN-W-${Date.now()}`
-                    });
-                    await expertUser.save();
-
-                    // Send notification to expert
-                    await createNotificationHelper(
-                        targetStylistId,
-                        'New Confirmed Booking! 📅',
-                        `${clientUser.name} booked "${service?.name || 'Service'}" for ${date} at ${time}. Payment of ₦${amount.toLocaleString()} received (₦${expertPayout.toLocaleString()} added to your wallet)!`,
-                        'booking'
-                    );
-                }
+                // Send notification to expert that booking is paid & held in escrow
+                await createNotificationHelper(
+                    targetStylistId,
+                    'New Confirmed Booking! 📅',
+                    `${clientUser.name} booked "${service?.name || 'Service'}" for ${date} at ${time}. ₦${expertPayout.toLocaleString()} is locked in Escrow and will be released to your wallet upon session completion!`,
+                    'booking'
+                );
             }
 
             paymentStatus = 'paid';
@@ -141,8 +129,8 @@ const bookAppointment = async (req, res, next) => {
 
             await createNotificationHelper(
                 user_id,
-                'Booking Confirmed & Paid! 🎉',
-                `Your appointment for "${service?.name || 'Service'}" on ${date} at ${time} is confirmed. ₦${amount.toLocaleString()} was deducted from your wallet.`,
+                'Booking Confirmed & Escrow Protected! 🛡️',
+                `Your appointment for "${service?.name || 'Service'}" on ${date} at ${time} is confirmed. ₦${amount.toLocaleString()} is securely held in Escrow until completion.`,
                 'payment'
             );
         }
@@ -156,6 +144,7 @@ const bookAppointment = async (req, res, next) => {
             notes,
             stylist_id: targetStylistId,
             paymentStatus,
+            escrowStatus: paymentStatus === 'paid' ? 'held' : 'none',
             amountPaid,
             commissionRate,
             commissionAmount,
@@ -168,7 +157,7 @@ const bookAppointment = async (req, res, next) => {
         res.status(201).json({
             success: true,
             message: paymentStatus === 'paid'
-                ? `Appointment booked and paid successfully (₦${expertPayout.toLocaleString()} credited to specialist)!`
+                ? `Appointment booked and payment secured in D.WORLD Escrow (₦${amount.toLocaleString()})!`
                 : 'Appointment reserved successfully. Awaiting payment.',
             data: apt,
             clientWalletBalance,
@@ -283,10 +272,43 @@ const updateAppointmentStatus = async (req, res, next) => {
            }
         }
 
+        if (status === 'completed') {
+            // Escrow Release: When appointment is marked completed, release held escrow to expert!
+            if (appointment.paymentStatus === 'paid' && appointment.escrowStatus === 'held') {
+                const User = require('../models/User');
+                const expertId = appointment.stylist_id || appointment.service_id?.stylist_id;
+                const payout = appointment.expertPayout || Math.round((appointment.amountPaid || 0) * 0.90);
+
+                if (expertId && payout > 0) {
+                    const expertUser = await User.findById(expertId);
+                    if (expertUser) {
+                        expertUser.walletBalance = (expertUser.walletBalance || 0) + payout;
+                        expertUser.transactions.push({
+                            type: 'earning',
+                            amount: payout,
+                            description: `Escrow Released: Earned from ${appointment.user_id?.name || 'Client'} for ${appointment.service_id?.name || 'Service'}`,
+                            reference_id: `ESCROW-REL-${appointment._id}`
+                        });
+                        await expertUser.save();
+
+                        await createNotificationHelper(
+                            expertId,
+                            'Escrow Released! 💰',
+                            `Service marked completed! ₦${payout.toLocaleString()} has been released from D.WORLD Escrow to your wallet balance.`,
+                            'payment'
+                        );
+                    }
+                }
+
+                appointment.escrowStatus = 'released';
+                appointment.escrowReleasedAt = new Date();
+            }
+        }
+
         if (status === 'cancelled') {
             await TimeSlot.markAvailable(appointment.date, appointment.time);
 
-            // Automated Refund: If appointment was already paid for, refund client and reverse expert payout
+            // Automated Escrow Refund: If appointment was already paid for
             if (appointment.paymentStatus === 'paid') {
                 const User = require('../models/User');
                 const refundAmount = appointment.amountPaid || parseFloat(appointment.service_id?.price || 0);
@@ -315,12 +337,11 @@ const updateAppointmentStatus = async (req, res, next) => {
                     }
                 }
 
-                // 2. Reverse credited amount from expert's wallet
+                // 2. Only reverse expert if escrow was ALREADY released; if it was 'held', expert never received it!
                 let expertId = appointment.stylist_id || appointment.service_id?.stylist_id;
-                if (expertId) {
+                if (expertId && appointment.escrowStatus === 'released') {
                     const expertUser = await User.findById(expertId);
                     if (expertUser) {
-                        // Fix #3: record the ACTUAL amount deducted (can't go below 0)
                         const currentExpertBal = expertUser.walletBalance || 0;
                         const actualDeducted = Math.min(currentExpertBal, expertPayoutToReverse);
                         expertUser.walletBalance = currentExpertBal - actualDeducted;
@@ -339,8 +360,17 @@ const updateAppointmentStatus = async (req, res, next) => {
                             'payment'
                         );
                     }
+                } else if (expertId && appointment.escrowStatus === 'held') {
+                    // Expert never had funds released yet, just notify of cancellation
+                    await createNotificationHelper(
+                        expertId,
+                        'Booking Cancelled ⚠️',
+                        `Appointment on ${appointment.date} was cancelled. Held escrow funds have been released back to the client.`,
+                        'booking'
+                    );
                 }
 
+                appointment.escrowStatus = 'refunded';
                 appointment.paymentStatus = 'refunded';
             }
         }
@@ -473,38 +503,24 @@ const payAppointment = async (req, res, next) => {
         }
 
         // Fix #1: Save client deduction FIRST to prevent race condition
-        // (if server crashes after this, deduction is recorded; expert credit can be reconciled)
         clientUser.walletBalance -= amount;
         clientUser.transactions.push({
             type: 'payment',
             amount: amount,
-            description: `Payment for ${appointment.service_id?.name || 'Appointment'}`,
-            reference_id: `PAY-${appointment._id}`
+            description: `Payment for ${appointment.service_id?.name || 'Appointment'} (Held in D.WORLD Escrow)`,
+            reference_id: `ESCROW-PAY-${appointment._id}`
         });
         await clientUser.save();
 
-        // Credit 90% (expertPayout) to Expert Wallet (10% platform fee retained)
+        // True Escrow: Hold funds in Escrow until completion!
         let expertId = appointment.stylist_id || appointment.service_id?.stylist_id;
         if (expertId) {
-            const expertUser = await User.findById(expertId);
-            if (expertUser) {
-                expertUser.walletBalance = (expertUser.walletBalance || 0) + expertPayout;
-                expertUser.transactions.push({
-                    type: 'earning',
-                    amount: expertPayout,
-                    description: `Earned from ${clientUser.name} for ${appointment.service_id?.name || 'Service'} (₦${amount.toLocaleString()} - 10% D.WORLD fee ₦${commissionAmount.toLocaleString()})`,
-                    reference_id: `EARN-${appointment._id}`
-                });
-                await expertUser.save();
-
-                // Send notification to expert
-                await createNotificationHelper(
-                    expertId,
-                    'New Confirmed Booking! 📅',
-                    `${clientUser.name} booked "${appointment.service_id?.name || 'Service'}" for ${appointment.date} at ${appointment.time}. Payment of ₦${amount.toLocaleString()} received (₦${expertPayout.toLocaleString()} added to your wallet)!`,
-                    'booking'
-                );
-            }
+            await createNotificationHelper(
+                expertId,
+                'Booking Paid & Confirmed! 📅',
+                `${clientUser.name} paid for "${appointment.service_id?.name || 'Service'}" (${appointment.date} at ${appointment.time}). ₦${expertPayout.toLocaleString()} is locked in Escrow and will be released to your wallet upon session completion!`,
+                'booking'
+            );
         }
 
         // Send booking confirmation email and in-app notification to client
@@ -517,12 +533,13 @@ const payAppointment = async (req, res, next) => {
 
         await createNotificationHelper(
             clientId,
-            'Booking Confirmed & Paid! 🎉',
-            `Your appointment for "${appointment.service_id?.name || 'Service'}" on ${appointment.date} at ${appointment.time} is confirmed. ₦${amount.toLocaleString()} was deducted from your wallet.`,
+            'Booking Confirmed & Escrow Protected! 🛡️',
+            `Your appointment for "${appointment.service_id?.name || 'Service'}" on ${appointment.date} at ${appointment.time} is confirmed. ₦${amount.toLocaleString()} is securely held in Escrow until completion.`,
             'payment'
         );
 
         appointment.paymentStatus = 'paid';
+        appointment.escrowStatus = 'held';
         appointment.amountPaid = amount;
         appointment.commissionRate = commissionRate;
         appointment.commissionAmount = commissionAmount;

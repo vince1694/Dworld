@@ -1752,7 +1752,7 @@ const ExpertDashboard = () => {
                             <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
                               <input
                                 type="text"
-                                placeholder="e.g. Lead City University Campus, Hostel A, Room 12 / Salon Suite 3"
+                                placeholder="e.g. Campus Area, Hostel A, Room 12 / Salon Suite 3"
                                 value={profileForm.address}
                                 onChange={e => setProfileForm({ ...profileForm, address: e.target.value })}
                                 style={{ flex: 1, minWidth: '240px', padding: '0.75rem 1rem', borderRadius: '10px', border: '1px solid var(--border-light)', fontSize: '0.875rem', background: 'var(--bg-input, var(--bg-card))' }}
@@ -1770,7 +1770,7 @@ const ExpertDashboard = () => {
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#ecfdf5', padding: '0.55rem 0.85rem', borderRadius: '8px', border: '1px solid #a7f3d0' }}>
                               <MapPin size={14} color="#059669" />
                               <span style={{ fontSize: '0.78rem', color: '#065f46', fontWeight: 600 }}>
-                                Current Address: <strong>{profileForm.address || user?.address || user?.location || 'Lead City University Campus, Ibadan'}</strong>
+                                Current Address: <strong>{profileForm.address || user?.address || user?.location || 'Campus Area, Ibadan'}</strong>
                               </span>
                             </div>
                           </form>
@@ -2308,7 +2308,7 @@ const ExpertDashboard = () => {
                             <label>Specialist Campus Address / Room</label>
                             <input 
                               type="text" 
-                              placeholder="e.g. Lead City University Campus, Hostel A, Room 12"
+                              placeholder="e.g. Campus Area, Hostel A, Room 12"
                               value={profileForm.address} 
                               onChange={e => setProfileForm({ ...profileForm, address: e.target.value })} 
                             />

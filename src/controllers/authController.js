@@ -804,7 +804,7 @@ const getExpertById = async (req, res, next) => {
                 price: 3500,
                 duration: 45,
                 category: 'Single Services',
-                location: expert.address || expert.location || 'Lead City University Campus',
+                location: expert.address || expert.location || 'Campus Area',
                 stylist_id: expert._id
             }];
         }
@@ -818,7 +818,7 @@ const getExpertById = async (req, res, next) => {
                 email: expert.email,
                 phone: expert.phone || '',
                 address: expert.address || expert.location || '',
-                location: expert.location || expert.address || 'Lead City University Campus',
+                location: expert.location || expert.address || 'Campus Area',
                 matricNo: expert.matricNo || '',
                 department: expert.department || 'Cosmetology & Campus Styling',
                 bio: expert.bio || 'Verified campus specialist.',
