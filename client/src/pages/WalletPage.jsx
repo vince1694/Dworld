@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useSearchParams, Link } from 'react-router-dom';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import { 
@@ -20,11 +20,11 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { useNotify } from '../context/NotificationContext';
 import { API_URL } from '../config/api';
-import WithdrawModal from '../components/WithdrawModal';
 
 const PRESET_AMOUNTS = [1000, 2000, 3000, 5000, 10000];
 
 const WalletPage = () => {
+  const navigate = useNavigate();
   const { user, refreshUser } = useAuth();
   const { notify } = useNotify();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -37,7 +37,6 @@ const WalletPage = () => {
   const [filterType, setFilterType] = useState('all');
   const [successBanner, setSuccessBanner] = useState('');
   const [errorBanner, setErrorBanner] = useState('');
-  const [isWithdrawModalOpen, setIsWithdrawModalOpen] = useState(false);
 
   useEffect(() => {
     fetchWalletData();
@@ -162,7 +161,7 @@ const WalletPage = () => {
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
             <button
-              onClick={() => setIsWithdrawModalOpen(true)}
+              onClick={() => navigate('/withdraw', { state: { from: '/wallet' } })}
               className="btn btn-outline"
               style={{
                 padding: '0.55rem 1.1rem',
@@ -554,17 +553,6 @@ const WalletPage = () => {
           </div>
         )}
       </div>
-
-      {/* ── Bank Withdrawal Modal ── */}
-      <WithdrawModal
-        isOpen={isWithdrawModalOpen}
-        onClose={() => setIsWithdrawModalOpen(false)}
-        walletBalance={walletBalance}
-        onSuccess={() => {
-          fetchWalletData();
-          if (refreshUser) refreshUser();
-        }}
-      />
 
     </div>
   );

@@ -416,19 +416,7 @@ const ExpertDashboard = () => {
   };
 
   const handleOpenWithdraw = () => {
-    // Pre-fill saved bank details if expert has them
-    if (user?.bankDetails) {
-      setWithdrawForm(prev => ({
-        ...prev,
-        bankCode: user.bankDetails.bankCode || '',
-        bankName: user.bankDetails.bankName || '',
-        accountNumber: user.bankDetails.accountNumber || '',
-        accountName: user.bankDetails.accountName || ''
-      }));
-    }
-    fetchBanks();
-    fetchMyPayouts();
-    setShowWithdrawPanel(true);
+    navigate('/withdraw', { state: { from: '/expert?tab=wallet' } });
   };
 
   const handleBankChange = (e) => {

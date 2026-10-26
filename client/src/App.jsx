@@ -26,6 +26,7 @@ const Chat = lazy(() => import('./pages/Chat'));
 const ExpertProfilePage = lazy(() => import('./pages/ExpertProfilePage'));
 const AppointmentDetailsPage = lazy(() => import('./pages/AppointmentDetailsPage'));
 const PaidServicesPage = lazy(() => import('./pages/PaidServicesPage'));
+const WithdrawPage = lazy(() => import('./pages/WithdrawPage'));
 
 const RouteFallback = () => (
   <div style={{
@@ -117,6 +118,15 @@ function App() {
                   </AppLayout>
                 </ProtectedRoute>
               } />
+
+              <Route path="/withdraw" element={
+                <ProtectedRoute>
+                  <AppLayout>
+                    <WithdrawPage />
+                  </AppLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/wallet/withdraw" element={<Navigate to="/withdraw" replace />} />
 
               <Route path="/chat" element={
                 <ProtectedRoute>

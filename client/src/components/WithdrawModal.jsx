@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import { 
@@ -17,8 +18,16 @@ import { useNotify } from '../context/NotificationContext';
 import { useAuth } from '../context/AuthContext';
 
 const WithdrawModal = ({ isOpen, onClose, walletBalance = 0, onSuccess }) => {
+  const navigate = useNavigate();
   const { notify } = useNotify();
   const { user } = useAuth();
+
+  useEffect(() => {
+    if (isOpen) {
+      if (onClose) onClose();
+      navigate('/withdraw');
+    }
+  }, [isOpen, navigate, onClose]);
 
   const [banks, setBanks] = useState([]);
   const [loadingBanks, setLoadingBanks] = useState(false);
