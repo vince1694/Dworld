@@ -280,17 +280,29 @@ const updateAppointmentStatus = async (req, res, next) => {
                 const payout = appointment.expertPayout || Math.round((appointment.amountPaid || 0) * 0.90);
 
                 if (expertId && payout > 0) {
-                    const expertUser = await User.findById(expertId);
-                    if (expertUser) {
-                        expertUser.walletBalance = (expertUser.walletBalance || 0) + payout;
-                        expertUser.transactions.push({
-                            type: 'earning',
-                            amount: payout,
-                            description: `Escrow Released: Earned from ${appointment.user_id?.name || 'Client'} for ${appointment.service_id?.name || 'Service'}`,
-                            reference_id: `ESCROW-REL-${appointment._id}`
-                        });
-                        await expertUser.save();
+                    const escrowRelRef = `ESCROW-REL-${appointment._id}`;
+                    // Atomic idempotent escrow credit to expert
+                    const updatedExpert = await User.findOneAndUpdate(
+                        {
+                            _id: expertId,
+                            'transactions.reference_id': { $ne: escrowRelRef }
+                        },
+                        {
+                            $inc: { walletBalance: payout },
+                            $push: {
+                                transactions: {
+                                    type: 'earning',
+                                    amount: payout,
+                                    description: `Escrow Released: Earned from ${appointment.user_id?.name || 'Client'} for ${appointment.service_id?.name || 'Service'}`,
+                                    reference_id: escrowRelRef,
+                                    date: new Date()
+                                }
+                            }
+                        },
+                        { new: true }
+                    );
 
+                    if (updatedExpert) {
                         await createNotificationHelper(
                             expertId,
                             'Escrow Released! 💰',
@@ -314,20 +326,31 @@ const updateAppointmentStatus = async (req, res, next) => {
                 const refundAmount = appointment.amountPaid || parseFloat(appointment.service_id?.price || 0);
                 const expertPayoutToReverse = appointment.expertPayout || (refundAmount * 0.90);
 
-                // 1. Credit 100% back to client's wallet
+                // 1. Credit 100% back to client's wallet with idempotent guarantee
                 const clientUserId = appointment.user_id?._id || appointment.user_id;
                 if (clientUserId) {
-                    const clientUser = await User.findById(clientUserId);
-                    if (clientUser) {
-                        clientUser.walletBalance = (clientUser.walletBalance || 0) + refundAmount;
-                        clientUser.transactions.push({
-                            type: 'refund',
-                            amount: refundAmount,
-                            description: `100% Refund for cancelled booking: ${appointment.service_id?.name || 'Service'}`,
-                            reference_id: `REFUND-${appointment._id}`
-                        });
-                        await clientUser.save();
+                    const refundRef = `REFUND-${appointment._id}`;
+                    const updatedClient = await User.findOneAndUpdate(
+                        {
+                            _id: clientUserId,
+                            'transactions.reference_id': { $ne: refundRef }
+                        },
+                        {
+                            $inc: { walletBalance: refundAmount },
+                            $push: {
+                                transactions: {
+                                    type: 'refund',
+                                    amount: refundAmount,
+                                    description: `100% Refund for cancelled booking: ${appointment.service_id?.name || 'Service'}`,
+                                    reference_id: refundRef,
+                                    date: new Date()
+                                }
+                            }
+                        },
+                        { new: true }
+                    );
 
+                    if (updatedClient) {
                         await createNotificationHelper(
                             clientUserId,
                             'Refund Processed! 💳',
@@ -340,7 +363,11 @@ const updateAppointmentStatus = async (req, res, next) => {
                 // 2. Only reverse expert if escrow was ALREADY released; if it was 'held', expert never received it!
                 let expertId = appointment.stylist_id || appointment.service_id?.stylist_id;
                 if (expertId && appointment.escrowStatus === 'released') {
-                    const expertUser = await User.findById(expertId);
+                    const revRef = `REV-${appointment._id}`;
+                    const expertUser = await User.findOne({
+                        _id: expertId,
+                        'transactions.reference_id': { $ne: revRef }
+                    });
                     if (expertUser) {
                         const currentExpertBal = expertUser.walletBalance || 0;
                         const actualDeducted = Math.min(currentExpertBal, expertPayoutToReverse);
@@ -349,7 +376,8 @@ const updateAppointmentStatus = async (req, res, next) => {
                             type: 'refund_deduction',
                             amount: actualDeducted,
                             description: `Earnings reversal for cancelled booking: ${appointment.service_id?.name || 'Service'}`,
-                            reference_id: `REV-${appointment._id}`
+                            reference_id: revRef,
+                            date: new Date()
                         });
                         await expertUser.save();
 

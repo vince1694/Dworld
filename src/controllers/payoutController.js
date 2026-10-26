@@ -166,54 +166,73 @@ const requestPayout = async (req, res, next) => {
             });
         }
 
-        const user = await User.findById(userId);
-        if (!user) {
-            return res.status(404).json({ success: false, message: 'User not found.' });
-        }
+        const reference = `WD-${Date.now()}-${Math.floor(Math.random() * 9000 + 1000)}`;
 
-        const currentBalance = user.walletBalance || 0;
-        if (currentBalance < numAmount) {
+        // Atomic debit with balance guarantee to prevent race conditions & double-spending
+        const user = await User.findOneAndUpdate(
+            {
+                _id: userId,
+                walletBalance: { $gte: numAmount }
+            },
+            {
+                $inc: { walletBalance: -numAmount },
+                $set: {
+                    bankDetails: {
+                        bankName,
+                        bankCode,
+                        accountNumber,
+                        accountName
+                    }
+                },
+                $push: {
+                    transactions: {
+                        type: 'withdrawal',
+                        amount: numAmount,
+                        description: `Withdrawal request to ${bankName} (${accountNumber})`,
+                        reference_id: reference,
+                        date: new Date()
+                    }
+                }
+            },
+            { new: true }
+        );
+
+        if (!user) {
+            const userCheck = await User.findById(userId);
+            if (!userCheck) {
+                return res.status(404).json({ success: false, message: 'User not found.' });
+            }
+            const currentBalance = userCheck.walletBalance || 0;
             return res.status(400).json({
                 success: false,
                 message: `Insufficient wallet balance (₦${currentBalance.toLocaleString()}). You cannot withdraw ₦${numAmount.toLocaleString()}.`
             });
         }
 
-        const reference = `WD-${Date.now()}-${Math.floor(Math.random() * 9000 + 1000)}`;
-
-        // Debit wallet immediately to prevent double-spending
-        user.walletBalance -= numAmount;
-        user.transactions.push({
-            type: 'withdrawal',
-            amount: numAmount,
-            description: `Withdrawal request to ${bankName} (${accountNumber})`,
-            reference_id: reference
-        });
-
-        // Save bank details for easy future 1-click withdrawals
-        user.bankDetails = {
-            bankName,
-            bankCode,
-            accountNumber,
-            accountName
-        };
-
-        await user.save();
-
-        const payout = await PayoutRequest.create({
-            user_id: user._id,
-            amount: numAmount,
-            fee: 0,
-            netAmount: numAmount,
-            bankDetails: {
-                bankName,
-                bankCode,
-                accountNumber,
-                accountName
-            },
-            status: 'pending',
-            reference
-        });
+        let payout;
+        try {
+            payout = await PayoutRequest.create({
+                user_id: user._id,
+                amount: numAmount,
+                fee: 0,
+                netAmount: numAmount,
+                bankDetails: {
+                    bankName,
+                    bankCode,
+                    accountNumber,
+                    accountName
+                },
+                status: 'pending',
+                reference
+            });
+        } catch (createErr) {
+            // Roll back wallet debit if PayoutRequest document fails to persist
+            await User.findByIdAndUpdate(user._id, {
+                $inc: { walletBalance: numAmount },
+                $pull: { transactions: { reference_id: reference } }
+            });
+            throw createErr;
+        }
 
         // Notify specialist
         await createNotificationHelper(
@@ -344,21 +363,23 @@ const updatePayoutStatusForAdmin = async (req, res, next) => {
 
         // If rejecting: refund funds back into specialist's wallet with idempotent guarantee
         if (status === 'rejected') {
-            if (updatedPayout.user_id) {
+            const targetUserId = updatedPayout.user_id?._id || updatedPayout.user_id;
+            if (targetUserId) {
                 const refundRef = `REJ-REF-${updatedPayout.reference}`;
+                const refundAmount = Number(updatedPayout.amount);
                 
                 // Idempotent atomic update: only increment balance and record refund if this ref does not exist yet!
                 const user = await User.findOneAndUpdate(
                     {
-                        _id: updatedPayout.user_id._id,
+                        _id: targetUserId,
                         'transactions.reference_id': { $ne: refundRef }
                     },
                     {
-                        $inc: { walletBalance: updatedPayout.amount },
+                        $inc: { walletBalance: refundAmount },
                         $push: {
                             transactions: {
                                 type: 'refund',
-                                amount: updatedPayout.amount,
+                                amount: refundAmount,
                                 description: `Refund for rejected withdrawal: ${adminNotes || 'Request not approved'}`,
                                 reference_id: refundRef,
                                 date: new Date()
@@ -372,17 +393,18 @@ const updatePayoutStatusForAdmin = async (req, res, next) => {
                     await createNotificationHelper(
                         user._id,
                         'Withdrawal Request Rejected ❌',
-                        `Your payout of ₦${updatedPayout.amount.toLocaleString()} was rejected${adminNotes ? ` (${adminNotes})` : ''}. ₦${updatedPayout.amount.toLocaleString()} has been restored to your wallet balance.`,
+                        `Your payout of ₦${refundAmount.toLocaleString()} was rejected${adminNotes ? ` (${adminNotes})` : ''}. ₦${refundAmount.toLocaleString()} has been restored to your wallet balance.`,
                         'payment'
                     );
                 }
             }
         } else if (status === 'completed') {
-            if (updatedPayout.user_id) {
+            const targetUserId = updatedPayout.user_id?._id || updatedPayout.user_id;
+            if (targetUserId) {
                 await createNotificationHelper(
-                    updatedPayout.user_id._id,
+                    targetUserId,
                     'Payout Disbursed! 💸',
-                    `₦${updatedPayout.amount.toLocaleString()} has been sent to your ${updatedPayout.bankDetails.bankName} account (${updatedPayout.bankDetails.accountNumber})!`,
+                    `₦${updatedPayout.amount.toLocaleString()} has been sent to your ${updatedPayout.bankDetails?.bankName || 'bank'} account (${updatedPayout.bankDetails?.accountNumber || ''})!`,
                     'payment'
                 );
             }

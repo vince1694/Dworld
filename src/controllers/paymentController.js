@@ -172,6 +172,16 @@ const verifyPayment = async (req, res, next) => {
             return res.status(404).json({ success: false, message: 'User account not found' });
         }
 
+        // Idempotency check: if transaction with this reference was already processed (e.g. by webhook), return status immediately
+        if (user.transactions && user.transactions.some(t => t.reference_id === reference)) {
+            return res.status(200).json({
+                success: true,
+                message: 'Payment has already been processed and verified.',
+                isActivated: user.isActivated,
+                walletBalance: user.walletBalance
+            });
+        }
+
         if (purpose === 'expert_activation') {
             user.isActivated = true;
             user.activatedAt = new Date();
