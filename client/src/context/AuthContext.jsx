@@ -1,4 +1,4 @@
-import React, { createContext, useState, useEffect, useContext } from 'react';
+import React, { createContext, useState, useEffect, useContext, useRef } from 'react';
 import axios from 'axios';
 import { API_URL } from '../config/api';
 
@@ -71,11 +71,17 @@ export const AuthProvider = ({ children }) => {
     return !initialToken || !readCachedUser(); // only block if no cache available
   });
   const [token, setToken] = useState(() => initialToken);
+  const justLoggedInRef = useRef(false);
 
   useEffect(() => {
     if (token) {
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      fetchUser(); // silently revalidate in background
+      if (justLoggedInRef.current) {
+        justLoggedInRef.current = false;
+        setLoading(false);
+      } else {
+        fetchUser(); // silently revalidate in background on reload
+      }
     } else {
       delete axios.defaults.headers.common['Authorization'];
       setUser(null);
@@ -116,6 +122,7 @@ export const AuthProvider = ({ children }) => {
     if (axios.defaults.headers.common) {
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     }
+    justLoggedInRef.current = true;
     setToken(token);
     setUser(user);
     setLoading(false);

@@ -19,12 +19,15 @@ const appointmentSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 // ── Performance indexes ────────────────────────────────────────────────────────
-appointmentSchema.index({ user_id: 1, createdAt: -1 });      // getByUser
-appointmentSchema.index({ stylist_id: 1, createdAt: -1 });   // getByStylist
-appointmentSchema.index({ stylist_id: 1, date: -1, time: -1 }); // getByStylist sorted
-appointmentSchema.index({ service_id: 1, date: -1, time: -1 }); // getByStylist via service
-appointmentSchema.index({ status: 1 });                       // status filter
-appointmentSchema.index({ date: 1, time: 1 });                // date/time conflict checks
+appointmentSchema.index({ user_id: 1, date: -1, time: -1 });      // getByUser sorted
+appointmentSchema.index({ user_id: 1, createdAt: -1 });          // getByUser fallback
+appointmentSchema.index({ user_id: 1, status: 1 });              // getByUser status filter
+appointmentSchema.index({ stylist_id: 1, date: -1, time: -1 });  // getByStylist sorted
+appointmentSchema.index({ stylist_id: 1, createdAt: -1 });       // getByStylist fallback
+appointmentSchema.index({ stylist_id: 1, status: 1 });          // getByStylist status filter
+appointmentSchema.index({ service_id: 1, date: -1, time: -1 });  // getByStylist via service
+appointmentSchema.index({ status: 1 });                           // status filter
+appointmentSchema.index({ date: 1, time: 1 });                    // date/time conflict checks
 
 
 appointmentSchema.statics.create = async function(appointmentData) {
@@ -40,7 +43,7 @@ appointmentSchema.statics.create = async function(appointmentData) {
 
 appointmentSchema.statics.getByUser = function(userId) {
   return this.find({ user_id: userId })
-             .populate('service_id')
+             .populate('service_id', 'name price location duration category image')
              .populate('stylist_id', 'name email phone specialty bio rating avatar matricNo department address location')
              .sort({ date: -1, time: -1 })
              .lean();

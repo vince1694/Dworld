@@ -144,7 +144,6 @@ const Dashboard = () => {
   // Initial load once on mount
   useEffect(() => {
     fetchData();
-    fetchWallet();
 
     const onWalletUpdated = (e) => {
       if (e.detail?.walletBalance !== undefined) {
@@ -202,54 +201,48 @@ const Dashboard = () => {
     if (!sessionStorage.getItem('dworld_user_appointments')) {
       setApptLoading(true);
     }
+
     try {
-      const appointmentsRes = await axios.get(`${API_URL}/appointments/my-appointments`);
-      if (appointmentsRes.data.success) {
-        setAppointments(appointmentsRes.data.data);
+      // Fetch all core dashboard requirements concurrently in parallel
+      const [apptsResult, servicesResult, expertsResult, walletResult] = await Promise.allSettled([
+        axios.get(`${API_URL}/appointments/my-appointments`),
+        axios.get(`${API_URL}/services`),
+        axios.get(`${API_URL}/auth/experts`),
+        axios.get(`${API_URL}/auth/wallet`)
+      ]);
+
+      if (apptsResult.status === 'fulfilled' && apptsResult.value.data?.success) {
+        const apts = apptsResult.value.data.data || [];
+        setAppointments(apts);
         try {
-          sessionStorage.setItem('dworld_user_appointments', JSON.stringify(appointmentsRes.data.data));
-        } catch {
-          // Ignore quota / tracking prevention errors
-        }
+          sessionStorage.setItem('dworld_user_appointments', JSON.stringify(apts));
+        } catch {}
+      }
+
+      if (servicesResult.status === 'fulfilled' && servicesResult.value.data?.success) {
+        const svcs = servicesResult.value.data.data || [];
+        setServices(svcs);
+        try {
+          sessionStorage.setItem('dworld_services', JSON.stringify(svcs));
+        } catch {}
+      }
+
+      if (expertsResult.status === 'fulfilled' && expertsResult.value.data?.success) {
+        const exps = expertsResult.value.data.data || [];
+        setExperts(exps);
+        try {
+          sessionStorage.setItem('dworld_experts', JSON.stringify(exps));
+        } catch {}
+      }
+
+      if (walletResult.status === 'fulfilled' && walletResult.value.data?.success) {
+        const bal = walletResult.value.data.data?.walletBalance ?? 0;
+        setWalletBalance(bal);
       }
     } catch (err) {
-      console.error('Failed to fetch appointments', err);
+      console.error('Failed to fetch dashboard data', err);
     } finally {
       setApptLoading(false);
-    }
-
-    // Background: revalidate services + experts (stale-while-revalidate pattern)
-    try {
-      const [servicesRes, expertsRes] = await Promise.all([
-        axios.get(`${API_URL}/services`),
-        axios.get(`${API_URL}/auth/experts`)
-      ]);
-      if (servicesRes.data?.success) {
-        setServices(servicesRes.data.data);
-        try {
-          sessionStorage.setItem('dworld_services', JSON.stringify(servicesRes.data.data));
-        } catch { sessionStorage.removeItem('dworld_services'); }
-      }
-      if (expertsRes?.data?.success) {
-        const fullExperts = expertsRes.data.data || [];
-        setExperts(fullExperts);
-        // Strip heavy fields (portfolio images, large avatars) before sessionStorage caching
-        // to prevent QuotaExceededError on browsers with tight storage quotas
-        try {
-          const slim = fullExperts.map(({ portfolio, bio, ...rest }) => ({
-            ...rest,
-            // Keep avatar only if it's a URL (not a base64 blob)
-            avatar: rest.avatar && !rest.avatar.startsWith('data:') ? rest.avatar : undefined
-          }));
-          sessionStorage.setItem('dworld_experts', JSON.stringify(slim));
-        } catch (storageErr) {
-          // Quota exceeded or Tracking Prevention — silently skip caching
-          console.warn('[Cache] Could not cache experts:', storageErr.message);
-          sessionStorage.removeItem('dworld_experts');
-        }
-      }
-    } catch (err) {
-      console.error('Failed to revalidate services/experts', err);
     }
   };
 

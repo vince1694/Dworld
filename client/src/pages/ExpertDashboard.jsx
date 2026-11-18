@@ -390,7 +390,10 @@ const ExpertDashboard = () => {
         axios.get(`${API_URL}/auth/wallet`)
       ];
 
-      const [appRes, srvRes, walletRes] = await Promise.all(requests);
+      const results = await Promise.allSettled(requests);
+      const appRes = results[0]?.status === 'fulfilled' ? results[0].value : null;
+      const srvRes = results[1]?.status === 'fulfilled' ? results[1].value : null;
+      const walletRes = results[2]?.status === 'fulfilled' ? results[2].value : null;
 
       if (appRes?.data?.success) {
         const apts = appRes.data.data.appointments || [];

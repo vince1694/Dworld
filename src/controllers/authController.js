@@ -517,7 +517,7 @@ const getWallet = async (req, res, next) => {
 // ── Simple in-memory cache for getExperts (60s TTL) ──────────────────────────
 let _expertsCache = null;
 let _expertsCacheTime = 0;
-const EXPERTS_CACHE_TTL = 60 * 1000; // 60 seconds
+const EXPERTS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes cache for high performance
 
 const getExperts = async (req, res, next) => {
     try {
@@ -545,10 +545,10 @@ const getExperts = async (req, res, next) => {
             ];
         }
 
-        // Select only needed fields — exclude heavy arrays like transactions, resetOtp
+        // Select only needed fields — exclude multi-megabyte portfolio images from directory list
         const experts = await User.find(queryFilter).select(
             'name email role phone address location state matricNo department bio specialty ' +
-            'workingDays workingHours rating avatar portfolio isVerified isActivated'
+            'workingDays workingHours rating avatar isVerified isActivated'
         ).lean();
 
         if (!experts || experts.length === 0) {

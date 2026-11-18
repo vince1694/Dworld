@@ -34,6 +34,12 @@ const Login = () => {
 
   // If already authenticated, redirect smoothly to corresponding dashboard or intended destination
   useEffect(() => {
+    // Pre-warm dashboard chunks in browser cache while user is entering credentials
+    const prewarmTimer = setTimeout(() => {
+      import('./Dashboard');
+      import('./ExpertDashboard');
+    }, 400);
+
     if (currentUser) {
       const redirectUrl = searchParams.get('redirect');
       if (redirectUrl) {
@@ -48,6 +54,8 @@ const Login = () => {
         navigate('/dashboard', { replace: true });
       }
     }
+
+    return () => clearTimeout(prewarmTimer);
   }, [currentUser, navigate, searchParams]);
 
   const handleRoleSelect = (role) => {
