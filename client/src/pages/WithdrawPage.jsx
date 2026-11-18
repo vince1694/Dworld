@@ -252,6 +252,7 @@ const WithdrawPage = () => {
             }
           });
         }
+        window.dispatchEvent(new CustomEvent('dworld_wallet_updated', { detail: { walletBalance: updatedBal } }));
 
         // Refresh recent payouts list
         fetchMyPayouts();

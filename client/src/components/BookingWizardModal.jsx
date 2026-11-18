@@ -216,6 +216,7 @@ const BookingWizardModal = ({ isOpen, onClose, onBookingSuccess, preselectedServ
           setWalletBalance(newBal);
           if (updateUserCache) updateUserCache({ walletBalance: newBal });
           if (refreshUser) refreshUser();
+          window.dispatchEvent(new CustomEvent('dworld_wallet_updated', { detail: { walletBalance: newBal } }));
           setConfirmedBookingData(res.data.data);
           setBookingComplete(true);
           if (onBookingSuccess) {

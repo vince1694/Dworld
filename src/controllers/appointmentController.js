@@ -606,7 +606,7 @@ const deleteAppointment = async (req, res, next) => {
 
         // If appointment was paid and not completed, issue wallet refund to client before deleting
         if (appointment.paymentStatus === 'paid' && appointment.status !== 'completed') {
-            const refundAmount = appointment.amountPaid || 0;
+            const refundAmount = appointment.amountPaid || parseFloat(appointment.service_id?.price || 0);
             const User = require('../models/User');
             const refundRef = `REFUND-DEL-${appointment._id}`;
             const revRef = `REV-DEL-${appointment._id}`;

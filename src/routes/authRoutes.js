@@ -11,7 +11,6 @@ const {
   resetPassword, 
   getMe,
   getWallet,
-  topupWallet,
   getExperts,
   getExpertById,
   addPortfolioItem,
@@ -45,7 +44,6 @@ router.post('/register-stylist', [
 router.post('/login', login);
 router.get('/me', protect, getMe);
 router.get('/wallet', protect, getWallet);
-router.post('/wallet/topup', protect, topupWallet);
 router.get('/experts', getExperts);
 router.get('/experts/:id', getExpertById);
 

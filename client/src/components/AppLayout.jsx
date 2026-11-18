@@ -44,6 +44,18 @@ const AppLayout = ({ children }) => {
   const [isNotifOpen, setIsNotifOpen] = useState(false);
 
   useEffect(() => {
+    const handleWalletUpdated = (e) => {
+      if (e.detail?.walletBalance !== undefined) {
+        setWalletBalance(e.detail.walletBalance);
+      } else {
+        fetchWallet();
+      }
+    };
+    window.addEventListener('dworld_wallet_updated', handleWalletUpdated);
+    return () => window.removeEventListener('dworld_wallet_updated', handleWalletUpdated);
+  }, []);
+
+  useEffect(() => {
     if (user) {
       fetchWallet();
       fetchNotifications();

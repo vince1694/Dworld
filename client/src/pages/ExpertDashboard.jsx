@@ -284,31 +284,66 @@ const ExpertDashboard = () => {
     fetchData(); 
   }, []);
 
-  // 2. Paystack activation return check (runs only when payment callback params exist)
+  // 2. Paystack activation & wallet topup return check
   useEffect(() => {
     const reference = searchParams.get('reference') || searchParams.get('trxref');
     const isActParam = searchParams.get('activated');
+    const statusParam = searchParams.get('status');
+    const tabParam = searchParams.get('tab');
+
     if (reference) {
       axios.post(`${API_URL}/payments/verify`, { reference })
         .then(res => {
           if (res.data.success) {
-            addToast('Congratulations! Your Expert profile is now fully activated 🎉', 'success');
-            setShowActivationModal(false);
-            setActivationDismissed(false);
-            if (refreshUser) refreshUser();
-            fetchData(true);
-            navigate('/expert', { replace: true });
+            const purpose = res.data.purpose;
+            if (purpose === 'expert_activation' || (res.data.isActivated && !user?.isActivated)) {
+              addToast('Congratulations! Your Expert profile is now fully activated 🎉', 'success');
+              setShowActivationModal(false);
+              setActivationDismissed(false);
+              if (refreshUser) refreshUser();
+              fetchData(true);
+              navigate('/expert', { replace: true });
+            } else {
+              // Wallet top-up confirmation
+              const amountCredited = res.data.amount || 0;
+              const msg = amountCredited > 0
+                ? `₦${amountCredited.toLocaleString()} deposited into your wallet via Paystack! 🎉`
+                : (res.data.message || 'Payment confirmed successfully! 🎉');
+              addToast(msg, 'success');
+              if (res.data.walletBalance !== undefined) {
+                setWalletBalance(res.data.walletBalance);
+                window.dispatchEvent(new CustomEvent('dworld_wallet_updated', { detail: { walletBalance: res.data.walletBalance } }));
+              }
+              if (refreshUser) refreshUser();
+              fetchData(true);
+              navigate('/expert?tab=wallet', { replace: true });
+            }
           }
         })
         .catch(err => {
-          console.warn('Activation verify notice:', err);
+          console.warn('Payment verify notice:', err);
         });
     } else if (isActParam) {
       if (refreshUser) refreshUser();
       fetchData(true);
       navigate('/expert', { replace: true });
+    } else if (statusParam === 'success' && tabParam === 'wallet') {
+      addToast('Wallet balance updated successfully! 🎉', 'success');
+      if (refreshUser) refreshUser();
+      fetchData(true);
+      navigate('/expert?tab=wallet', { replace: true });
     }
   }, [searchParams]);
+
+  useEffect(() => {
+    const onWalletUpdated = (e) => {
+      if (e.detail?.walletBalance !== undefined) {
+        setWalletBalance(e.detail.walletBalance);
+      }
+    };
+    window.addEventListener('dworld_wallet_updated', onWalletUpdated);
+    return () => window.removeEventListener('dworld_wallet_updated', onWalletUpdated);
+  }, []);
 
   useEffect(() => {
     if (activeTab === 'wallet') {

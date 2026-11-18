@@ -347,7 +347,9 @@ const BookAppointment = () => {
         }
 
         bookedApt.paymentStatus = 'paid';
-        setWalletBalance(updatedBalance !== undefined ? updatedBalance : (walletBalance - price));
+        const finalBal = updatedBalance !== undefined ? updatedBalance : (walletBalance - price);
+        setWalletBalance(finalBal);
+        window.dispatchEvent(new CustomEvent('dworld_wallet_updated', { detail: { walletBalance: finalBal } }));
         setConfirmedBooking({
           ...bookedApt,
           service_id: selectedService,

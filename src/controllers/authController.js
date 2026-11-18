@@ -512,39 +512,6 @@ const getWallet = async (req, res, next) => {
     }
 };
 
-const topupWallet = async (req, res, next) => {
-    try {
-        const { amount } = req.body;
-        const depositAmount = parseFloat(amount);
-        if (isNaN(depositAmount) || depositAmount <= 0) {
-            return res.status(400).json({ success: false, message: 'Invalid deposit amount' });
-        }
-
-        const user = await User.findById(req.user.id);
-        if (!user) {
-            return res.status(404).json({ success: false, message: 'User not found' });
-        }
-
-        user.walletBalance = (user.walletBalance || 0) + depositAmount;
-        user.transactions.push({
-            type: 'deposit',
-            amount: depositAmount,
-            description: `Wallet top-up via Paystack`,
-            reference_id: `DEP-${Date.now()}`
-        });
-
-        await user.save();
-
-        res.json({
-            success: true,
-            message: `Wallet topped up successfully! ₦${depositAmount.toLocaleString()} added.`,
-            walletBalance: user.walletBalance
-        });
-    } catch (error) {
-        next(error);
-    }
-};
-
 // ── Simple in-memory cache for getExperts (60s TTL) ──────────────────────────
 let _expertsCache = null;
 let _expertsCacheTime = 0;
@@ -957,7 +924,6 @@ module.exports = {
     resetPassword, 
     getMe, 
     getWallet, 
-    topupWallet, 
     getExperts,
     getExpertById,
     addPortfolioItem,

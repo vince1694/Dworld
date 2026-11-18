@@ -34,7 +34,9 @@ import {
   RotateCcw,
   Camera,
   ZoomIn,
-  Banknote
+  Banknote,
+  Wallet,
+  Plus
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ReviewModal from '../components/ReviewModal';
@@ -42,6 +44,7 @@ import AppointmentChatModal from '../components/AppointmentChatModal';
 import ConfirmModal from '../components/ConfirmModal';
 import ImageLightboxModal from '../components/ImageLightboxModal';
 import MyAppointments from '../components/MyAppointments';
+import WalletModal from '../components/WalletModal';
 import { getGoogleCalendarUrl, downloadIcsFile } from '../utils/calendar';
 
 import { API_URL } from '../config/api';
@@ -115,6 +118,9 @@ const Dashboard = () => {
     submitting: false
   });
 
+  const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
+  const [walletBalance, setWalletBalance] = useState(user?.walletBalance || 0);
+
   const { notify } = useNotify();
   const addToast = (message, type = 'success') => {
     if (type === 'error') notify.error(message);
@@ -126,11 +132,44 @@ const Dashboard = () => {
   const [profileForm, setProfileForm] = useState({ name: user?.name || '', phone: user?.phone || '' });
   const [savingProfile, setSavingProfile] = useState(false);
 
+  const fetchWallet = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/auth/wallet`);
+      if (res.data?.success) {
+        setWalletBalance(res.data.data.walletBalance || 0);
+      }
+    } catch (err) {}
+  };
+
+  // Initial load once on mount
   useEffect(() => {
     fetchData();
+    fetchWallet();
+
+    const onWalletUpdated = (e) => {
+      if (e.detail?.walletBalance !== undefined) {
+        setWalletBalance(e.detail.walletBalance);
+      } else {
+        fetchWallet();
+      }
+    };
+    window.addEventListener('dworld_wallet_updated', onWalletUpdated);
+    return () => window.removeEventListener('dworld_wallet_updated', onWalletUpdated);
+  }, []);
+
+  // Handle URL query parameters (booking redirect, wallet tab, Paystack callback)
+  useEffect(() => {
     const bookParam = searchParams.get('book');
     if (bookParam) {
       navigate(`/book?serviceId=${bookParam}`);
+      return;
+    }
+
+    const tabParam = searchParams.get('tab');
+    if (tabParam === 'wallet') {
+      const statusParam = searchParams.get('status');
+      navigate('/wallet' + (statusParam ? `?status=${statusParam}` : ''), { replace: true });
+      return;
     }
 
     const reference = searchParams.get('reference') || searchParams.get('trxref');
@@ -138,8 +177,17 @@ const Dashboard = () => {
       axios.post(`${API_URL}/payments/verify`, { reference })
         .then(res => {
           if (res.data.success) {
-            addToast(res.data.message || 'Payment confirmed successfully! 🎉', 'success');
+            const amountCredited = res.data.amount || 0;
+            const msg = amountCredited > 0
+              ? `₦${amountCredited.toLocaleString()} deposited into your wallet via Paystack! 🎉`
+              : (res.data.message || 'Payment confirmed successfully! 🎉');
+            addToast(msg, 'success');
+            if (res.data.walletBalance !== undefined) {
+              setWalletBalance(res.data.walletBalance);
+              window.dispatchEvent(new CustomEvent('dworld_wallet_updated', { detail: { walletBalance: res.data.walletBalance } }));
+            }
             fetchData();
+            fetchWallet();
             navigate('/dashboard', { replace: true });
           }
         })
@@ -358,6 +406,10 @@ const Dashboard = () => {
       const res = await axios.post(`${API_URL}/appointments/${appointmentId}/pay`);
       if (res.data.success) {
         addToast(res.data.message, 'success');
+        if (res.data.clientWalletBalance !== undefined) {
+          setWalletBalance(res.data.clientWalletBalance);
+          window.dispatchEvent(new CustomEvent('dworld_wallet_updated', { detail: { walletBalance: res.data.clientWalletBalance } }));
+        }
         setSelectedAppointment(null);
         fetchData();
         return;
@@ -627,12 +679,35 @@ const Dashboard = () => {
             </div>
           </div>
 
-          <button 
-            onClick={() => navigate('/book')}
-            className="btn btn-primary dashboard-hero-cta"
-          >
-            <CalendarPlus size={17} /> Book Appointment
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
+            <button 
+              type="button"
+              onClick={() => setIsWalletModalOpen(true)}
+              className="btn btn-outline"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.45rem',
+                padding: '0.65rem 1.1rem',
+                borderRadius: '12px',
+                fontWeight: 700,
+                fontSize: '0.88rem',
+                borderColor: 'var(--border-light)',
+                background: 'var(--surface)'
+              }}
+              title="Top up wallet balance"
+            >
+              <Wallet size={16} color="var(--primary)" />
+              <span>Wallet: <strong>₦{walletBalance.toLocaleString()}</strong></span>
+              <Plus size={14} style={{ marginLeft: 2 }} />
+            </button>
+            <button 
+              onClick={() => navigate('/book')}
+              className="btn btn-primary dashboard-hero-cta"
+            >
+              <CalendarPlus size={17} /> Book Appointment
+            </button>
+          </div>
         </div>
       </div>
 
@@ -1232,6 +1307,13 @@ const Dashboard = () => {
         title={lightbox.title}
         subtitle={lightbox.subtitle}
         onClose={() => setLightbox(prev => ({ ...prev, isOpen: false }))}
+      />
+
+      {/* WALLET TOP UP MODAL */}
+      <WalletModal
+        isOpen={isWalletModalOpen}
+        onClose={() => setIsWalletModalOpen(false)}
+        onWalletUpdated={(bal) => setWalletBalance(bal)}
       />
 
     </div>

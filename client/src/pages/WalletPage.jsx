@@ -73,10 +73,16 @@ const WalletPage = () => {
       setSubmitting(true);
       const res = await axios.post(`${API_URL}/payments/verify`, { reference: ref });
       if (res.data.success) {
-        setSuccessBanner(`Payment verified! ₦${(res.data.amount || 0).toLocaleString()} credited to your wallet.`);
+        const creditedAmount = res.data.amount || 0;
+        setSuccessBanner(
+          creditedAmount > 0 
+            ? `Payment verified! ₦${creditedAmount.toLocaleString()} credited to your wallet.`
+            : 'Payment verified! Your wallet balance has been updated.'
+        );
         setWalletBalance(res.data.walletBalance);
         notify.success('Wallet topped up successfully! 🎉');
         if (refreshUser) refreshUser();
+        window.dispatchEvent(new CustomEvent('dworld_wallet_updated', { detail: { walletBalance: res.data.walletBalance } }));
         fetchWalletData();
         // Clean URL parameters
         setSearchParams({});
@@ -112,7 +118,8 @@ const WalletPage = () => {
         amount: numericAmount,
         purpose: 'wallet_topup',
         email: userEmail,
-        name: userName
+        name: userName,
+        callback_url: `${window.location.origin}/wallet?status=success`
       });
 
       if (initRes.data.success && initRes.data.data?.authorization_url) {

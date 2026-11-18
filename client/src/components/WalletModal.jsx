@@ -7,21 +7,29 @@ import { API_URL } from '../config/api';
 
 const PAYSTACK_FALLBACK_KEY = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY || '';
 
-/** Dynamically ensure Paystack inline script is loaded */
-const loadPaystackScript = () => new Promise((resolve, reject) => {
-  if (typeof window.PaystackPop !== 'undefined') return resolve();
+/** Dynamically ensure Paystack inline script is loaded without hanging */
+const loadPaystackScript = () => new Promise((resolve) => {
+  if (typeof window.PaystackPop !== 'undefined') return resolve(true);
   const existing = document.querySelector('script[src*="paystack"]');
-  if (existing) {
-    existing.addEventListener('load', resolve);
-    existing.addEventListener('error', reject);
-    return;
+  if (existing && typeof window.PaystackPop !== 'undefined') return resolve(true);
+
+  let finished = false;
+  const finish = () => {
+    if (!finished) {
+      finished = true;
+      resolve(typeof window.PaystackPop !== 'undefined');
+    }
+  };
+
+  const script = existing || document.createElement('script');
+  if (!existing) {
+    script.src = 'https://js.paystack.co/v1/inline.js';
+    script.async = true;
+    document.head.appendChild(script);
   }
-  const script = document.createElement('script');
-  script.src = 'https://js.paystack.co/v1/inline.js';
-  script.async = true;
-  script.onload = resolve;
-  script.onerror = () => reject(new Error('Paystack script failed to load'));
-  document.head.appendChild(script);
+  script.addEventListener('load', finish);
+  script.addEventListener('error', finish);
+  setTimeout(finish, 2000); // Never hang on already loaded scripts
 });
 
 const WalletModal = ({ isOpen, onClose, onWalletUpdated }) => {
@@ -105,10 +113,12 @@ const WalletModal = ({ isOpen, onClose, onWalletUpdated }) => {
                 reference: response.reference
               });
               if (verifyRes.data.success) {
-                setMessage({ text: `₦${Number(topupAmount).toLocaleString()} deposited into your wallet via Paystack!`, type: 'success' });
+                const creditedAmt = verifyRes.data.amount || Number(topupAmount);
+                setMessage({ text: `₦${Number(creditedAmt).toLocaleString()} deposited into your wallet via Paystack!`, type: 'success' });
                 setWalletBalance(verifyRes.data.walletBalance);
                 fetchWallet();
                 if (onWalletUpdated) onWalletUpdated(verifyRes.data.walletBalance);
+                window.dispatchEvent(new CustomEvent('dworld_wallet_updated', { detail: { walletBalance: verifyRes.data.walletBalance } }));
               } else {
                 setMessage({ text: verifyRes.data.message || 'Payment verification failed', type: 'error' });
               }
@@ -127,11 +137,15 @@ const WalletModal = ({ isOpen, onClose, onWalletUpdated }) => {
         return;
       }
 
+      const isExpert = userRes.data?.user?.role === 'expert' || userRes.data?.user?.role === 'stylist';
+      const fallbackCallback = window.location.origin + (isExpert ? '/expert?tab=wallet&status=success' : '/wallet?status=success');
+
       const initRes = await axios.post(`${API_URL}/payments/initialize`, {
         amount: Number(topupAmount),
         purpose: 'wallet_topup',
         email: userEmail,
-        name: userName
+        name: userName,
+        callback_url: fallbackCallback
       });
       if (initRes.data.success && initRes.data.data?.authorization_url) {
         window.location.href = initRes.data.data.authorization_url;

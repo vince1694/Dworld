@@ -92,7 +92,9 @@ const initializePayment = async (req, res, next) => {
                 ? `${clientUrl}/book?aptId=${appointment_id || ''}`
                 : purpose === 'expert_activation'
                 ? `${clientUrl}/expert?activated=1`
-                : `${clientUrl}/dashboard?tab=wallet&status=success`;
+                : (user?.role === 'expert' || user?.role === 'stylist')
+                ? `${clientUrl}/expert?tab=wallet&status=success`
+                : `${clientUrl}/wallet?status=success`;
         }
 
         const payload = {
@@ -160,9 +162,20 @@ const verifyPayment = async (req, res, next) => {
         // another user's Paystack reference for a free wallet top-up.
         const globalDuplicate = await User.findOne({ 'transactions.reference_id': reference }).lean();
         if (globalDuplicate) {
+            if (globalDuplicate._id.toString() !== currentUserId.toString()) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'This payment reference has already been processed for another user.'
+                });
+            }
             return res.status(200).json({
                 success: true,
-                message: 'Transaction already processed.',
+                message: purpose === 'expert_activation'
+                    ? 'Congratulations! Your expert account is now active and unlocked.'
+                    : 'Transaction already processed.',
+                amount: amountPaidNaira,
+                purpose,
+                isActivated: globalDuplicate.isActivated,
                 walletBalance: (await User.findById(currentUserId).select('walletBalance').lean())?.walletBalance || 0
             });
         }
@@ -177,6 +190,8 @@ const verifyPayment = async (req, res, next) => {
             return res.status(200).json({
                 success: true,
                 message: 'Payment has already been processed and verified.',
+                amount: amountPaidNaira,
+                purpose,
                 isActivated: user.isActivated,
                 walletBalance: user.walletBalance
             });
@@ -229,6 +244,8 @@ const verifyPayment = async (req, res, next) => {
                 success: true,
                 message: 'Congratulations! Your expert account is now active and unlocked.',
                 isActivated: true,
+                amount: amountPaidNaira,
+                purpose,
                 walletBalance: user.walletBalance
             });
         }
@@ -288,6 +305,8 @@ const verifyPayment = async (req, res, next) => {
                     success: true,
                     message: `Payment of ₦${amountPaidNaira.toLocaleString()} confirmed (₦${expertPayout.toLocaleString()} disbursed to expert)!`,
                     walletBalance: user.walletBalance,
+                    amount: amountPaidNaira,
+                    purpose,
                     expertPayout,
                     commissionAmount
                 });
@@ -315,7 +334,9 @@ const verifyPayment = async (req, res, next) => {
         res.status(200).json({
             success: true,
             message: `₦${amountPaidNaira.toLocaleString()} deposited into your wallet successfully!`,
-            walletBalance: user.walletBalance
+            walletBalance: user.walletBalance,
+            amount: amountPaidNaira,
+            purpose
         });
     } catch (error) {
         next(error);

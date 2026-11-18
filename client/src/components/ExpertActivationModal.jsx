@@ -6,21 +6,29 @@ import { API_URL } from '../config/api';
 
 const PAYSTACK_FALLBACK_KEY = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY || '';
 
-/** Dynamically load Paystack inline.js if not already present */
-const loadPaystackScript = () => new Promise((resolve, reject) => {
-  if (typeof window.PaystackPop !== 'undefined') return resolve();
+/** Dynamically load Paystack inline.js safely without hanging */
+const loadPaystackScript = () => new Promise((resolve) => {
+  if (typeof window.PaystackPop !== 'undefined') return resolve(true);
   const existing = document.querySelector('script[src*="paystack"]');
-  if (existing) {
-    existing.addEventListener('load', resolve);
-    existing.addEventListener('error', reject);
-    return;
+  if (existing && typeof window.PaystackPop !== 'undefined') return resolve(true);
+
+  let finished = false;
+  const finish = () => {
+    if (!finished) {
+      finished = true;
+      resolve(typeof window.PaystackPop !== 'undefined');
+    }
+  };
+
+  const script = existing || document.createElement('script');
+  if (!existing) {
+    script.src = 'https://js.paystack.co/v1/inline.js';
+    script.async = true;
+    document.head.appendChild(script);
   }
-  const script = document.createElement('script');
-  script.src = 'https://js.paystack.co/v1/inline.js';
-  script.async = true;
-  script.onload = resolve;
-  script.onerror = () => reject(new Error('Paystack script failed to load'));
-  document.head.appendChild(script);
+  script.addEventListener('load', finish);
+  script.addEventListener('error', finish);
+  setTimeout(finish, 2000); // 2s fallback timeout
 });
 
 const ExpertActivationModal = ({ isOpen, user, onActivated, onClose }) => {
@@ -108,7 +116,8 @@ const ExpertActivationModal = ({ isOpen, user, onActivated, onClose }) => {
           amount: 3000,
           purpose: 'expert_activation',
           email: userEmail,
-          name: userName
+          name: userName,
+          callback_url: `${window.location.origin}/expert?activated=1`
         });
         if (initRes.data.success && initRes.data.data?.authorization_url) {
           window.location.href = initRes.data.data.authorization_url;
