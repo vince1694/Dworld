@@ -33,9 +33,9 @@ const initiateRegister = async (req, res, next) => {
         // Experts must provide their location address so customers can find nearby experts
         const expertAddress = (address || location || '').trim();
         if (cleanRole === 'expert' && !expertAddress) {
-            return res.status(400).json({ 
-                success: false, 
-                message: 'Please provide your campus/hostel location address so students can find you nearby.' 
+            return res.status(400).json({
+                success: false,
+                message: 'Please provide your campus/hostel location address so students can find you nearby.'
             });
         }
 
@@ -131,18 +131,18 @@ const verifyRegistration = async (req, res, next) => {
         // Create verified account
         const isExpert = validRole === 'expert';
         const isActivated = !isExpert; // Users are instantly activated; experts activate with ₦3,000 fee
-        const userResult = await User.create({ 
-            name, 
-            email: cleanEmail, 
-            password: hashedPassword, 
-            role: validRole, 
-            state, 
+        const userResult = await User.create({
+            name,
+            email: cleanEmail,
+            password: hashedPassword,
+            role: validRole,
+            state,
             address: address || '',
             location: location || address || 'Campus Central',
-            matricNo: matricNo || '', 
+            matricNo: matricNo || '',
             isVerified: true,
             isActivated,
-            activationFee: 3000 
+            activationFee: 3000
         });
         const stylist_id = userResult._id;
 
@@ -187,8 +187,8 @@ const verifyRegistration = async (req, res, next) => {
             { expiresIn: process.env.JWT_EXPIRES_IN || '30d' }
         );
 
-        res.status(201).json({ 
-            success: true, 
+        res.status(201).json({
+            success: true,
             message: 'Account verified and created successfully! Welcome to D.World 🎉',
             token,
             user: {
@@ -300,8 +300,8 @@ const forgotPassword = async (req, res, next) => {
             });
         }
 
-        res.json({ 
-            success: true, 
+        res.json({
+            success: true,
             message: 'Verification code sent to your email.'
         });
     } catch (error) {
@@ -448,8 +448,8 @@ const updateAvailability = async (req, res, next) => {
             updateData,
             { new: true }
         );
-        res.json({ 
-            success: true, 
+        res.json({
+            success: true,
             message: 'Working days and hours updated successfully!',
             workingDays: user.workingDays,
             workingHours: user.workingHours
@@ -468,25 +468,27 @@ const getMe = async (req, res, next) => {
         if (!user) {
             return res.status(404).json({ success: false, message: 'User not found' });
         }
-        res.json({ success: true, user: {
-            id: String(user.id || user._id),
-            _id: String(user.id || user._id),
-            name: user.name,
-            email: user.email,
-            role: user.role,
-            avatar: user.avatar || '',
-            isActivated: user.role === 'expert' ? Boolean(user.isActivated) : true,
-            activationFee: user.activationFee || 3000,
-            phone: user.phone || '',
-            bio: user.bio || '',
-            matricNo: user.matricNo || '',
-            department: user.department || 'Cosmetology & Campus Styling',
-            specialty: user.specialty || '',
-            workingDays: user.workingDays || ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
-            workingHours: user.workingHours || { start: '09:00', end: '18:00' },
-            portfolio: user.portfolio || [],
-            walletBalance: Number(user.walletBalance || 0)
-        }});
+        res.json({
+            success: true, user: {
+                id: String(user.id || user._id),
+                _id: String(user.id || user._id),
+                name: user.name,
+                email: user.email,
+                role: user.role,
+                avatar: user.avatar || '',
+                isActivated: user.role === 'expert' ? Boolean(user.isActivated) : true,
+                activationFee: user.activationFee || 3000,
+                phone: user.phone || '',
+                bio: user.bio || '',
+                matricNo: user.matricNo || '',
+                department: user.department || 'Cosmetology & Campus Styling',
+                specialty: user.specialty || '',
+                workingDays: user.workingDays || ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
+                workingHours: user.workingHours || { start: '09:00', end: '18:00' },
+                portfolio: user.portfolio || [],
+                walletBalance: Number(user.walletBalance || 0)
+            }
+        });
     } catch (error) {
         next(error);
     }
@@ -528,10 +530,10 @@ const getExperts = async (req, res, next) => {
             return res.json({ success: true, data: _expertsCache, cached: true });
         }
 
-        let queryFilter = { 
-            role: { $in: ['expert', 'stylist'] }, 
-            isVerified: true, 
-            isActivated: true 
+        let queryFilter = {
+            role: { $in: ['expert', 'stylist'] },
+            isVerified: true,
+            isActivated: true
         };
 
         if (locationQuery && locationQuery.trim()) {
@@ -576,20 +578,22 @@ const getExperts = async (req, res, next) => {
             const upsertOps = expertsWithoutServices.map(exp => ({
                 updateOne: {
                     filter: { stylist_id: exp._id },
-                    update: { $setOnInsert: {
-                        name: exp.specialty || 'Barber',
-                        description: `${exp.name}'s professional campus service.`,
-                        price: 3500,
-                        duration: 45,
-                        type: 'single',
-                        category: 'Single Services',
-                        location: exp.address || exp.location || 'Campus Central',
-                        stylist_id: exp._id
-                    }},
+                    update: {
+                        $setOnInsert: {
+                            name: exp.specialty || 'Barber',
+                            description: `${exp.name}'s professional campus service.`,
+                            price: 3500,
+                            duration: 45,
+                            type: 'single',
+                            category: 'Single Services',
+                            location: exp.address || exp.location || 'Campus Central',
+                            stylist_id: exp._id
+                        }
+                    },
                     upsert: true
                 }
             }));
-            await Service.bulkWrite(upsertOps, { ordered: false }).catch(() => {});
+            await Service.bulkWrite(upsertOps, { ordered: false }).catch(() => { });
 
             // Re-fetch newly created services for these experts
             const newSvcs = await Service.find({ stylist_id: { $in: expertsWithoutServices.map(e => e._id) } }).lean();
@@ -912,18 +916,18 @@ const deleteUserForAdmin = async (req, res, next) => {
     }
 };
 
-module.exports = { 
+module.exports = {
     initiateRegister,
     verifyRegistration,
-    login, 
-    updateProfile, 
+    login,
+    updateProfile,
     uploadAvatar,
     updateAvailability,
-    forgotPassword, 
-    verifyOtp, 
-    resetPassword, 
-    getMe, 
-    getWallet, 
+    forgotPassword,
+    verifyOtp,
+    resetPassword,
+    getMe,
+    getWallet,
     getExperts,
     getExpertById,
     addPortfolioItem,

@@ -2,15 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
-import { 
-  Wallet, 
-  ArrowUpRight, 
-  ArrowDownLeft, 
-  Clock, 
-  ShieldCheck, 
-  CreditCard, 
-  CheckCircle2, 
-  AlertCircle, 
+import {
+  Wallet,
+  ArrowUpRight,
+  ArrowDownLeft,
+  Clock,
+  ShieldCheck,
+  CreditCard,
+  CheckCircle2,
+  AlertCircle,
   RefreshCw,
   Sparkles,
   ChevronRight,
@@ -75,7 +75,7 @@ const WalletPage = () => {
       if (res.data.success) {
         const creditedAmount = res.data.amount || 0;
         setSuccessBanner(
-          creditedAmount > 0 
+          creditedAmount > 0
             ? `Payment verified! ₦${creditedAmount.toLocaleString()} credited to your wallet.`
             : 'Payment verified! Your wallet balance has been updated.'
         );
@@ -145,7 +145,7 @@ const WalletPage = () => {
 
   return (
     <div className="page-wrapper container animate-fade-in" style={{ padding: '1.5rem 1rem 4rem', maxWidth: '1040px', margin: '0 auto' }}>
-      
+
       {/* ── Top Header ── */}
       <div style={{ marginBottom: '1.75rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.35rem' }}>
@@ -161,7 +161,7 @@ const WalletPage = () => {
               {['expert', 'stylist'].includes(user?.role) ? 'Specialist Wallet & Payouts' : 'Student Wallet & Balance'}
             </h1>
             <p style={{ margin: '0.35rem 0 0', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-              {['expert', 'stylist'].includes(user?.role) 
+              {['expert', 'stylist'].includes(user?.role)
                 ? 'Instant payouts to your verified Nigerian bank account & client earnings tracker.'
                 : 'Instant deposits, 1-click appointment booking, and automated refund guarantee.'}
             </p>
@@ -185,9 +185,9 @@ const WalletPage = () => {
             >
               <ArrowDownLeft size={15} style={{ transform: 'rotate(180deg)' }} /> Withdraw Funds
             </button>
-            <button 
-              onClick={fetchWalletData} 
-              className="btn btn-secondary" 
+            <button
+              onClick={fetchWalletData}
+              className="btn btn-secondary"
               style={{ padding: '0.55rem 1rem', borderRadius: '10px', fontSize: '0.85rem' }}
               title="Refresh balance"
             >
@@ -238,7 +238,7 @@ const WalletPage = () => {
 
       {/* ── Main Two-Column Layout ── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
-        
+
         {/* Left Card: Sleek Digital Campus Card */}
         <div style={{
           background: 'linear-gradient(135deg, #4f46e5 0%, #3730a3 50%, #1e1b4b 100%)',
