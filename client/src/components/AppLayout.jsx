@@ -480,7 +480,7 @@ const AppLayout = ({ children }) => {
           </div>
         </header>
 
-        <main className="app-workspace-content">
+        <main className={`app-workspace-content ${location.pathname.startsWith('/chat') ? 'chat-workspace-content' : ''}`}>
           {children}
         </main>
       </div>
@@ -1124,9 +1124,21 @@ const AppLayout = ({ children }) => {
             padding: 1.25rem 1rem;
           }
 
+          .chat-workspace-content {
+            padding: 0 !important;
+            height: calc(100dvh - 60px) !important;
+            overflow: hidden !important;
+          }
+
           .topbar-actions-wrapper {
             gap: 0.5rem;
           }
+        }
+
+        .chat-workspace-content {
+          padding: 0 !important;
+          height: calc(100vh - 65px) !important;
+          overflow: hidden !important;
         }
 
         @media (max-width: 768px) {

@@ -205,6 +205,9 @@ const Chat = () => {
 
   const handleBackToList = () => {
     setMobileViewingThread(false);
+    setActiveAppointmentId(null);
+    setActiveConversation(null);
+    setSearchParams({});
   };
 
   const filteredConversations = useMemo(() => {
@@ -225,22 +228,22 @@ const Chat = () => {
   }, [conversations, filterTab, searchQuery]);
 
   return (
-    <div className="page-wrapper container animate-fade-in" style={{ padding: '1rem 0.75rem 2rem', maxWidth: '1240px', margin: '0 auto', height: 'calc(100vh - 75px)', display: 'flex', flexDirection: 'column' }}>
+    <div className={`chat-page-root animate-fade-in ${mobileViewingThread ? 'thread-active' : 'list-active'}`}>
       
       {/* ── TOP HEADER BAR ── */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.85rem', flexShrink: 0, padding: '0 0.25rem' }}>
+      <div className="chat-top-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem', flexShrink: 0, padding: '0 0.25rem' }}>
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.2rem' }}>
-            <span style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', marginBottom: '0.15rem' }}>
+            <span style={{ fontSize: '0.68rem', fontWeight: 800, color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
               CAMPUS DIRECT MESSAGING
             </span>
-            <span style={{ fontSize: '0.7rem', color: 'var(--text-subtle)' }}>•</span>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.72rem', color: '#10b981', fontWeight: 700 }}>
+            <span style={{ fontSize: '0.68rem', color: 'var(--text-subtle)' }}>•</span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.7rem', color: '#10b981', fontWeight: 700 }}>
               <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#10b981', display: 'inline-block', boxShadow: '0 0 8px #10b981' }} />
-              Active Campus Network
+              Active Network
             </span>
           </div>
-          <h1 style={{ fontSize: 'clamp(1.25rem, 2.5vw, 1.7rem)', margin: 0, fontFamily: 'Outfit', color: 'var(--text-main)', letterSpacing: '-0.02em' }}>
+          <h1 style={{ fontSize: 'clamp(1.15rem, 2.2vw, 1.6rem)', margin: 0, fontFamily: 'Outfit', color: 'var(--text-main)', letterSpacing: '-0.02em' }}>
             Direct Student & Specialist Messages
           </h1>
         </div>
@@ -250,7 +253,7 @@ const Chat = () => {
           <Link
             to="/dashboard?tab=appointments"
             className="btn btn-secondary"
-            style={{ fontSize: '0.8rem', padding: '0.45rem 0.85rem', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
+            style={{ fontSize: '0.78rem', padding: '0.45rem 0.8rem', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
           >
             <Calendar size={14} color="var(--primary)" />
             <span className="hidden-mobile">My Appointments</span>
@@ -259,30 +262,11 @@ const Chat = () => {
       </div>
 
       {/* ── SPLIT / UNIFIED CHAT CONTAINER ── */}
-      <div style={{
-        display: 'flex',
-        flex: 1,
-        minHeight: 0,
-        background: 'var(--surface)',
-        borderRadius: '20px',
-        border: '1px solid var(--border-light)',
-        overflow: 'hidden',
-        boxShadow: '0 12px 36px -8px rgba(0,0,0,0.08)',
-        position: 'relative'
-      }}>
+      <div className="chat-split-container">
 
         {/* ── LEFT PANEL: CONVERSATIONS LIST ── */}
         <div 
           className={`chat-sidebar-panel ${mobileViewingThread ? 'hidden-on-mobile' : ''}`}
-          style={{
-            width: '340px',
-            borderRight: '1px solid var(--border-light)',
-            display: 'flex',
-            flexDirection: 'column',
-            minHeight: 0,
-            background: 'var(--bg-main)',
-            flexShrink: 0
-          }}
         >
           {/* Search & Filter Header */}
           <div style={{ padding: '0.85rem', borderBottom: '1px solid var(--border-light)', display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
@@ -472,43 +456,40 @@ const Chat = () => {
         {/* ── RIGHT PANEL: ACTIVE CHAT THREAD ── */}
         <div 
           className={`chat-main-panel ${!mobileViewingThread ? 'hidden-on-mobile' : ''}`}
-          style={{
-            flex: 1,
-            display: 'flex',
-            flexDirection: 'column',
-            minHeight: 0,
-            background: 'var(--surface)'
-          }}
         >
           {activeConversation ? (
             <>
               {/* Active Chat Header */}
               <div style={{
-                padding: '0.85rem 1.25rem',
+                padding: '0.65rem 0.85rem',
                 borderBottom: '1px solid var(--border-light)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 flexShrink: 0,
                 background: 'var(--surface)',
-                gap: '0.75rem'
+                gap: '0.5rem',
+                width: '100%',
+                minWidth: 0,
+                boxSizing: 'border-box'
               }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem', minWidth: 0, flex: 1 }}>
                   {/* Mobile Back Button */}
                   <button
                     type="button"
                     onClick={handleBackToList}
                     className="mobile-back-btn"
                     style={{
-                      background: 'none',
+                      background: 'rgba(0,0,0,0.04)',
                       border: 'none',
                       color: 'var(--text-main)',
                       cursor: 'pointer',
-                      padding: '0.4rem',
+                      padding: '0.45rem',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      borderRadius: '8px'
+                      borderRadius: '10px',
+                      flexShrink: 0
                     }}
                     title="Back to conversations"
                   >
@@ -517,16 +498,16 @@ const Chat = () => {
 
                   {/* Partner Avatar */}
                   <div style={{
-                    width: 42,
-                    height: 42,
-                    borderRadius: '13px',
+                    width: 38,
+                    height: 38,
+                    borderRadius: '12px',
                     background: 'linear-gradient(135deg, var(--primary), var(--secondary))',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     color: '#fff',
                     fontWeight: 800,
-                    fontSize: '1.1rem',
+                    fontSize: '1rem',
                     overflow: 'hidden',
                     flexShrink: 0
                   }}>
@@ -538,74 +519,78 @@ const Chat = () => {
                   </div>
 
                   {/* Partner Info */}
-                  <div style={{ minWidth: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                      <strong style={{ fontSize: '0.98rem', color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  <div className="chat-header-details" style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                      <strong style={{ fontSize: '0.92rem', color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {activeConversation.otherParty?.name || 'Campus Specialist'}
                       </strong>
-                      <span style={{ fontSize: '0.65rem', padding: '0.1rem 0.4rem', borderRadius: '4px', background: 'rgba(16, 185, 129, 0.15)', color: '#34d399', fontWeight: 700 }}>
+                      <span style={{ fontSize: '0.62rem', padding: '0.1rem 0.35rem', borderRadius: '4px', background: 'rgba(16, 185, 129, 0.15)', color: '#059669', fontWeight: 700, flexShrink: 0 }}>
                         VERIFIED
                       </span>
                     </div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {activeConversation.service?.name} • 🗓️ {activeConversation.date} at {activeConversation.time}
                     </div>
                   </div>
                 </div>
 
                 {/* Header Action Buttons */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexShrink: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexShrink: 0 }}>
                   {activeConversation.otherParty?.phone && (
                     <a
                       href={`tel:${activeConversation.otherParty.phone}`}
                       className="btn btn-secondary"
-                      style={{ padding: '0.45rem 0.65rem', borderRadius: '8px', fontSize: '0.75rem', textDecoration: 'none' }}
+                      style={{ padding: '0.45rem', borderRadius: '8px', fontSize: '0.75rem', textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                       title="Call Specialist"
                     >
                       <Phone size={14} color="var(--primary)" />
                     </a>
                   )}
 
-                  {/* JUMP TO THE NEW STANDALONE APPOINTMENT PAGE */}
+                  {/* JUMP TO THE STANDALONE APPOINTMENT PAGE */}
                   <Link 
                     to={`/appointment/${activeConversation.appointmentId}`}
                     className="btn btn-secondary"
                     style={{
-                      padding: '0.45rem 0.85rem',
+                      padding: '0.45rem 0.65rem',
                       borderRadius: '8px',
-                      fontSize: '0.78rem',
+                      fontSize: '0.75rem',
                       fontWeight: 700,
                       textDecoration: 'none',
                       display: 'flex',
                       alignItems: 'center',
-                      gap: '0.35rem',
+                      gap: '0.3rem',
                       color: 'var(--text-main)'
                     }}
                   >
-                    <span>View Booking</span>
-                    <ExternalLink size={13} color="var(--primary)" />
+                    <Calendar size={13} color="var(--primary)" />
+                    <span className="chat-btn-label">Booking</span>
                   </Link>
                 </div>
               </div>
 
               {/* Pinned Escrow Banner */}
               <div style={{
-                padding: '0.55rem 1rem',
+                padding: '0.45rem 0.85rem',
                 background: 'rgba(99, 102, 241, 0.05)',
                 borderBottom: '1px solid rgba(99, 102, 241, 0.12)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                fontSize: '0.75rem',
-                color: 'var(--text-muted)'
+                gap: '0.5rem',
+                fontSize: '0.74rem',
+                color: 'var(--text-muted)',
+                minWidth: 0,
+                width: '100%',
+                boxSizing: 'border-box'
               }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-                  <ShieldCheck size={16} color="var(--primary)" />
-                  <span>
-                    Direct messaging for <strong>{activeConversation.service?.name}</strong>. Payment is protected in D.WORLD escrow.
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', minWidth: 0, flex: 1, overflow: 'hidden' }}>
+                  <ShieldCheck size={15} color="var(--primary)" style={{ flexShrink: 0 }} />
+                  <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    Direct chat for <strong>{activeConversation.service?.name}</strong> • Payment secured in Escrow
                   </span>
                 </div>
-                <span style={{ fontWeight: 700, color: 'var(--primary)', flexShrink: 0 }}>
+                <span style={{ fontWeight: 800, color: 'var(--primary)', flexShrink: 0, fontSize: '0.8rem' }}>
                   ₦{(activeConversation.service?.price || 0).toLocaleString()}
                 </span>
               </div>
@@ -702,31 +687,38 @@ const Chat = () => {
               )}
 
               {/* Quick Prompts Bar */}
-              <div style={{
-                padding: '0.45rem 1rem',
-                borderTop: '1px solid var(--border-light)',
-                background: 'var(--bg-main)',
-                display: 'flex',
-                gap: '0.4rem',
-                overflowX: 'auto',
-                whiteSpace: 'nowrap'
-              }}>
+              <div 
+                className="quick-prompts-bar"
+                style={{
+                  padding: '0.4rem 0.65rem',
+                  borderTop: '1px solid var(--border-light)',
+                  background: 'var(--bg-main)',
+                  display: 'flex',
+                  gap: '0.35rem',
+                  overflowX: 'auto',
+                  whiteSpace: 'nowrap',
+                  width: '100%',
+                  minWidth: 0,
+                  boxSizing: 'border-box'
+                }}
+              >
                 {QUICK_CAMPUS_PROMPTS.map((p, idx) => (
                   <button
                     key={idx}
                     type="button"
                     onClick={() => handleSendMessage(p)}
                     style={{
-                      padding: '0.3rem 0.7rem',
+                      padding: '0.28rem 0.6rem',
                       borderRadius: '9999px',
                       border: '1px solid var(--border-light)',
                       background: 'var(--surface)',
-                      color: 'var(--text-muted)',
-                      fontSize: '0.73rem',
+                      color: 'var(--text-main)',
+                      fontSize: '0.72rem',
                       fontWeight: 600,
                       cursor: 'pointer',
                       flexShrink: 0,
-                      transition: 'all 0.15s ease'
+                      transition: 'all 0.15s ease',
+                      whiteSpace: 'nowrap'
                     }}
                     onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--primary)'}
                     onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border-light)'}
@@ -739,12 +731,15 @@ const Chat = () => {
               {/* Emoji Picker Tray */}
               {showEmojiPicker && (
                 <div style={{
-                  padding: '0.5rem 1rem',
+                  padding: '0.4rem 0.75rem',
                   borderTop: '1px solid var(--border-light)',
                   background: 'var(--surface)',
                   display: 'flex',
-                  gap: '0.5rem',
-                  overflowX: 'auto'
+                  gap: '0.4rem',
+                  overflowX: 'auto',
+                  width: '100%',
+                  minWidth: 0,
+                  boxSizing: 'border-box'
                 }}>
                   {POPULAR_EMOJIS.map((emoji, idx) => (
                     <button
@@ -760,7 +755,8 @@ const Chat = () => {
                         fontSize: '1.25rem',
                         cursor: 'pointer',
                         padding: '0.2rem',
-                        borderRadius: 6
+                        borderRadius: 6,
+                        flexShrink: 0
                       }}
                     >
                       {emoji}
@@ -771,17 +767,21 @@ const Chat = () => {
 
               {/* Chat Input Footer Form */}
               <form
+                className="chat-thread-input-form"
                 onSubmit={(e) => {
                   e.preventDefault();
                   handleSendMessage();
                 }}
                 style={{
-                  padding: '0.75rem 1.25rem',
+                  padding: '0.55rem 0.75rem',
                   borderTop: '1px solid var(--border-light)',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '0.6rem',
-                  background: 'var(--surface)'
+                  gap: '0.4rem',
+                  background: 'var(--surface)',
+                  width: '100%',
+                  minWidth: 0,
+                  boxSizing: 'border-box'
                 }}
               >
                 {/* Photo Upload Hidden Input */}
@@ -797,7 +797,17 @@ const Chat = () => {
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
                   className="btn btn-secondary"
-                  style={{ padding: '0.65rem', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                  style={{
+                    width: 36,
+                    height: 36,
+                    minWidth: 36,
+                    borderRadius: '10px',
+                    padding: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0
+                  }}
                   title="Attach inspiration photo"
                 >
                   <ImageIcon size={18} color="var(--primary)" />
@@ -807,7 +817,17 @@ const Chat = () => {
                   type="button"
                   onClick={() => setShowEmojiPicker(!showEmojiPicker)}
                   className="btn btn-secondary"
-                  style={{ padding: '0.65rem', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                  style={{
+                    width: 36,
+                    height: 36,
+                    minWidth: 36,
+                    borderRadius: '10px',
+                    padding: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0
+                  }}
                   title="Insert emoji"
                 >
                   <Smile size={18} color="var(--text-muted)" />
@@ -815,18 +835,21 @@ const Chat = () => {
 
                 <input
                   type="text"
-                  placeholder="Type a message to your specialist (Press Enter to send)..."
+                  placeholder="Type a message..."
                   value={inputText}
                   onChange={(e) => setInputText(e.target.value)}
                   style={{
                     flex: 1,
-                    padding: '0.75rem 1rem',
-                    borderRadius: '12px',
+                    minWidth: 0,
+                    width: '100%',
+                    padding: '0.6rem 0.8rem',
+                    borderRadius: '10px',
                     border: '1px solid var(--border-light)',
                     background: 'var(--bg-main)',
                     color: 'var(--text-main)',
                     fontSize: '0.88rem',
-                    outline: 'none'
+                    outline: 'none',
+                    boxSizing: 'border-box'
                   }}
                 />
 
@@ -835,18 +858,21 @@ const Chat = () => {
                   disabled={sending || (!inputText.trim() && !selectedPhoto)}
                   className="btn btn-primary"
                   style={{
-                    padding: '0.75rem 1.25rem',
-                    borderRadius: '12px',
-                    fontSize: '0.88rem',
+                    height: 36,
+                    padding: '0 0.8rem',
+                    borderRadius: '10px',
+                    fontSize: '0.84rem',
                     fontWeight: 700,
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '0.4rem',
+                    justifyContent: 'center',
+                    gap: '0.3rem',
+                    flexShrink: 0,
                     opacity: (sending || (!inputText.trim() && !selectedPhoto)) ? 0.6 : 1
                   }}
                 >
                   <Send size={15} />
-                  <span>Send</span>
+                  <span className="chat-send-text">Send</span>
                 </button>
               </form>
             </>
@@ -908,24 +934,139 @@ const Chat = () => {
       </AnimatePresence>
 
       <style>{`
+        .chat-page-root {
+          width: 100%;
+          max-width: 1240px;
+          margin: 0 auto;
+          padding: 0.75rem 0.75rem 1.25rem;
+          height: calc(100vh - 80px);
+          display: flex;
+          flex-direction: column;
+          min-height: 0;
+          min-width: 0;
+          box-sizing: border-box;
+        }
+
+        .chat-split-container {
+          display: flex;
+          flex: 1;
+          min-height: 0;
+          min-width: 0;
+          width: 100%;
+          background: var(--surface);
+          border-radius: 20px;
+          border: 1px solid var(--border-light);
+          overflow: hidden;
+          box-shadow: 0 12px 36px -8px rgba(0,0,0,0.08);
+          position: relative;
+        }
+
+        .chat-sidebar-panel {
+          width: 340px;
+          border-right: 1px solid var(--border-light);
+          display: flex;
+          flex-direction: column;
+          min-height: 0;
+          min-width: 0;
+          background: var(--bg-main);
+          flex-shrink: 0;
+        }
+
+        .chat-main-panel {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          min-height: 0;
+          min-width: 0;
+          width: 100%;
+          background: var(--surface);
+          overflow: hidden;
+        }
+
+        .quick-prompts-bar {
+          scrollbar-width: none;
+          -ms-overflow-style: none;
+        }
+        .quick-prompts-bar::-webkit-scrollbar {
+          display: none;
+        }
+
         @media (max-width: 768px) {
+          .chat-page-root {
+            width: 100vw !important;
+            max-width: 100vw !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            height: 100% !important;
+            max-height: 100% !important;
+            overflow: hidden !important;
+          }
+
+          .chat-page-root.thread-active .chat-top-header {
+            display: none !important;
+          }
+
+          .chat-page-root.list-active .chat-top-header {
+            padding: 0.65rem 0.85rem 0.35rem !important;
+            margin-bottom: 0 !important;
+          }
+
+          .chat-split-container {
+            border-radius: 0 !important;
+            border: none !important;
+            box-shadow: none !important;
+            height: 100% !important;
+          }
+
           .chat-sidebar-panel.hidden-on-mobile {
             display: none !important;
           }
+
           .chat-main-panel.hidden-on-mobile {
             display: none !important;
           }
+
           .chat-sidebar-panel {
             width: 100% !important;
+            max-width: 100% !important;
             border-right: none !important;
+            height: 100% !important;
           }
+
+          .chat-main-panel {
+            width: 100% !important;
+            max-width: 100% !important;
+            height: 100% !important;
+          }
+
           .hidden-mobile {
             display: none !important;
           }
+
+          .chat-header-details {
+            max-width: calc(100vw - 165px) !important;
+          }
+
+          .chat-thread-input-form {
+            padding: 0.5rem 0.65rem max(0.5rem, env(safe-area-inset-bottom)) !important;
+          }
         }
+
         @media (min-width: 769px) {
           .mobile-back-btn {
             display: none !important;
+          }
+        }
+
+        @media (max-width: 420px) {
+          .chat-btn-label {
+            display: none !important;
+          }
+          .chat-send-text {
+            display: none !important;
+          }
+          .chat-header-details {
+            max-width: calc(100vw - 130px) !important;
           }
         }
       `}</style>

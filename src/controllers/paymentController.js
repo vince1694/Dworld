@@ -91,10 +91,10 @@ const initializePayment = async (req, res, next) => {
             callbackUrl = purpose === 'appointment_pay'
                 ? `${clientUrl}/book?aptId=${appointment_id || ''}&payment=success`
                 : purpose === 'expert_activation'
-                ? `${clientUrl}/expert?activated=1`
-                : (user?.role === 'expert' || user?.role === 'stylist')
-                ? `${clientUrl}/expert?tab=wallet&status=success`
-                : `${clientUrl}/wallet?status=success`;
+                    ? `${clientUrl}/expert?activated=1`
+                    : (user?.role === 'expert' || user?.role === 'stylist')
+                        ? `${clientUrl}/expert?tab=wallet&status=success`
+                        : `${clientUrl}/wallet?status=success`;
         }
 
         const payload = {
@@ -113,9 +113,9 @@ const initializePayment = async (req, res, next) => {
         const response = await paystackRequest('/transaction/initialize', 'POST', payload);
 
         if (!response.status) {
-            return res.status(400).json({ 
-                success: false, 
-                message: response.message || 'Paystack payment initialization failed' 
+            return res.status(400).json({
+                success: false,
+                message: response.message || 'Paystack payment initialization failed'
             });
         }
 
