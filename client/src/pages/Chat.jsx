@@ -77,19 +77,29 @@ const Chat = () => {
   }, []);
 
   // 2. Sync active conversation
+  // We track the last appointmentId we fetched messages for to avoid duplicate fetches
+  const fetchedForRef = useRef(null);
   useEffect(() => {
     if (activeAppointmentId) {
       const match = conversations.find(c => String(c.appointmentId) === String(activeAppointmentId));
       if (match) {
         setActiveConversation(match);
       }
-      fetchMessages(activeAppointmentId);
+      // Only fetch messages if we haven't already fetched for this appointment
+      if (fetchedForRef.current !== activeAppointmentId) {
+        fetchedForRef.current = activeAppointmentId;
+        fetchMessages(activeAppointmentId);
+      }
     } else if (conversations.length > 0 && !activeConversation && window.innerWidth >= 768) {
       // Auto-select first on desktop only
       setActiveAppointmentId(conversations[0].appointmentId);
       setActiveConversation(conversations[0]);
     }
   }, [activeAppointmentId, conversations]);
+
+  // 2b. When we have an appointmentId from URL but no activeConversation yet (conversations still loading),
+  // still show the thread panel and load messages immediately so the screen isn't blank.
+  const showThreadPanel = activeAppointmentId !== null;
 
   // 3. Poll active thread messages
   useEffect(() => {
@@ -228,7 +238,7 @@ const Chat = () => {
   }, [conversations, filterTab, searchQuery]);
 
   return (
-    <div className={`chat-page-root animate-fade-in ${mobileViewingThread ? 'thread-active' : 'list-active'}`}>
+    <div className={`chat-page-root animate-fade-in ${(mobileViewingThread || showThreadPanel) ? 'thread-active' : 'list-active'}`}>
       
       {/* ── TOP HEADER BAR ── */}
       <div className="chat-top-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem', flexShrink: 0, padding: '0 0.25rem' }}>
@@ -266,7 +276,7 @@ const Chat = () => {
 
         {/* ── LEFT PANEL: CONVERSATIONS LIST ── */}
         <div 
-          className={`chat-sidebar-panel ${mobileViewingThread ? 'hidden-on-mobile' : ''}`}
+          className={`chat-sidebar-panel ${(mobileViewingThread || showThreadPanel) ? 'hidden-on-mobile' : ''}`}
         >
           {/* Search & Filter Header */}
           <div style={{ padding: '0.85rem', borderBottom: '1px solid var(--border-light)', display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
@@ -455,8 +465,92 @@ const Chat = () => {
 
         {/* ── RIGHT PANEL: ACTIVE CHAT THREAD ── */}
         <div 
-          className={`chat-main-panel ${!mobileViewingThread ? 'hidden-on-mobile' : ''}`}
+          className={`chat-main-panel ${!(mobileViewingThread || showThreadPanel) ? 'hidden-on-mobile' : ''}`}
         >
+          {/* Show skeleton header while conversations list is loading but we have an appointmentId */}
+          {showThreadPanel && !activeConversation && (
+            <>
+              {/* Skeleton header */}
+              <div style={{
+                padding: '0.65rem 0.85rem',
+                borderBottom: '1px solid var(--border-light)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.55rem',
+                flexShrink: 0,
+                background: 'var(--surface)',
+                width: '100%',
+                boxSizing: 'border-box'
+              }}>
+                <button
+                  type="button"
+                  onClick={handleBackToList}
+                  className="mobile-back-btn"
+                  style={{ background: 'rgba(0,0,0,0.04)', border: 'none', color: 'var(--text-main)', cursor: 'pointer', padding: '0.45rem', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '10px', flexShrink: 0 }}
+                >
+                  <ArrowLeft size={18} />
+                </button>
+                <div style={{ width: 38, height: 38, borderRadius: 12, background: 'rgba(99,102,241,0.1)', flexShrink: 0 }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ width: 100, height: 12, borderRadius: 6, background: 'rgba(99,102,241,0.12)', marginBottom: 6 }} />
+                  <div style={{ width: 160, height: 10, borderRadius: 6, background: 'rgba(0,0,0,0.06)' }} />
+                </div>
+              </div>
+              {/* Messages body while loading conversations */}
+              <div style={{ flex: 1, overflowY: 'auto', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+                {loadingMessages ? (
+                  <div style={{ padding: '3rem 1rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                    <div style={{ width: 24, height: 24, border: '2px solid rgba(99,102,241,0.2)', borderTop: '2px solid #6366f1', borderRadius: '50%', animation: 'spin 0.7s linear infinite', margin: '0 auto 0.5rem' }} />
+                    <span>Loading conversation history...</span>
+                  </div>
+                ) : messages.length > 0 ? (
+                  messages.map((m, idx) => {
+                    const isMe = String(m.sender_id?._id || m.sender_id) === String(user?.id || user?._id);
+                    return (
+                      <div key={m._id || idx} style={{ display: 'flex', flexDirection: 'column', alignItems: isMe ? 'flex-end' : 'flex-start' }}>
+                        <div style={{
+                          maxWidth: '78%',
+                          padding: '0.7rem 0.95rem',
+                          borderRadius: isMe ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
+                          background: isMe ? 'linear-gradient(135deg, var(--primary), var(--secondary))' : 'var(--bg-main)',
+                          color: isMe ? '#ffffff' : 'var(--text-main)',
+                          border: isMe ? 'none' : '1px solid var(--border-light)',
+                          fontSize: '0.88rem',
+                          lineHeight: 1.45,
+                          wordBreak: 'break-word',
+                        }}>
+                          {m.text && <div>{m.text}</div>}
+                          {m.photo_url && <img src={m.photo_url} alt="Attachment" style={{ maxWidth: '100%', maxHeight: 220, borderRadius: 10, display: 'block', marginTop: m.text ? '0.5rem' : 0 }} />}
+                        </div>
+                        <span style={{ fontSize: '0.64rem', color: 'var(--text-subtle)', marginTop: 2, padding: '0 0.35rem' }}>
+                          {m.createdAt ? new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Sent'}
+                        </span>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div style={{ padding: '3.5rem 1rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                    <Sparkles size={22} color="var(--primary)" style={{ margin: '0 auto 0.75rem', display: 'block' }} />
+                    <h4 style={{ margin: '0 0 0.25rem', color: 'var(--text-main)', fontSize: '0.95rem' }}>Direct Chat Started</h4>
+                    <p style={{ margin: 0, fontSize: '0.82rem' }}>Send the first message to get the conversation going!</p>
+                  </div>
+                )}
+                <div ref={messagesEndRef} />
+              </div>
+              {/* Quick prompts & input even during skeleton */}
+              <div className="quick-prompts-bar" style={{ padding: '0.4rem 0.65rem', borderTop: '1px solid var(--border-light)', background: 'var(--bg-main)', display: 'flex', gap: '0.35rem', overflowX: 'auto', whiteSpace: 'nowrap', width: '100%', boxSizing: 'border-box' }}>
+                {QUICK_CAMPUS_PROMPTS.map((p, idx) => (
+                  <button key={idx} type="button" onClick={() => handleSendMessage(p)} style={{ padding: '0.28rem 0.6rem', borderRadius: '9999px', border: '1px solid var(--border-light)', background: 'var(--surface)', color: 'var(--text-main)', fontSize: '0.72rem', fontWeight: 600, cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap' }}>{p}</button>
+                ))}
+              </div>
+              <form onSubmit={e => { e.preventDefault(); handleSendMessage(); }} style={{ padding: '0.55rem 0.75rem', borderTop: '1px solid var(--border-light)', display: 'flex', alignItems: 'center', gap: '0.4rem', background: 'var(--surface)', width: '100%', boxSizing: 'border-box' }}>
+                <input type="file" ref={fileInputRef} accept="image/*" onChange={handlePhotoSelect} style={{ display: 'none' }} />
+                <button type="button" onClick={() => fileInputRef.current?.click()} className="btn btn-secondary" style={{ width: 36, height: 36, minWidth: 36, borderRadius: 10, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><ImageIcon size={18} color="var(--primary)" /></button>
+                <input type="text" placeholder="Type a message..." value={inputText} onChange={e => setInputText(e.target.value)} style={{ flex: 1, minWidth: 0, padding: '0.6rem 0.8rem', borderRadius: 10, border: '1px solid var(--border-light)', background: 'var(--bg-main)', color: 'var(--text-main)', fontSize: '0.88rem', outline: 'none', boxSizing: 'border-box' }} />
+                <button type="submit" disabled={sending || (!inputText.trim() && !selectedPhoto)} className="btn btn-primary" style={{ height: 36, padding: '0 0.8rem', borderRadius: 10, fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.3rem', flexShrink: 0 }}><Send size={15} /><span className="chat-send-text">Send</span></button>
+              </form>
+            </>
+          )}
           {activeConversation ? (
             <>
               {/* Active Chat Header */}
@@ -520,16 +614,16 @@ const Chat = () => {
 
                   {/* Partner Info */}
                   <div className="chat-header-details" style={{ minWidth: 0, flex: 1 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                      <strong style={{ fontSize: '0.92rem', color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', overflow: 'hidden' }}>
+                      <strong style={{ fontSize: '0.9rem', color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {activeConversation.otherParty?.name || 'Campus Specialist'}
                       </strong>
-                      <span style={{ fontSize: '0.62rem', padding: '0.1rem 0.35rem', borderRadius: '4px', background: 'rgba(16, 185, 129, 0.15)', color: '#059669', fontWeight: 700, flexShrink: 0 }}>
-                        VERIFIED
+                      <span style={{ fontSize: '0.6rem', padding: '0.1rem 0.3rem', borderRadius: '4px', background: 'rgba(16, 185, 129, 0.15)', color: '#059669', fontWeight: 700, flexShrink: 0, whiteSpace: 'nowrap' }}>
+                        ✓ VERIFIED
                       </span>
                     </div>
-                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {activeConversation.service?.name} • 🗓️ {activeConversation.date} at {activeConversation.time}
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {[activeConversation.service?.name, activeConversation.date && `${activeConversation.date}${activeConversation.time ? ' ' + activeConversation.time : ''}`].filter(Boolean).join(' · ')}
                     </div>
                   </div>
                 </div>
@@ -986,6 +1080,7 @@ const Chat = () => {
         .quick-prompts-bar {
           scrollbar-width: none;
           -ms-overflow-style: none;
+          -webkit-overflow-scrolling: touch;
         }
         .quick-prompts-bar::-webkit-scrollbar {
           display: none;
@@ -1044,9 +1139,8 @@ const Chat = () => {
           }
 
           .chat-header-details {
-            max-width: calc(100vw - 165px) !important;
+            max-width: calc(100vw - 150px) !important;
           }
-
           .chat-thread-input-form {
             padding: 0.5rem 0.65rem max(0.5rem, env(safe-area-inset-bottom)) !important;
           }
@@ -1066,7 +1160,8 @@ const Chat = () => {
             display: none !important;
           }
           .chat-header-details {
-            max-width: calc(100vw - 130px) !important;
+            /* Back(36) + avatar(38) + gap(~20) + phone(36) + booking(36) + gaps → ~180px hidden, so 100vw-120px for name */
+            max-width: calc(100vw - 120px) !important;
           }
         }
       `}</style>
