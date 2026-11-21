@@ -4,11 +4,28 @@ import math
 import wave
 import urllib.request
 import subprocess
-import numpy as np
-from PIL import Image, ImageDraw, ImageFont, ImageFilter
-import imageio_ffmpeg
 
-FFMPEG_EXE = imageio_ffmpeg.get_ffmpeg_exe()
+# Safe conditional imports with auto-installer for VS Code & all Python environments
+try:
+    import numpy as np  # type: ignore
+except ImportError:
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "numpy"])
+    import numpy as np  # type: ignore
+
+try:
+    from PIL import Image, ImageDraw, ImageFont, ImageFilter  # type: ignore
+except ImportError:
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "pillow"])
+    from PIL import Image, ImageDraw, ImageFont, ImageFilter  # type: ignore
+
+try:
+    import imageio_ffmpeg  # type: ignore
+    FFMPEG_EXE = imageio_ffmpeg.get_ffmpeg_exe()
+except Exception:
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "imageio-ffmpeg"])
+    import imageio_ffmpeg  # type: ignore
+    FFMPEG_EXE = imageio_ffmpeg.get_ffmpeg_exe()
+
 OUTPUT_DIR = os.path.abspath('client/public/videos')
 CACHE_DIR = os.path.abspath('client/public/videos/assets_cache')
 os.makedirs(OUTPUT_DIR, exist_ok=True)
@@ -27,7 +44,7 @@ if not os.path.exists(FONT_BOLD):
 def get_font(size):
     try:
         return ImageFont.truetype(FONT_BOLD, size)
-    except:
+    except Exception:
         return ImageFont.load_default()
 
 FONT_BADGE = get_font(20)

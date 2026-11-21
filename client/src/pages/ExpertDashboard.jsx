@@ -41,7 +41,8 @@ import {
   Camera,
   ZoomIn,
   MapPin,
-  ExternalLink
+  ExternalLink,
+  RotateCcw
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
