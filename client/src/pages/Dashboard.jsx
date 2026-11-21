@@ -172,14 +172,18 @@ const Dashboard = () => {
     }
 
     const reference = searchParams.get('reference') || searchParams.get('trxref');
+    const paymentStatus = searchParams.get('payment');
     if (reference) {
       axios.post(`${API_URL}/payments/verify`, { reference })
         .then(res => {
           if (res.data.success) {
+            const isAptPay = res.data.purpose === 'appointment_pay';
             const amountCredited = res.data.amount || 0;
-            const msg = amountCredited > 0
-              ? `₦${amountCredited.toLocaleString()} deposited into your wallet via Paystack! 🎉`
-              : (res.data.message || 'Payment confirmed successfully! 🎉');
+            const msg = isAptPay
+              ? (res.data.message || 'Appointment payment confirmed and secured in Escrow! 🎉')
+              : (amountCredited > 0
+                ? `₦${amountCredited.toLocaleString()} deposited into your wallet via Paystack! 🎉`
+                : (res.data.message || 'Payment confirmed successfully! 🎉'));
             addToast(msg, 'success');
             if (res.data.walletBalance !== undefined) {
               setWalletBalance(res.data.walletBalance);
@@ -193,6 +197,11 @@ const Dashboard = () => {
         .catch(err => {
           console.warn('Payment verify notice:', err);
         });
+    } else if (paymentStatus === 'success') {
+      addToast('Payment confirmed! Your appointment has been secured.', 'success');
+      fetchData();
+      fetchWallet();
+      navigate('/dashboard', { replace: true });
     }
   }, [searchParams]);
 
@@ -379,10 +388,12 @@ const Dashboard = () => {
         purpose: 'appointment_pay',
         appointment_id: appointmentId,
         email: user?.email,
-        name: user?.name
+        name: user?.name,
+        callback_url: `${window.location.origin}/dashboard?payment=success&aptId=${appointmentId}`
       });
       if (initRes.data.success && initRes.data.data?.authorization_url) {
         window.location.href = initRes.data.data.authorization_url;
+        return;
       } else {
         throw new Error('Payment initialization failed');
       }

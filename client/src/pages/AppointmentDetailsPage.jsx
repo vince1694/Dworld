@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import {
@@ -70,6 +70,7 @@ const STATUS_CONFIG = {
 const AppointmentDetailsPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const { notify } = useNotify();
 
@@ -91,8 +92,23 @@ const AppointmentDetailsPage = () => {
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
-    fetchAppointment();
-  }, [id]);
+    const reference = searchParams.get('reference') || searchParams.get('trxref');
+    if (reference) {
+      axios.post(`${API_URL}/payments/verify`, { reference })
+        .then(res => {
+          if (res.data.success) {
+            notify.success(res.data.message || 'Payment verified and secured in Escrow! 🎉');
+          }
+          fetchAppointment();
+        })
+        .catch(err => {
+          console.warn('Verify error:', err);
+          fetchAppointment();
+        });
+    } else {
+      fetchAppointment();
+    }
+  }, [id, searchParams]);
 
   const fetchAppointment = async () => {
     try {

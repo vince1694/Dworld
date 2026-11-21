@@ -299,7 +299,8 @@ const BookingWizardModal = ({ isOpen, onClose, onBookingSuccess, preselectedServ
             amount: price,
             email: userEmail,
             purpose: 'appointment_pay',
-            appointment_id: aptId
+            appointment_id: aptId,
+            callback_url: `${window.location.origin}/book?aptId=${aptId}&payment=success`
           });
           if (initRes.data.success && initRes.data.data?.authorization_url) {
             window.location.href = initRes.data.data.authorization_url;

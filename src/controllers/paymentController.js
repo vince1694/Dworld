@@ -85,11 +85,11 @@ const initializePayment = async (req, res, next) => {
             return res.status(400).json({ success: false, message: 'A valid email address is required to process Paystack payment.' });
         }
 
-        const clientUrl = process.env.CLIENT_URL || 'https://dworld.ink';
+        const clientUrl = req.headers.origin || process.env.CLIENT_URL || 'https://dworld.ink';
         let callbackUrl = req.body.callback_url;
         if (!callbackUrl) {
             callbackUrl = purpose === 'appointment_pay'
-                ? `${clientUrl}/book?aptId=${appointment_id || ''}`
+                ? `${clientUrl}/book?aptId=${appointment_id || ''}&payment=success`
                 : purpose === 'expert_activation'
                 ? `${clientUrl}/expert?activated=1`
                 : (user?.role === 'expert' || user?.role === 'stylist')
@@ -168,6 +168,13 @@ const verifyPayment = async (req, res, next) => {
                     message: 'This payment reference has already been processed for another user.'
                 });
             }
+            let aptData = null;
+            if (purpose === 'appointment_pay' && metadata.appointment_id) {
+                aptData = await Appointment.findById(metadata.appointment_id)
+                    .populate('service_id')
+                    .populate('stylist_id', 'name email phone specialty bio rating avatar matricNo department address location')
+                    .populate('user_id', 'name email phone avatar matricNo department');
+            }
             return res.status(200).json({
                 success: true,
                 message: purpose === 'expert_activation'
@@ -175,6 +182,8 @@ const verifyPayment = async (req, res, next) => {
                     : 'Transaction already processed.',
                 amount: amountPaidNaira,
                 purpose,
+                appointment: aptData,
+                data: aptData,
                 isActivated: globalDuplicate.isActivated,
                 walletBalance: (await User.findById(currentUserId).select('walletBalance').lean())?.walletBalance || 0
             });
@@ -187,11 +196,20 @@ const verifyPayment = async (req, res, next) => {
 
         // Idempotency check: if transaction with this reference was already processed (e.g. by webhook), return status immediately
         if (user.transactions && user.transactions.some(t => t.reference_id === reference)) {
+            let aptData = null;
+            if (purpose === 'appointment_pay' && metadata.appointment_id) {
+                aptData = await Appointment.findById(metadata.appointment_id)
+                    .populate('service_id')
+                    .populate('stylist_id', 'name email phone specialty bio rating avatar matricNo department address location')
+                    .populate('user_id', 'name email phone avatar matricNo department');
+            }
             return res.status(200).json({
                 success: true,
                 message: 'Payment has already been processed and verified.',
                 amount: amountPaidNaira,
                 purpose,
+                appointment: aptData,
+                data: aptData,
                 isActivated: user.isActivated,
                 walletBalance: user.walletBalance
             });
@@ -252,7 +270,11 @@ const verifyPayment = async (req, res, next) => {
 
         if (purpose === 'appointment_pay' && metadata.appointment_id) {
             // Settle appointment payment with 10% platform commission
-            const appointment = await Appointment.findById(metadata.appointment_id).populate('service_id');
+            const appointment = await Appointment.findById(metadata.appointment_id)
+                .populate('service_id')
+                .populate('stylist_id', 'name email phone specialty bio rating avatar matricNo department address location')
+                .populate('user_id', 'name email phone avatar matricNo department');
+
             if (appointment) {
                 const commissionRate = 0.10;
                 const commissionAmount = Math.round(amountPaidNaira * commissionRate);
@@ -276,7 +298,7 @@ const verifyPayment = async (req, res, next) => {
                 await user.save();
 
                 // True Escrow: Money is held in Escrow until session is marked completed!
-                let expertId = appointment.stylist_id || appointment.service_id?.stylist_id;
+                let expertId = appointment.stylist_id?._id || appointment.stylist_id || appointment.service_id?.stylist_id;
                 if (expertId) {
                     await Notification.create({
                         user_id: expertId,
@@ -291,7 +313,7 @@ const verifyPayment = async (req, res, next) => {
                     service: appointment.service_id?.name || 'Campus Specialist Service',
                     date: appointment.date,
                     time: appointment.time,
-                    expert: (await User.findById(expertId).select('name'))?.name || 'Assigned Specialist'
+                    expert: appointment.stylist_id?.name || (await User.findById(expertId).select('name'))?.name || 'Assigned Specialist'
                 }).catch(err => console.warn('Booking confirmation email notice:', err.message));
 
                 await Notification.create({
@@ -303,12 +325,14 @@ const verifyPayment = async (req, res, next) => {
 
                 return res.status(200).json({
                     success: true,
-                    message: `Payment of ₦${amountPaidNaira.toLocaleString()} confirmed (₦${expertPayout.toLocaleString()} disbursed to expert)!`,
+                    message: `Payment of ₦${amountPaidNaira.toLocaleString()} confirmed and secured in D.WORLD Escrow!`,
                     walletBalance: user.walletBalance,
                     amount: amountPaidNaira,
                     purpose,
                     expertPayout,
-                    commissionAmount
+                    commissionAmount,
+                    appointment,
+                    data: appointment
                 });
             }
         }

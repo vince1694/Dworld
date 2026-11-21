@@ -26,7 +26,8 @@ import {
   User,
   MessageSquare,
   RefreshCw,
-  Phone
+  Phone,
+  Copy
 } from 'lucide-react';
 
 import { useAuth } from '../context/AuthContext';
@@ -90,6 +91,9 @@ const BookAppointment = () => {
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [confirmedBooking, setConfirmedBooking] = useState(null);
+  const [verifyingPayment, setVerifyingPayment] = useState(false);
+  const [paymentVerifyError, setPaymentVerifyError] = useState('');
+  const [copiedAptId, setCopiedAptId] = useState(false);
 
   // 1. Fetch initial experts, services, and wallet
   useEffect(() => {
@@ -262,27 +266,87 @@ const BookAppointment = () => {
     });
   }, [experts, searchQuery, selectedSpecialtyFilter]);
 
-  // Handle Return from Paystack Checkout
+  // Handle Return from Paystack Checkout or Direct Appointment Hydration
   useEffect(() => {
     const reference = searchParams.get('reference') || searchParams.get('trxref');
     const aptId = searchParams.get('aptId') || searchParams.get('appointmentId');
-    if (reference) {
-      axios.post(`${API_URL}/payments/verify`, { reference })
-        .then(res => {
-          if (res.data.success) {
-            setStep(4);
-            setConfirmedBooking({
-              _id: aptId || 'APT-' + Date.now(),
-              paymentStatus: 'paid',
-              date: selectedDate,
-              time: selectedTime || '10:00 AM',
-              service_id: selectedService || { name: 'Campus Specialist Service', price: 3500 },
-              stylist_id: selectedExpert || { name: 'Verified Specialist' }
-            });
+    const isSuccess = searchParams.get('payment') === 'success';
+
+    if (!reference && !aptId) return;
+
+    let isMounted = true;
+    setVerifyingPayment(true);
+    setPaymentVerifyError('');
+
+    const verifyAndHydrate = async () => {
+      try {
+        let appointmentData = null;
+
+        if (reference) {
+          try {
+            const verifyRes = await axios.post(`${API_URL}/payments/verify`, { reference });
+            if (verifyRes.data.success) {
+              appointmentData = verifyRes.data.appointment || verifyRes.data.data;
+              if (verifyRes.data.walletBalance !== undefined) {
+                setWalletBalance(verifyRes.data.walletBalance);
+                window.dispatchEvent(new CustomEvent('dworld_wallet_updated', { detail: { walletBalance: verifyRes.data.walletBalance } }));
+              }
+            } else {
+              throw new Error(verifyRes.data.message || 'Payment verification failed');
+            }
+          } catch (vErr) {
+            console.warn('Verify call warning:', vErr.response?.data?.message || vErr.message);
+            if (!aptId) {
+              throw vErr;
+            }
           }
-        })
-        .catch(err => console.warn('Payment verify notice:', err));
-    }
+        }
+
+        // If appointmentData was not returned by verify endpoint, fetch it directly
+        const targetAptId = aptId || appointmentData?._id;
+        if (!appointmentData && targetAptId) {
+          try {
+            const aptRes = await axios.get(`${API_URL}/appointments/${targetAptId}`);
+            if (aptRes.data.success && aptRes.data.data) {
+              appointmentData = aptRes.data.data;
+            }
+          } catch (fetchErr) {
+            console.warn('Appointment fetch fallback error:', fetchErr.message);
+          }
+        }
+
+        if (appointmentData && isMounted) {
+          setConfirmedBooking(appointmentData);
+          if (appointmentData.service_id) setSelectedService(appointmentData.service_id);
+          if (appointmentData.stylist_id) setSelectedExpert(appointmentData.stylist_id);
+          if (appointmentData.date) setSelectedDate(appointmentData.date);
+          if (appointmentData.time) setSelectedTime(appointmentData.time);
+          setStep(4);
+        } else if (isMounted && reference) {
+          // Fallback confirmation if appointment couldn't be loaded
+          setStep(4);
+          setConfirmedBooking({
+            _id: aptId || reference,
+            paymentStatus: 'paid',
+            date: selectedDate || new Date().toISOString().split('T')[0],
+            time: selectedTime || '10:00 AM',
+            service_id: selectedService || { name: 'Campus Specialist Service', price: 3500 },
+            stylist_id: selectedExpert || { name: 'Verified Specialist' }
+          });
+        }
+      } catch (err) {
+        console.error('Payment callback verification failed:', err);
+        if (isMounted) {
+          setPaymentVerifyError(err.response?.data?.message || err.message || 'Payment verification failed. Please check your dashboard.');
+        }
+      } finally {
+        if (isMounted) setVerifyingPayment(false);
+      }
+    };
+
+    verifyAndHydrate();
+
+    return () => { isMounted = false; };
   }, [searchParams]);
 
   // Complete Booking Flow (Wallet / Paystack)
@@ -396,12 +460,17 @@ const BookAppointment = () => {
                     reference: response.reference
                   });
                   if (verifyRes.data.success) {
-                    bookedApt.paymentStatus = 'paid';
-                    setConfirmedBooking({
+                    const hydratedApt = verifyRes.data.appointment || {
                       ...bookedApt,
+                      paymentStatus: 'paid',
                       service_id: selectedService,
                       stylist_id: selectedExpert
-                    });
+                    };
+                    setConfirmedBooking(hydratedApt);
+                    if (verifyRes.data.walletBalance !== undefined) {
+                      setWalletBalance(verifyRes.data.walletBalance);
+                      window.dispatchEvent(new CustomEvent('dworld_wallet_updated', { detail: { walletBalance: verifyRes.data.walletBalance } }));
+                    }
                     setStep(4);
                   } else {
                     setErrorMsg(verifyRes.data.message || 'Payment verification failed');
@@ -437,7 +506,8 @@ const BookAppointment = () => {
             appointment_id: aptId,
             purpose: 'appointment_pay',
             email: userEmail,
-            name: user?.name
+            name: user?.name,
+            callback_url: `${window.location.origin}/book?aptId=${aptId}&payment=success`
           });
 
           if (initRes.data?.success && initRes.data?.data?.authorization_url) {
@@ -1342,109 +1412,297 @@ const BookAppointment = () => {
       )}
 
       {/* ══════════════════════════════════════════════════════════════════ */}
-      {/* STEP 4: CONFIRMATION & CELEBRATION                                */}
+      {/* VERIFYING PAYMENT LOADER (PAYSTACK REDIRECT)                      */}
       {/* ══════════════════════════════════════════════════════════════════ */}
-      {step === 4 && (
-        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} style={{ textAlign: 'center', padding: '3rem 1.5rem', maxWidth: '640px', margin: '0 auto' }}>
+      {verifyingPayment && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ textAlign: 'center', padding: '5rem 1.5rem', maxWidth: '520px', margin: '0 auto' }}>
           <div style={{
-            width: 76,
-            height: 76,
+            width: 72,
+            height: 72,
             borderRadius: '50%',
-            background: 'linear-gradient(135deg, #10b981, #059669)',
-            color: '#fff',
+            background: 'rgba(99, 102, 241, 0.12)',
+            color: 'var(--primary)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            margin: '0 auto 1.5rem',
-            boxShadow: '0 10px 30px rgba(16, 185, 129, 0.35)'
+            margin: '0 auto 1.5rem'
           }}>
-            <CheckCircle2 size={42} strokeWidth={2.5} />
+            <RefreshCw size={36} className="animate-spin" />
           </div>
-
-          <h2 style={{ fontSize: 'clamp(1.6rem, 4vw, 2.3rem)', fontFamily: 'Outfit', fontWeight: 900, margin: '0 0 0.5rem' }}>
-            Reservation Confirmed! 🎉
+          <h2 style={{ fontSize: '1.6rem', fontFamily: 'Outfit', fontWeight: 800, margin: '0 0 0.5rem' }}>
+            Confirming Payment & Booking...
           </h2>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', margin: '0 0 2rem', lineHeight: 1.5 }}>
-            Your campus booking has been successfully dispatched to <strong>{selectedExpert?.name}</strong>.
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', lineHeight: 1.6 }}>
+            Verifying your Paystack transaction and locking your slot with the specialist. Just a second!
           </p>
-
-          {/* Details Card */}
-          <div style={{
-            background: 'var(--surface)',
-            border: '1px solid var(--border-light)',
-            borderRadius: '20px',
-            padding: '1.5rem',
-            textAlign: 'left',
-            marginBottom: '2rem',
-            boxShadow: '0 4px 20px rgba(0,0,0,0.03)'
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-light)', paddingBottom: '0.85rem', marginBottom: '0.85rem' }}>
-              <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Booking Reference</span>
-              <strong style={{ fontSize: '0.85rem', color: 'var(--primary)', fontFamily: 'monospace' }}>
-                {confirmedBooking?._id || 'APT-' + Date.now()}
-              </strong>
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-light)', paddingBottom: '0.85rem', marginBottom: '0.85rem' }}>
-              <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Specialist</span>
-              <strong style={{ fontSize: '0.85rem', color: 'var(--text-main)' }}>
-                {selectedExpert?.name}
-              </strong>
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-light)', paddingBottom: '0.85rem', marginBottom: '0.85rem' }}>
-              <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Location Spot</span>
-              <strong style={{ fontSize: '0.85rem', color: '#047857' }}>
-                📍 {selectedExpert?.address || selectedExpert?.location || 'Campus Area'}
-              </strong>
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Date & Time</span>
-              <strong style={{ fontSize: '0.85rem', color: 'var(--text-main)' }}>
-                {selectedDate} at {selectedTime}
-              </strong>
-            </div>
-          </div>
-
-          {/* Action CTAs */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-            <button
-              type="button"
-              onClick={() => navigate('/chat')}
-              className="btn btn-primary"
-              style={{
-                width: '100%',
-                padding: '0.9rem',
-                borderRadius: '14px',
-                fontWeight: 700,
-                fontSize: '0.95rem',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '0.5rem'
-              }}
-            >
-              <MessageSquare size={18} /> Message Specialist Now
-            </button>
-
-            <button
-              type="button"
-              onClick={() => navigate('/dashboard')}
-              className="btn btn-secondary"
-              style={{
-                width: '100%',
-                padding: '0.9rem',
-                borderRadius: '14px',
-                fontWeight: 700,
-                fontSize: '0.95rem'
-              }}
-            >
-              View in My Dashboard
-            </button>
-          </div>
         </motion.div>
       )}
+
+      {/* Payment Verification Error */}
+      {paymentVerifyError && !verifyingPayment && step !== 4 && (
+        <div style={{ maxWidth: '600px', margin: '2rem auto', padding: '1.5rem', borderRadius: '16px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.25)', textAlign: 'center' }}>
+          <AlertCircle size={36} color="#ef4444" style={{ margin: '0 auto 0.75rem' }} />
+          <h3 style={{ color: '#ef4444', margin: '0 0 0.5rem', fontWeight: 700 }}>Payment Verification Issue</h3>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.25rem' }}>{paymentVerifyError}</p>
+          <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center' }}>
+            <button onClick={() => window.location.reload()} className="btn btn-secondary" style={{ fontSize: '0.85rem' }}>
+              <RefreshCw size={14} /> Retry Verification
+            </button>
+            <button onClick={() => navigate('/dashboard')} className="btn btn-primary" style={{ fontSize: '0.85rem' }}>
+              Go to Dashboard
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════════ */}
+      {/* STEP 4: CONFIRMATION & CELEBRATION                                */}
+      {/* ══════════════════════════════════════════════════════════════════ */}
+      {step === 4 && !verifyingPayment && (() => {
+        const confirmedSpecialist = confirmedBooking?.stylist_id || selectedExpert;
+        const confirmedService = confirmedBooking?.service_id || selectedService;
+        const confirmedDate = confirmedBooking?.date || selectedDate;
+        const confirmedTime = confirmedBooking?.time || selectedTime;
+        const confirmedPrice = confirmedBooking?.amountPaid || confirmedService?.price || 0;
+        const bookingReference = confirmedBooking?._id || searchParams.get('aptId') || '';
+        const specialistLocation = confirmedSpecialist?.address || confirmedSpecialist?.location || 'Campus Area';
+
+        const handleCopyReference = () => {
+          if (bookingReference) {
+            navigator.clipboard.writeText(bookingReference);
+            setCopiedAptId(true);
+            setTimeout(() => setCopiedAptId(false), 2000);
+          }
+        };
+
+        return (
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} style={{ textAlign: 'center', padding: '2.5rem 1.5rem', maxWidth: '640px', margin: '0 auto' }}>
+            <div style={{
+              width: 76,
+              height: 76,
+              borderRadius: '50%',
+              background: 'linear-gradient(135deg, #10b981, #059669)',
+              color: '#fff',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 1.25rem',
+              boxShadow: '0 10px 30px rgba(16, 185, 129, 0.35)'
+            }}>
+              <CheckCircle2 size={42} strokeWidth={2.5} />
+            </div>
+
+            <h2 style={{ fontSize: 'clamp(1.6rem, 4vw, 2.3rem)', fontFamily: 'Outfit', fontWeight: 900, margin: '0 0 0.5rem' }}>
+              Reservation Confirmed & Paid! 🎉
+            </h2>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', margin: '0 0 1.25rem', lineHeight: 1.5 }}>
+              Your campus booking has been successfully confirmed with <strong style={{ color: 'var(--text-main)' }}>{confirmedSpecialist?.name || 'Verified Specialist'}</strong>.
+            </p>
+
+            {/* Escrow Badge */}
+            <div style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              padding: '0.45rem 1.1rem',
+              background: 'rgba(16, 185, 129, 0.1)',
+              border: '1px solid rgba(16, 185, 129, 0.25)',
+              borderRadius: '30px',
+              color: '#059669',
+              fontSize: '0.85rem',
+              fontWeight: 700,
+              marginBottom: '1.75rem'
+            }}>
+              <ShieldCheck size={18} />
+              ₦{confirmedPrice.toLocaleString()} Secured in D.WORLD Escrow
+            </div>
+
+            {/* Details Card */}
+            <div style={{
+              background: 'var(--surface)',
+              border: '1px solid var(--border-light)',
+              borderRadius: '20px',
+              padding: '1.5rem',
+              textAlign: 'left',
+              marginBottom: '1.5rem',
+              boxShadow: '0 4px 20px rgba(0,0,0,0.03)'
+            }}>
+              {/* Specialist mini header */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', marginBottom: '1.25rem', paddingBottom: '1rem', borderBottom: '1px solid var(--border-light)' }}>
+                <div style={{
+                  width: 50,
+                  height: 50,
+                  borderRadius: '50%',
+                  background: 'var(--surface-hover)',
+                  overflow: 'hidden',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: 800,
+                  fontSize: '1.1rem',
+                  color: 'var(--primary)',
+                  border: '2px solid rgba(99, 102, 241, 0.25)',
+                  flexShrink: 0
+                }}>
+                  {confirmedSpecialist?.avatar ? (
+                    <img src={confirmedSpecialist.avatar} alt={confirmedSpecialist.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ) : (
+                    (confirmedSpecialist?.name || 'S').charAt(0).toUpperCase()
+                  )}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                    <strong style={{ fontSize: '1rem', color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {confirmedSpecialist?.name || 'Campus Specialist'}
+                    </strong>
+                    <VerifiedBadge />
+                  </div>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                    {confirmedSpecialist?.specialty || confirmedService?.category || 'Verified Campus Specialist'}
+                  </span>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-light)', paddingBottom: '0.85rem', marginBottom: '0.85rem' }}>
+                <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Booking Reference</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                  <strong style={{ fontSize: '0.85rem', color: 'var(--primary)', fontFamily: 'monospace' }}>
+                    {bookingReference || 'APT-CONFIRMED'}
+                  </strong>
+                  {bookingReference && (
+                    <button
+                      type="button"
+                      onClick={handleCopyReference}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        cursor: 'pointer',
+                        color: copiedAptId ? '#10b981' : 'var(--text-muted)',
+                        padding: '2px',
+                        display: 'flex',
+                        alignItems: 'center'
+                      }}
+                      title="Copy Reference"
+                    >
+                      {copiedAptId ? <Check size={14} /> : <Copy size={14} />}
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-light)', paddingBottom: '0.85rem', marginBottom: '0.85rem' }}>
+                <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Service Reserved</span>
+                <strong style={{ fontSize: '0.85rem', color: 'var(--text-main)' }}>
+                  {confirmedService?.name || 'Specialist Service'}
+                </strong>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-light)', paddingBottom: '0.85rem', marginBottom: '0.85rem' }}>
+                <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Location Spot</span>
+                <strong style={{ fontSize: '0.85rem', color: '#047857' }}>
+                  📍 {specialistLocation}
+                </strong>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Date & Time</span>
+                <strong style={{ fontSize: '0.85rem', color: 'var(--text-main)' }}>
+                  {confirmedDate} at {confirmedTime}
+                </strong>
+              </div>
+            </div>
+
+            {/* 1-Click Calendar Add */}
+            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', marginBottom: '1.75rem', flexWrap: 'wrap' }}>
+              <a
+                href={getGoogleCalendarUrl({
+                  date: confirmedDate,
+                  time: confirmedTime,
+                  service_id: confirmedService,
+                  notes: confirmedBooking?.notes || clientNotes
+                })}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn btn-secondary"
+                style={{ fontSize: '0.85rem', padding: '0.55rem 1rem', display: 'inline-flex', alignItems: 'center', gap: '0.45rem', textDecoration: 'none' }}
+              >
+                <Calendar size={16} color="var(--primary)" /> Add to Google Calendar
+              </a>
+              <button
+                type="button"
+                onClick={() => downloadIcsFile({
+                  date: confirmedDate,
+                  time: confirmedTime,
+                  service_id: confirmedService,
+                  notes: confirmedBooking?.notes || clientNotes
+                })}
+                className="btn btn-secondary"
+                style={{ fontSize: '0.85rem', padding: '0.55rem 1rem', display: 'inline-flex', alignItems: 'center', gap: '0.45rem' }}
+              >
+                <Download size={16} color="var(--secondary)" /> Download .ics File
+              </button>
+            </div>
+
+            {/* Action CTAs */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+              <button
+                type="button"
+                onClick={() => navigate(bookingReference ? `/chat?appointmentId=${bookingReference}` : '/chat')}
+                className="btn btn-primary"
+                style={{
+                  width: '100%',
+                  padding: '0.9rem',
+                  borderRadius: '14px',
+                  fontWeight: 700,
+                  fontSize: '0.95rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.5rem'
+                }}
+              >
+                <MessageSquare size={18} /> Message Specialist Now
+              </button>
+
+              {bookingReference && (
+                <button
+                  type="button"
+                  onClick={() => navigate(`/appointment/${bookingReference}`)}
+                  className="btn btn-secondary"
+                  style={{
+                    width: '100%',
+                    padding: '0.9rem',
+                    borderRadius: '14px',
+                    fontWeight: 700,
+                    fontSize: '0.95rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.5rem'
+                  }}
+                >
+                  <ExternalLink size={18} /> View Appointment Details
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={() => navigate('/dashboard')}
+                className="btn btn-secondary"
+                style={{
+                  width: '100%',
+                  padding: '0.85rem',
+                  borderRadius: '14px',
+                  fontWeight: 600,
+                  fontSize: '0.9rem'
+                }}
+              >
+                View in My Dashboard
+              </button>
+            </div>
+          </motion.div>
+        );
+      })()}
 
     </div>
   );
