@@ -85,7 +85,7 @@ const initializePayment = async (req, res, next) => {
             return res.status(400).json({ success: false, message: 'A valid email address is required to process Paystack payment.' });
         }
 
-        const clientUrl = req.headers.origin || process.env.CLIENT_URL || 'https://dworld.ink';
+        const clientUrl = process.env.CLIENT_URL || req.headers.origin || 'https://dworld.ink';
         let callbackUrl = req.body.callback_url;
         if (!callbackUrl) {
             callbackUrl = purpose === 'appointment_pay'
@@ -144,6 +144,7 @@ const verifyPayment = async (req, res, next) => {
             return res.status(400).json({ success: false, message: 'Transaction reference is required' });
         }
 
+        // ── 1. Verify with Paystack ──────────────────────────────────────────
         const response = await paystackRequest(`/transaction/verify/${encodeURIComponent(reference)}`, 'GET');
 
         if (!response.status || response.data.status !== 'success') {
@@ -157,55 +158,53 @@ const verifyPayment = async (req, res, next) => {
         const amountPaidNaira = data.amount / 100;
         const metadata = data.metadata || {};
         const purpose = metadata.purpose || 'wallet_topup';
+        const appointmentIdFromMeta = metadata.appointment_id;
 
-        // Fix #2: Check reference globally FIRST to prevent any user replaying
-        // another user's Paystack reference for a free wallet top-up.
-        const globalDuplicate = await User.findOne({ 'transactions.reference_id': reference }).lean();
-        if (globalDuplicate) {
-            if (globalDuplicate._id.toString() !== currentUserId.toString()) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'This payment reference has already been processed for another user.'
-                });
-            }
-            let aptData = null;
-            if (purpose === 'appointment_pay' && metadata.appointment_id) {
-                aptData = await Appointment.findById(metadata.appointment_id)
-                    .populate('service_id')
-                    .populate('stylist_id', 'name email phone specialty bio rating avatar matricNo department address location')
-                    .populate('user_id', 'name email phone avatar matricNo department');
-            }
-            return res.status(200).json({
-                success: true,
-                message: purpose === 'expert_activation'
-                    ? 'Congratulations! Your expert account is now active and unlocked.'
-                    : 'Transaction already processed.',
-                amount: amountPaidNaira,
-                purpose,
-                appointment: aptData,
-                data: aptData,
-                isActivated: globalDuplicate.isActivated,
-                walletBalance: (await User.findById(currentUserId).select('walletBalance').lean())?.walletBalance || 0
-            });
-        }
-
+        // ── 2. Load user ─────────────────────────────────────────────────────
         const user = await User.findById(currentUserId);
         if (!user) {
             return res.status(404).json({ success: false, message: 'User account not found' });
         }
 
-        // Idempotency check: if transaction with this reference was already processed (e.g. by webhook), return status immediately
-        if (user.transactions && user.transactions.some(t => t.reference_id === reference)) {
-            let aptData = null;
-            if (purpose === 'appointment_pay' && metadata.appointment_id) {
-                aptData = await Appointment.findById(metadata.appointment_id)
+        // ── 3. Global idempotency: has this reference been used before? ──────
+        const alreadyProcessed = user.transactions && user.transactions.some(t => t.reference_id === reference);
+
+        // Also check if another user processed this reference (replay attack guard)
+        if (!alreadyProcessed) {
+            const otherUser = await User.findOne({
+                'transactions.reference_id': reference,
+                _id: { $ne: currentUserId }
+            }).select('_id').lean();
+            if (otherUser) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'This payment reference has already been processed for another account.'
+                });
+            }
+        }
+
+        // Helper: build full appointment response
+        const getAppointmentData = async (aptId) => {
+            if (!aptId) return null;
+            try {
+                return await Appointment.findById(aptId)
                     .populate('service_id')
                     .populate('stylist_id', 'name email phone specialty bio rating avatar matricNo department address location')
-                    .populate('user_id', 'name email phone avatar matricNo department');
-            }
+                    .populate('user_id', 'name email phone avatar matricNo department')
+                    .lean();
+            } catch { return null; }
+        };
+
+        // ── 4. Already processed — return idempotent success response ────────
+        if (alreadyProcessed) {
+            const aptData = await getAppointmentData(appointmentIdFromMeta);
             return res.status(200).json({
                 success: true,
-                message: 'Payment has already been processed and verified.',
+                message: purpose === 'expert_activation'
+                    ? 'Your expert account is already active.'
+                    : purpose === 'appointment_pay'
+                        ? 'Payment already confirmed. Your booking is secured!'
+                        : 'Transaction already processed.',
                 amount: amountPaidNaira,
                 purpose,
                 appointment: aptData,
@@ -215,6 +214,7 @@ const verifyPayment = async (req, res, next) => {
             });
         }
 
+        // ── 5. EXPERT ACTIVATION ─────────────────────────────────────────────
         if (purpose === 'expert_activation') {
             user.isActivated = true;
             user.activatedAt = new Date();
@@ -227,7 +227,7 @@ const verifyPayment = async (req, res, next) => {
             });
             await user.save();
 
-            // Ensure single specialty service is attached to expert
+            // Auto-create first service if none exists
             try {
                 const Service = require('../models/Service');
                 const existingSvc = await Service.findOne({ stylist_id: user._id });
@@ -254,7 +254,6 @@ const verifyPayment = async (req, res, next) => {
                 type: 'system'
             });
 
-            // Send activation email guide to expert
             sendExpertActivationEmail(user.email, user.name)
                 .catch(err => console.warn('Activation email notice:', err.message));
 
@@ -268,9 +267,9 @@ const verifyPayment = async (req, res, next) => {
             });
         }
 
-        if (purpose === 'appointment_pay' && metadata.appointment_id) {
-            // Settle appointment payment with 10% platform commission
-            const appointment = await Appointment.findById(metadata.appointment_id)
+        // ── 6. APPOINTMENT PAYMENT ───────────────────────────────────────────
+        if (purpose === 'appointment_pay' && appointmentIdFromMeta) {
+            const appointment = await Appointment.findById(appointmentIdFromMeta)
                 .populate('service_id')
                 .populate('stylist_id', 'name email phone specialty bio rating avatar matricNo department address location')
                 .populate('user_id', 'name email phone avatar matricNo department');
@@ -280,15 +279,45 @@ const verifyPayment = async (req, res, next) => {
                 const commissionAmount = Math.round(amountPaidNaira * commissionRate);
                 const expertPayout = amountPaidNaira - commissionAmount;
 
-                appointment.paymentStatus = 'paid';
-                appointment.escrowStatus = 'held';
-                appointment.amountPaid = amountPaidNaira;
-                appointment.commissionRate = commissionRate;
-                appointment.commissionAmount = commissionAmount;
-                appointment.expertPayout = expertPayout;
-                await appointment.save();
+                // Only update if not already marked paid (webhook may have beaten us)
+                if (appointment.paymentStatus !== 'paid') {
+                    appointment.paymentStatus = 'paid';
+                    appointment.escrowStatus = 'held';
+                    appointment.amountPaid = amountPaidNaira;
+                    appointment.commissionRate = commissionRate;
+                    appointment.commissionAmount = commissionAmount;
+                    appointment.expertPayout = expertPayout;
+                    await appointment.save();
 
-                // Record payment on user
+                    // Expert notification (escrow)
+                    let expertId = appointment.stylist_id?._id || appointment.stylist_id || appointment.service_id?.stylist_id;
+                    if (expertId) {
+                        await Notification.create({
+                            user_id: expertId,
+                            title: 'New Confirmed Booking! 📅',
+                            message: `${user.name} booked "${appointment.service_id?.name || 'Service'}" for ${appointment.date} at ${appointment.time}. ₦${expertPayout.toLocaleString()} is locked in Escrow and will be released to your wallet upon session completion!`,
+                            type: 'booking'
+                        }).catch(() => {});
+                    }
+
+                    // Client notification
+                    await Notification.create({
+                        user_id: user._id,
+                        title: 'Booking Confirmed & Paid! 🎉',
+                        message: `Your appointment for "${appointment.service_id?.name || 'Service'}" on ${appointment.date} at ${appointment.time} is confirmed via Paystack. Payment secured in Escrow!`,
+                        type: 'payment'
+                    }).catch(() => {});
+
+                    // Booking confirmation email
+                    sendBookingConfirmationEmail(user.email, user.name, {
+                        service: appointment.service_id?.name || 'Campus Specialist Service',
+                        date: appointment.date,
+                        time: appointment.time,
+                        expert: appointment.stylist_id?.name || 'Assigned Specialist'
+                    }).catch(err => console.warn('Booking confirmation email notice:', err.message));
+                }
+
+                // Record on user's transaction log regardless
                 user.transactions.push({
                     type: 'payment',
                     amount: amountPaidNaira,
@@ -297,31 +326,12 @@ const verifyPayment = async (req, res, next) => {
                 });
                 await user.save();
 
-                // True Escrow: Money is held in Escrow until session is marked completed!
-                let expertId = appointment.stylist_id?._id || appointment.stylist_id || appointment.service_id?.stylist_id;
-                if (expertId) {
-                    await Notification.create({
-                        user_id: expertId,
-                        title: 'New Confirmed Booking! 📅',
-                        message: `${user.name} booked "${appointment.service_id?.name || 'Service'}" for ${appointment.date} at ${appointment.time}. ₦${expertPayout.toLocaleString()} is locked in Escrow and will be released to your wallet upon session completion!`,
-                        type: 'booking'
-                    });
-                }
-
-                // Send booking confirmation email and client in-app notification
-                sendBookingConfirmationEmail(user.email, user.name, {
-                    service: appointment.service_id?.name || 'Campus Specialist Service',
-                    date: appointment.date,
-                    time: appointment.time,
-                    expert: appointment.stylist_id?.name || (await User.findById(expertId).select('name'))?.name || 'Assigned Specialist'
-                }).catch(err => console.warn('Booking confirmation email notice:', err.message));
-
-                await Notification.create({
-                    user_id: user._id,
-                    title: 'Booking Confirmed & Paid! 🎉',
-                    message: `Your appointment for "${appointment.service_id?.name || 'Service'}" on ${appointment.date} at ${appointment.time} is confirmed via Paystack.`,
-                    type: 'payment'
-                });
+                // Re-fetch with populated fields for response
+                const freshApt = await Appointment.findById(appointmentIdFromMeta)
+                    .populate('service_id')
+                    .populate('stylist_id', 'name email phone specialty bio rating avatar matricNo department address location')
+                    .populate('user_id', 'name email phone avatar matricNo department')
+                    .lean();
 
                 return res.status(200).json({
                     success: true,
@@ -329,15 +339,32 @@ const verifyPayment = async (req, res, next) => {
                     walletBalance: user.walletBalance,
                     amount: amountPaidNaira,
                     purpose,
-                    expertPayout,
-                    commissionAmount,
-                    appointment,
-                    data: appointment
+                    expertPayout: appointment.expertPayout,
+                    commissionAmount: appointment.commissionAmount,
+                    appointment: freshApt,
+                    data: freshApt
                 });
             }
+
+            // Appointment not found (unusual) — still record user transaction
+            console.warn(`verifyPayment: appointment ${appointmentIdFromMeta} not found for reference ${reference}`);
+            user.transactions.push({
+                type: 'payment',
+                amount: amountPaidNaira,
+                description: `Paystack payment for booking (Ref: ${reference})`,
+                reference_id: reference
+            });
+            await user.save();
+            return res.status(200).json({
+                success: true,
+                message: `Payment of ₦${amountPaidNaira.toLocaleString()} received. Contact support if your booking isn't showing confirmed.`,
+                walletBalance: user.walletBalance,
+                amount: amountPaidNaira,
+                purpose
+            });
         }
 
-        // Default purpose: Wallet Top-Up
+        // ── 7. WALLET TOP-UP (default) ───────────────────────────────────────
         user.walletBalance = (user.walletBalance || 0) + amountPaidNaira;
         user.transactions.push({
             type: 'deposit',
@@ -347,7 +374,6 @@ const verifyPayment = async (req, res, next) => {
         });
         await user.save();
 
-        // Create in-app notification for the user
         await Notification.create({
             user_id: user._id,
             title: 'Wallet Funded! 💳',
@@ -363,6 +389,7 @@ const verifyPayment = async (req, res, next) => {
             purpose
         });
     } catch (error) {
+        console.error('verifyPayment error:', error);
         next(error);
     }
 };
@@ -406,7 +433,9 @@ const paystackWebhook = async (req, res) => {
                         sendExpertActivationEmail(user.email, user.name)
                             .catch(err => console.warn('Webhook activation email notice:', err.message));
                     } else if (metadata.purpose === 'appointment_pay' && metadata.appointment_id) {
-                        const appointment = await Appointment.findById(metadata.appointment_id).populate('service_id');
+                        const appointment = await Appointment.findById(metadata.appointment_id)
+                            .populate('service_id')
+                            .populate('stylist_id', 'name email');
                         if (appointment && appointment.paymentStatus !== 'paid') {
                             const commissionRate = 0.10;
                             const commissionAmount = Math.round(amountPaidNaira * commissionRate);
@@ -427,6 +456,33 @@ const paystackWebhook = async (req, res) => {
                                 reference_id: reference
                             });
                             await user.save();
+
+                            // Notify expert about escrow
+                            const expertId = appointment.stylist_id?._id || appointment.stylist_id || appointment.service_id?.stylist_id;
+                            if (expertId) {
+                                await Notification.create({
+                                    user_id: expertId,
+                                    title: 'New Confirmed Booking! 📅',
+                                    message: `${user.name} booked "${appointment.service_id?.name || 'Service'}" for ${appointment.date} at ${appointment.time}. ₦${expertPayout.toLocaleString()} is locked in Escrow!`,
+                                    type: 'booking'
+                                }).catch(() => {});
+                            }
+
+                            // Notify client
+                            await Notification.create({
+                                user_id: user._id,
+                                title: 'Booking Confirmed & Paid! 🎉',
+                                message: `Your appointment for "${appointment.service_id?.name || 'Service'}" on ${appointment.date} at ${appointment.time} is confirmed. Payment secured in Escrow!`,
+                                type: 'payment'
+                            }).catch(() => {});
+
+                            // Confirmation email
+                            sendBookingConfirmationEmail(user.email, user.name, {
+                                service: appointment.service_id?.name || 'Campus Specialist Service',
+                                date: appointment.date,
+                                time: appointment.time,
+                                expert: appointment.stylist_id?.name || 'Assigned Specialist'
+                            }).catch(err => console.warn('Webhook booking email notice:', err.message));
                         }
                     } else {
                         user.walletBalance = (user.walletBalance || 0) + amountPaidNaira;
@@ -453,5 +509,98 @@ module.exports = {
     getPaymentConfig,
     initializePayment,
     verifyPayment,
-    paystackWebhook
+    paystackWebhook,
+    repairAppointmentPayment
 };
+
+// @desc  Admin: Re-verify a Paystack reference and forcibly mark the linked appointment as paid
+// @route POST /api/payments/repair
+// @access Admin only
+async function repairAppointmentPayment(req, res, next) {
+    try {
+        const { reference, appointment_id } = req.body;
+        if (!reference && !appointment_id) {
+            return res.status(400).json({ success: false, message: 'Provide reference or appointment_id' });
+        }
+
+        let amountPaidNaira = 0;
+        let aptId = appointment_id;
+
+        if (reference) {
+            const pRes = await paystackRequest(`/transaction/verify/${encodeURIComponent(reference)}`, 'GET');
+            if (!pRes.status || pRes.data.status !== 'success') {
+                return res.status(400).json({ success: false, message: 'Reference not confirmed by Paystack' });
+            }
+            amountPaidNaira = pRes.data.amount / 100;
+            aptId = aptId || pRes.data.metadata?.appointment_id;
+            const userId = pRes.data.metadata?.user_id;
+
+            // Record on user if not already recorded
+            if (userId) {
+                const u = await User.findById(userId);
+                if (u && !u.transactions.some(t => t.reference_id === reference)) {
+                    u.transactions.push({
+                        type: 'payment',
+                        amount: amountPaidNaira,
+                        description: `[Admin Repair] Paystack payment for appointment (Ref: ${reference})`,
+                        reference_id: reference
+                    });
+                    await u.save();
+                }
+            }
+        }
+
+        if (!aptId) {
+            return res.status(400).json({ success: false, message: 'Could not determine appointment_id' });
+        }
+
+        const appointment = await Appointment.findById(aptId)
+            .populate('service_id')
+            .populate('stylist_id', 'name email');
+
+        if (!appointment) {
+            return res.status(404).json({ success: false, message: 'Appointment not found' });
+        }
+
+        const wasUnpaid = appointment.paymentStatus !== 'paid';
+        const commissionRate = 0.10;
+        const amount = amountPaidNaira || appointment.amountPaid || appointment.service_id?.price || 0;
+        const commissionAmount = Math.round(amount * commissionRate);
+        const expertPayout = amount - commissionAmount;
+
+        appointment.paymentStatus = 'paid';
+        appointment.escrowStatus = appointment.escrowStatus === 'none' ? 'held' : appointment.escrowStatus;
+        appointment.amountPaid = amount;
+        if (!appointment.commissionAmount) appointment.commissionAmount = commissionAmount;
+        if (!appointment.expertPayout) appointment.expertPayout = expertPayout;
+        await appointment.save();
+
+        if (wasUnpaid) {
+            // Notify expert
+            const expertId = appointment.stylist_id?._id || appointment.stylist_id || appointment.service_id?.stylist_id;
+            if (expertId) {
+                await Notification.create({
+                    user_id: expertId,
+                    title: 'Payment Confirmed for Booking! 📅',
+                    message: `Payment confirmed for ${appointment.date} at ${appointment.time}. ₦${expertPayout.toLocaleString()} held in Escrow.`,
+                    type: 'booking'
+                }).catch(() => {});
+            }
+            await Notification.create({
+                user_id: appointment.user_id,
+                title: 'Booking Payment Confirmed! ✅',
+                message: `Your appointment on ${appointment.date} at ${appointment.time} has been confirmed as paid by admin.`,
+                type: 'payment'
+            }).catch(() => {});
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: wasUnpaid ? `Appointment marked as paid. ₦${amount.toLocaleString()} secured in Escrow.` : 'Appointment was already paid.',
+            appointment
+        });
+    } catch (err) {
+        console.error('repairAppointmentPayment error:', err);
+        next(err);
+    }
+}

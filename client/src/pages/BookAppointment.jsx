@@ -272,7 +272,11 @@ const BookAppointment = () => {
     const aptId = searchParams.get('aptId') || searchParams.get('appointmentId');
     const isSuccess = searchParams.get('payment') === 'success';
 
+    // Only trigger on actual Paystack redirect or direct appointment link
+    // Never fire on a plain /book visit (requires at least aptId OR reference)
     if (!reference && !aptId) return;
+    // If only aptId with no reference and no payment=success flag, skip — this is a fresh booking link, not a redirect
+    if (!reference && aptId && !isSuccess) return;
 
     let isMounted = true;
     setVerifyingPayment(true);
@@ -282,6 +286,7 @@ const BookAppointment = () => {
       try {
         let appointmentData = null;
 
+        // Step 1: If we have a reference, verify payment with Paystack
         if (reference) {
           try {
             const verifyRes = await axios.post(`${API_URL}/payments/verify`, { reference });
@@ -299,10 +304,12 @@ const BookAppointment = () => {
             if (!aptId) {
               throw vErr;
             }
+            // If verify failed but we have aptId, fall through to fetch appointment directly
           }
         }
 
-        // If appointmentData was not returned by verify endpoint, fetch it directly
+        // Step 2: If we have aptId (and appointmentData not yet loaded), fetch appointment directly
+        // This handles: (a) verify returned no appointment, (b) no reference but payment=success + aptId
         const targetAptId = aptId || appointmentData?._id;
         if (!appointmentData && targetAptId) {
           try {
@@ -315,6 +322,18 @@ const BookAppointment = () => {
           }
         }
 
+        // Step 3: If we have payment=success + aptId but appointment still shows unpaid,
+        // it means the webhook processed it — re-fetch once more after a short wait
+        if (appointmentData && appointmentData.paymentStatus !== 'paid' && isSuccess) {
+          await new Promise(r => setTimeout(r, 1500));
+          try {
+            const retryRes = await axios.get(`${API_URL}/appointments/${appointmentData._id || targetAptId}`);
+            if (retryRes.data.success && retryRes.data.data) {
+              appointmentData = retryRes.data.data;
+            }
+          } catch {}
+        }
+
         if (appointmentData && isMounted) {
           setConfirmedBooking(appointmentData);
           if (appointmentData.service_id) setSelectedService(appointmentData.service_id);
@@ -322,7 +341,7 @@ const BookAppointment = () => {
           if (appointmentData.date) setSelectedDate(appointmentData.date);
           if (appointmentData.time) setSelectedTime(appointmentData.time);
           setStep(4);
-        } else if (isMounted && reference) {
+        } else if (isMounted && (reference || isSuccess)) {
           // Fallback confirmation if appointment couldn't be loaded
           setStep(4);
           setConfirmedBooking({

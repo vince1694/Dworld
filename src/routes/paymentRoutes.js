@@ -4,9 +4,10 @@ const {
     getPaymentConfig, 
     initializePayment, 
     verifyPayment, 
-    paystackWebhook 
+    paystackWebhook,
+    repairAppointmentPayment
 } = require('../controllers/paymentController');
-const { protect } = require('../middleware/authMiddleware');
+const { protect, adminOnly } = require('../middleware/authMiddleware');
 
 // Public config
 router.get('/config', getPaymentConfig);
@@ -15,7 +16,10 @@ router.get('/config', getPaymentConfig);
 router.post('/initialize', protect, initializePayment);
 router.post('/verify', protect, verifyPayment);
 
-// Webhook endpoint
+// Admin: repair a payment that Paystack confirmed but our DB missed
+router.post('/repair', protect, adminOnly, repairAppointmentPayment);
+
+// Webhook endpoint (public — Paystack sends this directly)
 router.post('/webhook', paystackWebhook);
 
 module.exports = router;
