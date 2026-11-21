@@ -188,9 +188,8 @@ const getStylistDashboardData = async (req, res, next) => {
         const User = require('../models/User');
         const Service = require('../models/Service');
 
-        // ── Run ALL queries in parallel ──────────────────────────────────────
-        const [appointments, services, expertUser] = await Promise.all([
-            Appointment.getByStylist(stylistId),
+        // ── Step 1: Preload Services and Expert meta in parallel (ultra-fast) ────────────────
+        const [services, expertUser] = await Promise.all([
             Service.find({ stylist_id: stylistId })
                    .select('name price location duration category image description isActive')
                    .sort({ createdAt: -1 })
@@ -199,6 +198,10 @@ const getStylistDashboardData = async (req, res, next) => {
                 .select('walletBalance transactions name email phone avatar specialty bio isActivated workingDays workingHours')
                 .lean()
         ]);
+
+        // ── Step 2: Fetch appointments using preloaded service IDs (single-query indexed lookup) ──────────
+        const serviceIds = (services || []).map(s => s._id);
+        const appointments = await Appointment.getByStylist(stylistId, serviceIds);
 
         // ── Compute stats in-memory (no extra DB round trips) ────────────────
         const totalBookings   = appointments.length;
@@ -646,20 +649,28 @@ const deleteAppointment = async (req, res, next) => {
         const appointmentId = req.params.id;
         const userId = req.user.id;
 
-        const appointment = await Appointment.findById(appointmentId);
+        const appointment = await Appointment.findById(appointmentId).populate('service_id');
         if (!appointment) {
             return res.status(404).json({ success: false, message: 'Appointment record not found' });
         }
 
         const appointmentUserId = appointment.user_id?.toString();
-        const stylistId = appointment.stylist_id?.toString();
+        const stylistId = appointment.stylist_id?.toString() || appointment.service_id?.stylist_id?.toString();
 
-        if (req.user.role !== 'admin' && appointmentUserId !== userId && stylistId !== userId) {
+        const isClient = appointmentUserId === userId;
+        const isStylist = stylistId === userId;
+        const isAdmin = req.user.role === 'admin';
+
+        if (!isAdmin && !isClient && !isStylist) {
             return res.status(403).json({ success: false, message: 'Not authorized to delete this appointment' });
         }
 
+        const wasPaid = appointment.paymentStatus === 'paid';
+        const isCompleted = appointment.status === 'completed';
+        const serviceName = appointment.service_id?.name || 'Service';
+
         // If appointment was paid and not completed, issue wallet refund to client before deleting
-        if (appointment.paymentStatus === 'paid' && appointment.status !== 'completed') {
+        if (wasPaid && !isCompleted) {
             const refundAmount = appointment.amountPaid || parseFloat(appointment.service_id?.price || 0);
             const User = require('../models/User');
             const refundRef = `REFUND-DEL-${appointment._id}`;
@@ -672,15 +683,16 @@ const deleteAppointment = async (req, res, next) => {
                     clientUser.transactions.push({
                         type: 'refund',
                         amount: refundAmount,
-                        description: `100% Refund for deleted booking: ${appointment.service_id?.name || 'Service'}`,
-                        reference_id: refundRef
+                        description: `100% Refund for deleted booking: ${serviceName}`,
+                        reference_id: refundRef,
+                        date: new Date()
                     });
                     await clientUser.save();
                 }
             }
 
             // Reverse expert payout if already credited and released
-            const expertId = appointment.stylist_id;
+            const expertId = stylistId;
             const expertPayoutToReverse = appointment.expertPayout || Math.round(refundAmount * 0.9);
             if (expertId && expertPayoutToReverse > 0 && appointment.escrowStatus === 'released') {
                 const expertUser = await User.findById(expertId);
@@ -692,8 +704,9 @@ const deleteAppointment = async (req, res, next) => {
                     expertUser.transactions.push({
                         type: 'refund_deduction',
                         amount: actualDeducted,
-                        description: `Payout reversed for deleted booking: ${appointment.service_id?.name || 'Service'}`,
-                        reference_id: revRef
+                        description: `Payout reversed for deleted booking: ${serviceName}`,
+                        reference_id: revRef,
+                        date: new Date()
                     });
                     await expertUser.save();
                 }
@@ -701,12 +714,22 @@ const deleteAppointment = async (req, res, next) => {
         }
 
         // Release slot if booking was active
-        if (appointment.date && appointment.time) {
+        if (appointment.date && appointment.time && !isCompleted) {
             await TimeSlot.markAvailable(appointment.date, appointment.time);
         }
 
+        // Send notifications
+        if (isStylist && appointment.user_id) {
+            const notifMsg = wasPaid && !isCompleted
+                ? `Specialist removed your booking for "${serviceName}" on ${appointment.date}. ₦${(appointment.amountPaid || 0).toLocaleString()} has been refunded to your wallet.`
+                : `Specialist removed booking for "${serviceName}" on ${appointment.date} from their schedule.`;
+            await createNotificationHelper(appointment.user_id, 'Booking Removed by Specialist ⚠️', notifMsg, 'booking');
+        } else if (isClient && stylistId) {
+            await createNotificationHelper(stylistId, 'Booking Cancelled by Client ⚠️', `Client cancelled their reservation for "${serviceName}" on ${appointment.date}.`, 'booking');
+        }
+
         await Appointment.findByIdAndDelete(appointmentId);
-        res.status(200).json({ success: true, message: 'Booking deleted successfully' });
+        res.status(200).json({ success: true, message: 'Booking removed successfully' });
     } catch (error) {
         next(error);
     }

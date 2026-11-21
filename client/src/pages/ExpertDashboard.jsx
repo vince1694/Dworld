@@ -586,12 +586,37 @@ const ExpertDashboard = () => {
     }
   };
 
-  const handleDeleteAppointment = (appointmentId) => {
+  const handleDeleteAppointment = (appOrId) => {
+    const app = typeof appOrId === 'object' && appOrId !== null ? appOrId : appointments.find(a => (a._id === appOrId || a.id === appOrId));
+    const appointmentId = app?._id || app?.id || appOrId;
+    const isCompleted = app?.status === 'completed';
+    const isCancelled = app?.status === 'cancelled';
+    const isPaid = app?.paymentStatus === 'paid';
+    const price = app?.amountPaid || app?.service_id?.price || 0;
+
+    let title = 'Delete Appointment Record?';
+    let message = 'Are you sure you want to remove this appointment from your schedule?';
+
+    if (isCompleted) {
+      title = 'Remove Completed Record?';
+      message = 'This appointment was successfully completed. Removing it will clear it from your schedule list. It will not affect past wallet earnings or transaction history.';
+    } else if (isCancelled) {
+      title = 'Delete Cancelled Booking?';
+      message = 'Are you sure you want to remove this cancelled booking record from your schedule?';
+    } else if (isPaid) {
+      title = 'Cancel & Refund Active Booking?';
+      message = `This appointment is paid. Removing it will cancel the booking, release the timeslot, and automatically refund 100% (₦${Number(price).toLocaleString()}) to the client's wallet.`;
+    } else {
+      title = 'Remove Unconfirmed Booking?';
+      message = 'Are you sure you want to cancel and remove this unpaid appointment from your schedule? The time slot will immediately become available for other clients.';
+    }
+
     setConfirmModal({
       isOpen: true,
-      title: 'Delete Appointment Record?',
-      message: 'Are you sure you want to remove this appointment from your schedule? If paid and not yet completed, the client will be automatically refunded.',
-      confirmText: 'Delete Appointment',
+      title,
+      message,
+      confirmText: isCompleted || isCancelled ? 'Remove Record' : 'Cancel & Delete',
+      cancelText: 'Keep Booking',
       type: 'danger',
       onConfirm: async () => {
         // Optimistic deletion
@@ -599,12 +624,38 @@ const ExpertDashboard = () => {
         try {
           const res = await axios.delete(`${API_URL}/appointments/${appointmentId}`);
           if (res.data.success) {
-            addToast('Appointment removed from schedule.', 'info');
+            addToast(res.data.message || 'Appointment removed from schedule.', 'info');
             fetchData();
           }
         } catch (err) {
           addToast(err.response?.data?.message || 'Failed to delete appointment.', 'error');
           fetchData(); // Rollback
+        } finally {
+          setConfirmModal(prev => ({ ...prev, isOpen: false }));
+        }
+      }
+    });
+  };
+
+  const handleClearHistory = () => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Clear Past Booking History?',
+      message: 'Are you sure you want to permanently clear all completed and cancelled bookings from your specialist schedule? This will not affect active bookings or your wallet balance.',
+      confirmText: 'Clear Past Records',
+      cancelText: 'Cancel',
+      type: 'warning',
+      onConfirm: async () => {
+        setAppointments(prev => prev.filter(a => a.status === 'pending' || a.status === 'approved'));
+        try {
+          const res = await axios.delete(`${API_URL}/appointments/clear-history`);
+          if (res.data.success) {
+            addToast(res.data.message || 'Past booking history cleared.', 'info');
+            fetchData();
+          }
+        } catch (err) {
+          addToast(err.response?.data?.message || 'Failed to clear history.', 'error');
+          fetchData();
         } finally {
           setConfirmModal(prev => ({ ...prev, isOpen: false }));
         }
@@ -1410,14 +1461,36 @@ const ExpertDashboard = () => {
                   {/* ─── APPOINTMENTS ─── */}
                   {activeTab === 'appointments' && (
                     <div className="app-card">
-                      <div className="card-header" style={{ justifyContent: 'space-between' }}>
+                      <div className="card-header" style={{ justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
                           <CalendarRange size={20} color="var(--primary)" />
                           <h3 style={{ margin: 0 }}>Assigned Appointments</h3>
                         </div>
-                        <span style={{ fontSize: '0.78rem', padding: '0.3rem 0.75rem', borderRadius: '9999px', background: 'rgba(99,102,241,0.1)', color: 'var(--primary)', fontWeight: 700 }}>
-                          {appointments.length} total
-                        </span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                          {appointments.some(a => a.status === 'completed' || a.status === 'cancelled') && (
+                            <button
+                              type="button"
+                              onClick={handleClearHistory}
+                              className="btn btn-outline"
+                              style={{
+                                fontSize: '0.75rem',
+                                padding: '0.3rem 0.75rem',
+                                borderRadius: '8px',
+                                color: 'var(--text-muted)',
+                                borderColor: 'var(--border-light)',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.35rem'
+                              }}
+                              title="Clear all completed and cancelled bookings from history"
+                            >
+                              <RotateCcw size={13} /> Clear Past Records
+                            </button>
+                          )}
+                          <span style={{ fontSize: '0.78rem', padding: '0.3rem 0.75rem', borderRadius: '9999px', background: 'rgba(99,102,241,0.1)', color: 'var(--primary)', fontWeight: 700 }}>
+                            {appointments.length} total
+                          </span>
+                        </div>
                       </div>
                       <div className="card-body" style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                         {appointments.length > 0 ? appointments.map(app => {
@@ -1569,7 +1642,7 @@ const ExpertDashboard = () => {
                                   )}
                                   <button 
                                     type="button"
-                                    onClick={() => handleDeleteAppointment(app.id || app._id)} 
+                                    onClick={() => handleDeleteAppointment(app)} 
                                     className="btn btn-outline" 
                                     style={{ padding: '0.42rem 0.65rem', fontSize: '0.78rem', color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.25)', minHeight: '34px', borderRadius: '10px' }}
                                     title="Delete Record"

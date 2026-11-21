@@ -26,6 +26,7 @@ appointmentSchema.index({ stylist_id: 1, date: -1, time: -1 });  // getByStylist
 appointmentSchema.index({ stylist_id: 1, createdAt: -1 });       // getByStylist fallback
 appointmentSchema.index({ stylist_id: 1, status: 1 });          // getByStylist status filter
 appointmentSchema.index({ service_id: 1, date: -1, time: -1 });  // getByStylist via service
+appointmentSchema.index({ stylist_id: 1, service_id: 1, date: -1, time: -1 });  // getByStylist compound fast lookup
 appointmentSchema.index({ status: 1 });                           // status filter
 appointmentSchema.index({ date: 1, time: 1 });                    // date/time conflict checks
 
@@ -61,51 +62,29 @@ appointmentSchema.statics.updateStatus = function(id, status) {
   return this.findByIdAndUpdate(id, { status }, { new: true });
 };
 
-appointmentSchema.statics.getByStylist = async function(stylistId) {
+appointmentSchema.statics.getByStylist = async function(stylistId, preloadedServiceIds) {
   const mongoose_id = typeof stylistId === 'string'
     ? new mongoose.Types.ObjectId(stylistId)
     : stylistId;
 
-  const Service = mongoose.model('Service');
+  let serviceIds = preloadedServiceIds;
+  if (!serviceIds) {
+    const Service = mongoose.model('Service');
+    const services = await Service.find({ stylist_id: mongoose_id }).select('_id').lean();
+    serviceIds = services.map(x => x._id);
+  }
 
-  // Single parallel fan-out: service IDs + direct appointments at the same time
-  const [serviceIds, directApts] = await Promise.all([
-    Service.find({ stylist_id: mongoose_id }).select('_id').lean().then(s => s.map(x => x._id)),
-    this.find({ stylist_id: mongoose_id })
-        .select('-__v')
-        .populate('user_id',    'name email phone avatar matricNo')
-        .populate('service_id', 'name price location duration category image')
-        .sort({ date: -1, time: -1 })
-        .limit(100)
-        .lean()
-  ]);
+  const query = serviceIds && serviceIds.length > 0
+    ? { $or: [{ stylist_id: mongoose_id }, { service_id: { $in: serviceIds } }] }
+    : { stylist_id: mongoose_id };
 
-  if (serviceIds.length === 0) return directApts;
-
-  const directAptIds = new Set(directApts.map(a => a._id.toString()));
-
-  // Only fetch service-based appointments not already captured via stylist_id
-  const serviceApts = await this.find({
-    service_id: { $in: serviceIds },
-    $or: [{ stylist_id: { $exists: false } }, { stylist_id: null }]
-  })
+  return this.find(query)
     .select('-__v')
     .populate('user_id',    'name email phone avatar matricNo')
     .populate('service_id', 'name price location duration category image')
     .sort({ date: -1, time: -1 })
     .limit(100)
     .lean();
-
-  // Merge & dedup
-  const merged = [
-    ...directApts,
-    ...serviceApts.filter(a => !directAptIds.has(a._id.toString()))
-  ];
-  merged.sort((a, b) => {
-    if (b.date !== a.date) return b.date.localeCompare(a.date);
-    return b.time.localeCompare(a.time);
-  });
-  return merged;
 };
 
 appointmentSchema.statics.checkExists = function(date, time) {

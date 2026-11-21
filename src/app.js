@@ -99,6 +99,7 @@ app.use('/api/notifications', require('./routes/notificationRoutes'));
 app.use('/api/contact', require('./routes/contactRoutes'));
 app.use('/api/payments', require('./routes/paymentRoutes'));
 app.use('/api/payouts', require('./routes/payoutRoutes'));
+app.use('/api/adverts', require('./routes/advertRoutes'));
 
 // Serve SEO and Crawler files directly with correct MIME types
 app.get('/robots.txt', (req, res) => {

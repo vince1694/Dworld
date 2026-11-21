@@ -16,7 +16,8 @@ import {
   Layers,
   ChevronRight,
   ExternalLink,
-  Mail
+  Mail,
+  Video
 } from 'lucide-react';
 
 const AdminLayout = ({ children }) => {
@@ -35,6 +36,7 @@ const AdminLayout = ({ children }) => {
     { name: 'Platform Services', path: '/admin?tab=services', tab: 'services', icon: <PackagePlus size={18} /> },
     { name: 'User Directory', path: '/admin?tab=users', tab: 'users', icon: <Users size={18} /> },
     { name: 'Payout Requests', path: '/admin?tab=payouts', tab: 'payouts', icon: <Banknote size={18} /> },
+    { name: 'Adverts & Media', path: '/admin?tab=adverts', tab: 'adverts', icon: <Video size={18} /> },
     { name: 'Support Inquiries', path: '/admin?tab=inquiries', tab: 'inquiries', icon: <Mail size={18} /> },
     { name: 'Admin Profile', path: '/admin?tab=profile', tab: 'profile', icon: <User size={18} /> },
   ];

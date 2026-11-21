@@ -32,7 +32,15 @@ import {
   Banknote,
   Check,
   ArrowDownToLine,
-  Loader
+  Loader,
+  Video,
+  Megaphone,
+  Play,
+  Eye,
+  ExternalLink,
+  Tv,
+  Sparkles,
+  Filter
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ConfirmModal from '../components/ConfirmModal';
@@ -63,6 +71,28 @@ const Admin = () => {
   const [payoutStatusFilter, setPayoutStatusFilter] = useState('all');
   const [payoutSummary, setPayoutSummary] = useState({ totalPending: 0, totalCompleted: 0 });
   const [processingPayoutId, setProcessingPayoutId] = useState(null);
+
+  // Commercial Adverts & Video Hub State
+  const [adverts, setAdverts] = useState([]);
+  const [advertsLoading, setAdvertsLoading] = useState(false);
+  const [advertsFilter, setAdvertsFilter] = useState('all');
+  const [isAdvertModalOpen, setIsAdvertModalOpen] = useState(false);
+  const [editingAdvertId, setEditingAdvertId] = useState(null);
+  const [advertSaving, setAdvertSaving] = useState(false);
+  const [previewVideo, setPreviewVideo] = useState(null);
+  const [advertForm, setAdvertForm] = useState({
+    title: '',
+    description: '',
+    category: 'public_awareness',
+    mediaType: 'video',
+    mediaUrl: '',
+    thumbnailUrl: '',
+    placement: 'all_campus',
+    ctaText: 'Explore Specialists',
+    ctaLink: '/services',
+    isActive: true,
+    priority: 0
+  });
 
   // Confirmation Modal State
   const [confirmModal, setConfirmModal] = useState({
@@ -195,8 +225,139 @@ const Admin = () => {
       fetchUsers();
     } else if (activeTab === 'payouts') {
       fetchPayouts();
+    } else if (activeTab === 'adverts') {
+      fetchAdverts();
     }
   }, [activeTab, userRoleFilter, userStatusFilter, payoutStatusFilter]);
+
+  const fetchAdverts = async () => {
+    try {
+      setAdvertsLoading(true);
+      const res = await axios.get(`${API_URL}/adverts/admin`);
+      if (res.data.success) {
+        setAdverts(res.data.data || []);
+      }
+    } catch (err) {
+      notify.error(err.response?.data?.message || 'Failed to load adverts');
+    } finally {
+      setAdvertsLoading(false);
+    }
+  };
+
+  const handleToggleAdvertStatus = async (adv) => {
+    try {
+      const res = await axios.patch(`${API_URL}/adverts/${adv._id}/status`);
+      if (res.data.success) {
+        addToast(res.data.message || 'Advert status updated', 'success');
+        fetchAdverts();
+      }
+    } catch (err) {
+      notify.error(err.response?.data?.message || 'Failed to toggle status');
+    }
+  };
+
+  const handleDeleteAdvert = (advId) => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Delete Advert Campaign?',
+      message: 'Are you sure you want to permanently remove this advertisement campaign?',
+      confirmText: 'Delete Campaign',
+      cancelText: 'Cancel',
+      type: 'danger',
+      onConfirm: async () => {
+        try {
+          const res = await axios.delete(`${API_URL}/adverts/${advId}`);
+          if (res.data.success) {
+            addToast('Advertisement removed successfully.', 'info');
+            fetchAdverts();
+          }
+        } catch (err) {
+          notify.error(err.response?.data?.message || 'Failed to delete advert');
+        } finally {
+          setConfirmModal(prev => ({ ...prev, isOpen: false }));
+        }
+      }
+    });
+  };
+
+  const openAdvertModal = (adv = null) => {
+    if (adv) {
+      setEditingAdvertId(adv._id);
+      setAdvertForm({
+        title: adv.title || '',
+        description: adv.description || '',
+        category: adv.category || 'public_awareness',
+        mediaType: adv.mediaType || 'video',
+        mediaUrl: adv.mediaUrl || '',
+        thumbnailUrl: adv.thumbnailUrl || '',
+        placement: adv.placement || 'all_campus',
+        ctaText: adv.ctaText || 'Explore Specialists',
+        ctaLink: adv.ctaLink || '/services',
+        isActive: adv.isActive !== undefined ? adv.isActive : true,
+        priority: adv.priority || 0
+      });
+    } else {
+      setEditingAdvertId(null);
+      setAdvertForm({
+        title: '',
+        description: '',
+        category: 'public_awareness',
+        mediaType: 'video',
+        mediaUrl: '',
+        thumbnailUrl: '',
+        placement: 'all_campus',
+        ctaText: 'Explore Specialists',
+        ctaLink: '/services',
+        isActive: true,
+        priority: 0
+      });
+    }
+    setIsAdvertModalOpen(true);
+  };
+
+  const submitAdvert = async (e) => {
+    e.preventDefault();
+    try {
+      setAdvertSaving(true);
+      if (editingAdvertId) {
+        const res = await axios.put(`${API_URL}/adverts/${editingAdvertId}`, advertForm);
+        if (res.data.success) {
+          addToast('Advertisement campaign updated!', 'success');
+          setIsAdvertModalOpen(false);
+          fetchAdverts();
+        }
+      } else {
+        const res = await axios.post(`${API_URL}/adverts`, advertForm);
+        if (res.data.success) {
+          addToast('Advertisement campaign created & broadcasted!', 'success');
+          setIsAdvertModalOpen(false);
+          fetchAdverts();
+        }
+      }
+    } catch (err) {
+      notify.error(err.response?.data?.message || 'Failed to save advert');
+    } finally {
+      setAdvertSaving(false);
+    }
+  };
+
+  const filteredAdverts = adverts.filter(a => {
+    if (advertsFilter === 'all') return true;
+    return a.category === advertsFilter;
+  });
+
+  const getEmbedUrl = (url) => {
+    if (!url) return '';
+    if (url.includes('youtube.com/watch?v=')) {
+      const videoId = url.split('v=')[1]?.split('&')[0];
+      return `https://www.youtube.com/embed/${videoId}`;
+    }
+    if (url.includes('youtu.be/')) {
+      const videoId = url.split('youtu.be/')[1]?.split('?')[0];
+      return `https://www.youtube.com/embed/${videoId}`;
+    }
+    return url;
+  };
 
   const handleToggleUserActivation = async (targetUser) => {
     try {
@@ -1075,6 +1236,319 @@ const Admin = () => {
               </motion.div>
             )}
 
+            {/* ADVERTS & COMMERCIAL VIDEO HUB TAB */}
+            {activeTab === 'adverts' && (
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="app-card">
+                <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.85rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <div style={{ padding: '0.45rem', borderRadius: '10px', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444' }}>
+                      <Video size={20} />
+                    </div>
+                    <div>
+                      <h3 style={{ margin: 0, fontSize: '1.15rem' }}>Commercial Adverts & Video Broadcast Hub</h3>
+                      <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                        Public awareness campaigns, student outreach, and commercial promotional videos
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => openAdvertModal()}
+                    className="btn btn-primary"
+                    style={{
+                      background: 'linear-gradient(135deg, #ef4444, #dc2626)',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.45rem',
+                      fontWeight: 700,
+                      padding: '0.6rem 1.15rem',
+                      borderRadius: '12px',
+                      fontSize: '0.85rem'
+                    }}
+                  >
+                    <Plus size={16} /> New Advert Campaign
+                  </button>
+                </div>
+
+                <div className="card-body" style={{ padding: '1.25rem' }}>
+                  {/* KPI summary strip */}
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+                    gap: '0.85rem',
+                    marginBottom: '1.5rem'
+                  }}>
+                    <div style={{ padding: '0.9rem 1.1rem', background: '#f8fafc', borderRadius: '14px', border: '1px solid var(--border-light)' }}>
+                      <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>Total Campaigns</span>
+                      <strong style={{ fontSize: '1.35rem', color: 'var(--text-main)', display: 'block', marginTop: '0.2rem' }}>{adverts.length}</strong>
+                    </div>
+                    <div style={{ padding: '0.9rem 1.1rem', background: 'rgba(16, 185, 129, 0.06)', borderRadius: '14px', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
+                      <span style={{ fontSize: '0.72rem', color: '#059669', textTransform: 'uppercase', fontWeight: 700 }}>Active Broadcasts</span>
+                      <strong style={{ fontSize: '1.35rem', color: '#059669', display: 'block', marginTop: '0.2rem' }}>{adverts.filter(a => a.isActive).length}</strong>
+                    </div>
+                    <div style={{ padding: '0.9rem 1.1rem', background: 'rgba(99, 102, 241, 0.06)', borderRadius: '14px', border: '1px solid rgba(99, 102, 241, 0.2)' }}>
+                      <span style={{ fontSize: '0.72rem', color: '#4f46e5', textTransform: 'uppercase', fontWeight: 700 }}>Public Awareness</span>
+                      <strong style={{ fontSize: '1.35rem', color: '#4f46e5', display: 'block', marginTop: '0.2rem' }}>{adverts.filter(a => a.category === 'public_awareness').length}</strong>
+                    </div>
+                    <div style={{ padding: '0.9rem 1.1rem', background: 'rgba(245, 158, 11, 0.06)', borderRadius: '14px', border: '1px solid rgba(245, 158, 11, 0.2)' }}>
+                      <span style={{ fontSize: '0.72rem', color: '#d97706', textTransform: 'uppercase', fontWeight: 700 }}>Product Commercials</span>
+                      <strong style={{ fontSize: '1.35rem', color: '#d97706', display: 'block', marginTop: '0.2rem' }}>{adverts.filter(a => a.category === 'product_feature' || a.category === 'commercial_video').length}</strong>
+                    </div>
+                  </div>
+
+                  {/* Filter chips */}
+                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '1.25rem', alignItems: 'center' }}>
+                    {[
+                      { key: 'all', label: 'All Campaigns' },
+                      { key: 'public_awareness', label: '📢 Public Awareness' },
+                      { key: 'product_feature', label: '✨ Product Spotlight' },
+                      { key: 'commercial_video', label: '🎬 Commercial Videos' },
+                      { key: 'special_promo', label: '🏷️ Special Promos' }
+                    ].map(f => (
+                      <button
+                        key={f.key}
+                        onClick={() => setAdvertsFilter(f.key)}
+                        style={{
+                          padding: '0.4rem 0.85rem',
+                          borderRadius: '9999px',
+                          fontSize: '0.8rem',
+                          fontWeight: 600,
+                          border: advertsFilter === f.key ? '1px solid #ef4444' : '1px solid var(--border-light)',
+                          background: advertsFilter === f.key ? 'rgba(239, 68, 68, 0.08)' : 'var(--surface)',
+                          color: advertsFilter === f.key ? '#ef4444' : 'var(--text-muted)',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        {f.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Adverts Grid */}
+                  {advertsLoading ? (
+                    <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                      <Loader size={24} className="animate-spin" style={{ margin: '0 auto 0.75rem' }} />
+                      <span>Loading advertising catalog...</span>
+                    </div>
+                  ) : filteredAdverts.length === 0 ? (
+                    <div style={{
+                      padding: '4rem 1.5rem',
+                      textAlign: 'center',
+                      background: '#f8fafc',
+                      borderRadius: '16px',
+                      border: '1px dashed var(--border-light)'
+                    }}>
+                      <Tv size={36} color="var(--text-muted)" style={{ margin: '0 auto 0.75rem', opacity: 0.5 }} />
+                      <h4 style={{ margin: '0 0 0.4rem', color: 'var(--text-main)' }}>No Advert Campaigns Found</h4>
+                      <p style={{ margin: '0 0 1.25rem', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                        Create awareness campaigns, video commercials, or student spotlights to broadcast across the platform.
+                      </p>
+                      <button onClick={() => openAdvertModal()} className="btn btn-primary" style={{ fontSize: '0.82rem' }}>
+                        <Plus size={14} /> Create First Advert
+                      </button>
+                    </div>
+                  ) : (
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+                      gap: '1.25rem'
+                    }}>
+                      {filteredAdverts.map(adv => (
+                        <div
+                          key={adv._id}
+                          style={{
+                            background: 'var(--surface)',
+                            border: '1px solid var(--border-light)',
+                            borderRadius: '16px',
+                            overflow: 'hidden',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+                            transition: 'transform 0.2s, box-shadow 0.2s'
+                          }}
+                        >
+                          {/* Media Preview Box */}
+                          <div style={{
+                            position: 'relative',
+                            height: '180px',
+                            background: '#090d16',
+                            overflow: 'hidden'
+                          }}>
+                            {adv.thumbnailUrl ? (
+                              <img
+                                src={adv.thumbnailUrl}
+                                alt={adv.title}
+                                style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.85 }}
+                              />
+                            ) : (
+                              <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}>
+                                <Tv size={42} opacity={0.4} />
+                              </div>
+                            )}
+
+                            {/* Play overlay button if video */}
+                            {adv.mediaType === 'video' && adv.mediaUrl && (
+                              <button
+                                onClick={() => setPreviewVideo(adv)}
+                                style={{
+                                  position: 'absolute',
+                                  top: '50%',
+                                  left: '50%',
+                                  transform: 'translate(-50%, -50%)',
+                                  background: 'rgba(239, 68, 68, 0.9)',
+                                  color: '#ffffff',
+                                  border: 'none',
+                                  borderRadius: '50%',
+                                  width: '48px',
+                                  height: '48px',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  cursor: 'pointer',
+                                  boxShadow: '0 4px 14px rgba(0,0,0,0.4)'
+                                }}
+                                title="Preview video commercial"
+                              >
+                                <Play size={20} fill="#ffffff" style={{ marginLeft: '3px' }} />
+                              </button>
+                            )}
+
+                            {/* Status badge */}
+                            <span style={{
+                              position: 'absolute',
+                              top: '0.65rem',
+                              right: '0.65rem',
+                              padding: '0.2rem 0.6rem',
+                              borderRadius: '9999px',
+                              fontSize: '0.7rem',
+                              fontWeight: 700,
+                              background: adv.isActive ? 'rgba(16, 185, 129, 0.9)' : 'rgba(100, 116, 139, 0.85)',
+                              color: '#ffffff'
+                            }}>
+                              {adv.isActive ? '● Live' : 'Paused Draft'}
+                            </span>
+
+                            {/* Category badge */}
+                            <span style={{
+                              position: 'absolute',
+                              bottom: '0.65rem',
+                              left: '0.65rem',
+                              padding: '0.2rem 0.55rem',
+                              borderRadius: '6px',
+                              fontSize: '0.68rem',
+                              fontWeight: 700,
+                              background: 'rgba(0,0,0,0.75)',
+                              color: '#f8fafc',
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.04em'
+                            }}>
+                              {adv.category.replace('_', ' ')}
+                            </span>
+                          </div>
+
+                          {/* Card Content */}
+                          <div style={{ padding: '1.15rem', display: 'flex', flexDirection: 'column', flex: 1 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.4rem' }}>
+                              <span style={{
+                                fontSize: '0.7rem',
+                                color: 'var(--text-muted)',
+                                background: '#f1f5f9',
+                                padding: '0.15rem 0.5rem',
+                                borderRadius: '4px',
+                                fontWeight: 600
+                              }}>
+                                Placement: {adv.placement.replace('_', ' ')}
+                              </span>
+                              {adv.priority > 0 && (
+                                <span style={{ fontSize: '0.7rem', color: '#d97706', fontWeight: 700 }}>
+                                  ★ Priority {adv.priority}
+                                </span>
+                              )}
+                            </div>
+
+                            <h4 style={{ margin: '0 0 0.4rem', fontSize: '1rem', color: 'var(--text-main)', lineHeight: 1.35 }}>
+                              {adv.title}
+                            </h4>
+                            <p style={{
+                              margin: '0 0 1rem',
+                              fontSize: '0.82rem',
+                              color: 'var(--text-muted)',
+                              lineHeight: 1.45,
+                              flex: 1,
+                              display: '-webkit-box',
+                              WebkitLineClamp: 3,
+                              WebkitBoxOrient: 'vertical',
+                              overflow: 'hidden'
+                            }}>
+                              {adv.description || 'No description provided.'}
+                            </p>
+
+                            {/* CTA preview */}
+                            <div style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              padding: '0.5rem 0.75rem',
+                              background: '#f8fafc',
+                              borderRadius: '8px',
+                              marginBottom: '1rem',
+                              fontSize: '0.76rem'
+                            }}>
+                              <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>Button: "{adv.ctaText}"</span>
+                              <span style={{ color: 'var(--primary)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}>
+                                {adv.ctaLink} <ExternalLink size={11} />
+                              </span>
+                            </div>
+
+                            {/* Card Footer Actions */}
+                            <div style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              paddingTop: '0.75rem',
+                              borderTop: '1px solid var(--border-light)'
+                            }}>
+                              <button
+                                onClick={() => handleToggleAdvertStatus(adv)}
+                                className="btn btn-secondary"
+                                style={{
+                                  fontSize: '0.74rem',
+                                  padding: '0.35rem 0.7rem',
+                                  borderRadius: '8px',
+                                  color: adv.isActive ? '#059669' : 'var(--text-muted)',
+                                  borderColor: adv.isActive ? 'rgba(16, 185, 129, 0.3)' : undefined
+                                }}
+                              >
+                                <Power size={13} /> {adv.isActive ? 'Active' : 'Enable'}
+                              </button>
+
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                <button
+                                  onClick={() => openAdvertModal(adv)}
+                                  className="btn btn-secondary"
+                                  style={{ padding: '0.35rem 0.65rem', fontSize: '0.74rem', borderRadius: '8px' }}
+                                  title="Edit Advert"
+                                >
+                                  <Edit size={13} /> Edit
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteAdvert(adv._id)}
+                                  className="btn btn-outline"
+                                  style={{ padding: '0.35rem 0.65rem', fontSize: '0.74rem', borderRadius: '8px', color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.3)' }}
+                                  title="Delete Advert"
+                                >
+                                  <Trash2 size={13} />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            )}
+
             {/* PROFILE TAB */}
             {activeTab === 'profile' && (
               <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="app-card" style={{ maxWidth: '600px' }}>
@@ -1237,6 +1711,235 @@ const Admin = () => {
                   </button>
                 </div>
               </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* CREATE / EDIT ADVERT CAMPAIGN MODAL */}
+      <AnimatePresence>
+        {isAdvertModalOpen && (
+          <div className="modal-overlay" onClick={() => setIsAdvertModalOpen(false)}>
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              onClick={(e) => e.stopPropagation()}
+              className="modal-card"
+              style={{ maxWidth: '580px', width: '100%', maxHeight: '90vh', overflowY: 'auto' }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.2rem', fontFamily: 'Outfit' }}>
+                    {editingAdvertId ? 'Edit Advert Campaign' : 'Create New Advert Campaign'}
+                  </h3>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                    Set awareness parameters, media links, and call-to-action buttons
+                  </span>
+                </div>
+                <button onClick={() => setIsAdvertModalOpen(false)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
+                  <X size={20} />
+                </button>
+              </div>
+
+              <form onSubmit={submitAdvert} style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem' }}>
+                <div className="input-group" style={{ marginBottom: 0 }}>
+                  <label>Campaign Title *</label>
+                  <input 
+                    type="text" 
+                    value={advertForm.title} 
+                    onChange={(e) => setAdvertForm({ ...advertForm, title: e.target.value })} 
+                    placeholder="e.g. Campus Talent Spotlight 2026"
+                    required 
+                  />
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.85rem' }}>
+                  <div className="input-group" style={{ marginBottom: 0 }}>
+                    <label>Category</label>
+                    <select
+                      value={advertForm.category}
+                      onChange={(e) => setAdvertForm({ ...advertForm, category: e.target.value })}
+                    >
+                      <option value="public_awareness">📢 Public Awareness</option>
+                      <option value="product_feature">✨ Product Spotlight</option>
+                      <option value="commercial_video">🎬 Commercial Video</option>
+                      <option value="special_promo">🏷️ Special Promo</option>
+                    </select>
+                  </div>
+
+                  <div className="input-group" style={{ marginBottom: 0 }}>
+                    <label>Target Placement</label>
+                    <select
+                      value={advertForm.placement}
+                      onChange={(e) => setAdvertForm({ ...advertForm, placement: e.target.value })}
+                    >
+                      <option value="all_campus">All Campus Screens</option>
+                      <option value="public_home">Public Homepage</option>
+                      <option value="student_dashboard">Student Dashboard</option>
+                      <option value="specialist_directory">Specialist Directory</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.85rem' }}>
+                  <div className="input-group" style={{ marginBottom: 0 }}>
+                    <label>Media Format</label>
+                    <select
+                      value={advertForm.mediaType}
+                      onChange={(e) => setAdvertForm({ ...advertForm, mediaType: e.target.value })}
+                    >
+                      <option value="video">Video (YouTube / MP4 / Cloudinary)</option>
+                      <option value="image">Promotional Poster / Banner</option>
+                    </select>
+                  </div>
+
+                  <div className="input-group" style={{ marginBottom: 0 }}>
+                    <label>Display Priority</label>
+                    <input 
+                      type="number" 
+                      value={advertForm.priority} 
+                      onChange={(e) => setAdvertForm({ ...advertForm, priority: e.target.value })} 
+                      placeholder="0"
+                    />
+                  </div>
+                </div>
+
+                <div className="input-group" style={{ marginBottom: 0 }}>
+                  <label>Media / Video URL *</label>
+                  <input 
+                    type="url" 
+                    value={advertForm.mediaUrl} 
+                    onChange={(e) => setAdvertForm({ ...advertForm, mediaUrl: e.target.value })} 
+                    placeholder="https://youtube.com/watch?v=... or direct MP4 URL"
+                    required 
+                  />
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
+                    Paste a YouTube link, Cloudinary video URL, or direct video link.
+                  </span>
+                </div>
+
+                <div className="input-group" style={{ marginBottom: 0 }}>
+                  <label>Poster Thumbnail Image URL (Optional)</label>
+                  <input 
+                    type="url" 
+                    value={advertForm.thumbnailUrl} 
+                    onChange={(e) => setAdvertForm({ ...advertForm, thumbnailUrl: e.target.value })} 
+                    placeholder="https://... image poster preview"
+                  />
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.85rem' }}>
+                  <div className="input-group" style={{ marginBottom: 0 }}>
+                    <label>Call-to-Action Text</label>
+                    <input 
+                      type="text" 
+                      value={advertForm.ctaText} 
+                      onChange={(e) => setAdvertForm({ ...advertForm, ctaText: e.target.value })} 
+                      placeholder="e.g. Explore Specialists"
+                    />
+                  </div>
+
+                  <div className="input-group" style={{ marginBottom: 0 }}>
+                    <label>Destination Route / URL</label>
+                    <input 
+                      type="text" 
+                      value={advertForm.ctaLink} 
+                      onChange={(e) => setAdvertForm({ ...advertForm, ctaLink: e.target.value })} 
+                      placeholder="/services"
+                    />
+                  </div>
+                </div>
+
+                <div className="input-group" style={{ marginBottom: 0 }}>
+                  <label>Campaign Description & Caption</label>
+                  <textarea 
+                    rows="3" 
+                    value={advertForm.description} 
+                    onChange={(e) => setAdvertForm({ ...advertForm, description: e.target.value })} 
+                    placeholder="Brief summary explaining this campaign or commercial to students..."
+                  />
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginTop: '0.2rem' }}>
+                  <input
+                    type="checkbox"
+                    id="advertActiveCheck"
+                    checked={advertForm.isActive}
+                    onChange={(e) => setAdvertForm({ ...advertForm, isActive: e.target.checked })}
+                    style={{ width: '17px', height: '17px', cursor: 'pointer' }}
+                  />
+                  <label htmlFor="advertActiveCheck" style={{ margin: 0, fontSize: '0.85rem', cursor: 'pointer', fontWeight: 600 }}>
+                    Broadcast campaign immediately (Active status)
+                  </label>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.85rem', marginTop: '1rem' }}>
+                  <button type="button" onClick={() => setIsAdvertModalOpen(false)} className="btn btn-secondary">
+                    Cancel
+                  </button>
+                  <button type="submit" disabled={advertSaving} className="btn btn-primary" style={{ background: 'linear-gradient(135deg, #ef4444, #dc2626)' }}>
+                    {advertSaving ? 'Saving Campaign...' : editingAdvertId ? 'Update Advert' : 'Create & Broadcast'}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* VIDEO PREVIEW MODAL */}
+      <AnimatePresence>
+        {previewVideo && (
+          <div className="modal-overlay" onClick={() => setPreviewVideo(null)}>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              onClick={(e) => e.stopPropagation()}
+              className="modal-card"
+              style={{ maxWidth: '720px', width: '100%', padding: '1.25rem', background: '#090d16', color: '#ffffff' }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                <div>
+                  <h4 style={{ margin: 0, fontSize: '1.1rem', color: '#ffffff' }}>{previewVideo.title}</h4>
+                  <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
+                    {previewVideo.category.replace('_', ' ')} · {previewVideo.placement.replace('_', ' ')}
+                  </span>
+                </div>
+                <button onClick={() => setPreviewVideo(null)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div style={{ position: 'relative', paddingBottom: '56.25%', height: 0, overflow: 'hidden', borderRadius: '12px', background: '#000000', marginBottom: '1rem' }}>
+                {previewVideo.mediaUrl.includes('youtube') || previewVideo.mediaUrl.includes('youtu.be') ? (
+                  <iframe
+                    src={getEmbedUrl(previewVideo.mediaUrl)}
+                    title={previewVideo.title}
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                    style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }}
+                  />
+                ) : (
+                  <video
+                    src={previewVideo.mediaUrl}
+                    controls
+                    autoPlay
+                    style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'contain' }}
+                  />
+                )}
+              </div>
+
+              <p style={{ margin: '0 0 1rem', fontSize: '0.85rem', color: '#cbd5e1', lineHeight: 1.5 }}>
+                {previewVideo.description}
+              </p>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                <button onClick={() => setPreviewVideo(null)} className="btn btn-secondary" style={{ background: '#1e293b', color: '#ffffff', borderColor: '#334155' }}>
+                  Close Preview
+                </button>
+              </div>
             </motion.div>
           </div>
         )}
