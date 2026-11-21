@@ -1,14 +1,14 @@
 const express = require('express');
-const { 
+const {
   initiateRegister,
   verifyRegistration,
-  login, 
-  updateProfile, 
+  login,
+  updateProfile,
   uploadAvatar,
   updateAvailability,
-  forgotPassword, 
-  verifyOtp, 
-  resetPassword, 
+  forgotPassword,
+  verifyOtp,
+  resetPassword,
   getMe,
   getWallet,
   getExperts,
@@ -26,9 +26,9 @@ const router = express.Router();
 
 // Step 1: Submit form → sends OTP
 router.post('/register', [
-    body('email').isEmail(),
-    body('password').isLength({ min: 6 }),
-    body('name').notEmpty()
+  body('email').isEmail(),
+  body('password').isLength({ min: 6 }),
+  body('name').notEmpty()
 ], initiateRegister);
 
 // Step 2: Verify OTP → creates account
@@ -36,9 +36,9 @@ router.post('/register/verify', verifyRegistration);
 
 // Expert registration alias (same two-step flow)
 router.post('/register-stylist', [
-    body('email').isEmail(),
-    body('password').isLength({ min: 6 }),
-    body('name').notEmpty()
+  body('email').isEmail(),
+  body('password').isLength({ min: 6 }),
+  body('name').notEmpty()
 ], initiateRegister);
 
 router.post('/login', login);
