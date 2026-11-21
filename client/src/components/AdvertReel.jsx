@@ -114,8 +114,8 @@ const AdvertReel = ({ placement = 'all' }) => {
       <div style={{
         margin: '0 0 1.75rem',
         padding: '0.9rem 1.25rem',
-        background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.09) 0%, rgba(99, 102, 241, 0.09) 100%)',
-        border: '1px solid rgba(239, 68, 68, 0.22)',
+        background: 'linear-gradient(135deg, rgba(79, 70, 229, 0.09) 0%, rgba(99, 102, 241, 0.09) 100%)',
+        border: '1px solid rgba(79, 70, 229, 0.22)',
         borderRadius: '16px',
         display: 'flex',
         alignItems: 'center',
@@ -130,7 +130,7 @@ const AdvertReel = ({ placement = 'all' }) => {
             borderRadius: '9999px',
             fontSize: '0.7rem',
             fontWeight: 800,
-            background: '#ef4444',
+            background: '#4f46e5',
             color: '#ffffff',
             textTransform: 'uppercase',
             letterSpacing: '0.04em',
@@ -166,7 +166,7 @@ const AdvertReel = ({ placement = 'all' }) => {
                     height: '6px',
                     borderRadius: '9999px',
                     border: 'none',
-                    background: currentIdx % adverts.length === idx ? '#ef4444' : 'rgba(150, 150, 160, 0.4)',
+                    background: currentIdx % adverts.length === idx ? '#4f46e5' : 'rgba(150, 150, 160, 0.4)',
                     cursor: 'pointer',
                     transition: 'all 0.25s'
                   }}
@@ -184,12 +184,12 @@ const AdvertReel = ({ placement = 'all' }) => {
                 fontSize: '0.8rem',
                 padding: '0.42rem 0.95rem',
                 borderRadius: '10px',
-                background: 'linear-gradient(135deg, #ef4444, #dc2626)',
+                background: 'linear-gradient(135deg, #4f46e5, #4338ca)',
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '0.4rem',
                 fontWeight: 700,
-                boxShadow: '0 3px 10px rgba(239, 68, 68, 0.25)'
+                boxShadow: '0 3px 10px rgba(79, 70, 229, 0.25)'
               }}
             >
               <Play size={14} fill="#ffffff" /> Watch Video
@@ -287,8 +287,8 @@ const AdvertReel = ({ placement = 'all' }) => {
                         borderRadius: '8px',
                         fontSize: '0.75rem',
                         fontWeight: activeModalAdvert._id === adv._id ? 700 : 500,
-                        border: activeModalAdvert._id === adv._id ? '1px solid #ef4444' : '1px solid #1e293b',
-                        background: activeModalAdvert._id === adv._id ? 'rgba(239, 68, 68, 0.2)' : '#0f172a',
+                        border: activeModalAdvert._id === adv._id ? '1px solid #4f46e5' : '1px solid #1e293b',
+                        background: activeModalAdvert._id === adv._id ? 'rgba(79, 70, 229, 0.2)' : '#0f172a',
                         color: activeModalAdvert._id === adv._id ? '#ffffff' : '#94a3b8',
                         cursor: 'pointer',
                         whiteSpace: 'nowrap',
@@ -394,7 +394,7 @@ const AdvertReel = ({ placement = 'all' }) => {
                       href={activeModalAdvert.ctaLink}
                       className="btn btn-primary"
                       style={{
-                        background: 'linear-gradient(135deg, #ef4444, #dc2626)',
+                        background: 'linear-gradient(135deg, #4f46e5, #4338ca)',
                         fontSize: '0.82rem',
                         padding: '0.55rem 1.15rem',
                         borderRadius: '10px',

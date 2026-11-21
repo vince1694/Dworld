@@ -935,6 +935,7 @@ module.exports = {
     deletePortfolioItem,
     getAllUsersForAdmin,
     updateUserStatusForAdmin,
-    deleteUserForAdmin
+    deleteUserForAdmin,
+    invalidateExpertsCache
 };
 

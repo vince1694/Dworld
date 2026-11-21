@@ -1,4 +1,5 @@
 const Service = require('../models/Service');
+const { invalidateExpertsCache } = require('./authController');
 
 const getServices = async (req, res, next) => {
     try {
@@ -51,6 +52,8 @@ const updateService = async (req, res, next) => {
         }
 
         const updated = await Service.findByIdAndUpdate(req.params.id, req.body, { new: true });
+        // Bust the experts listing cache so the new price reflects immediately on the Services page
+        try { invalidateExpertsCache(); } catch (_) {}
         res.status(200).json({ success: true, message: 'Service updated', data: updated });
     } catch (error) {
         next(error);
