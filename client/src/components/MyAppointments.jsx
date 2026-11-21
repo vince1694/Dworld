@@ -267,7 +267,7 @@ const AppointmentCard = ({ app, onOpen, onChat, onReschedule, onDelete, onPay, o
             onClick={() => onPay(app)}
           />
         )}
-        {(app.status === 'completed' || app.status === 'cancelled') && (
+        {app.status === 'completed' && isPaid && (
           <QuickBtn
             icon={<Star size={13} />}
             label="Review"

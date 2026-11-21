@@ -679,10 +679,10 @@ const deleteAppointment = async (req, res, next) => {
                 }
             }
 
-            // Reverse expert payout if already credited
+            // Reverse expert payout if already credited and released
             const expertId = appointment.stylist_id;
             const expertPayoutToReverse = appointment.expertPayout || Math.round(refundAmount * 0.9);
-            if (expertId && expertPayoutToReverse > 0) {
+            if (expertId && expertPayoutToReverse > 0 && appointment.escrowStatus === 'released') {
                 const expertUser = await User.findById(expertId);
                 if (expertUser && !expertUser.transactions.some(t => t.reference_id === revRef)) {
                     // Log the ACTUAL deducted amount (wallet can't go below 0)

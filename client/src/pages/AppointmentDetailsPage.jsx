@@ -90,6 +90,22 @@ const AppointmentDetailsPage = () => {
   // Delete confirm state
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [updatingStatus, setUpdatingStatus] = useState(false);
+
+  const handleUpdateStatus = async (newStatus) => {
+    try {
+      setUpdatingStatus(true);
+      const res = await axios.patch(`${API_URL}/appointments/${appointment._id}/status`, { status: newStatus });
+      if (res.data.success) {
+        notify.success(`Appointment marked as ${newStatus}!`);
+        fetchAppointment();
+      }
+    } catch (err) {
+      notify.error(err.response?.data?.message || `Failed to update status to ${newStatus}`);
+    } finally {
+      setUpdatingStatus(false);
+    }
+  };
 
   useEffect(() => {
     const reference = searchParams.get('reference') || searchParams.get('trxref');
@@ -234,6 +250,11 @@ const AppointmentDetailsPage = () => {
   const isPaid = appointment.paymentStatus === 'paid';
   const price = appointment.service_id?.price || appointment.amountPaid || 0;
   const serviceId = appointment.service_id?._id || appointment.service_id;
+  const isExpertUser = user?.role === 'expert' || user?.role === 'stylist';
+  const isAssignedSpecialist = isExpertUser && (
+    (appointment.stylist_id?._id || appointment.stylist_id)?.toString() === user?.id ||
+    (appointment.service_id?.stylist_id?._id || appointment.service_id?.stylist_id)?.toString() === user?.id
+  );
 
   return (
     <div className="page-wrapper container animate-fade-in" style={{ padding: '1.5rem 1rem 4rem', maxWidth: '1020px', margin: '0 auto' }}>
@@ -241,11 +262,11 @@ const AppointmentDetailsPage = () => {
       {/* ── TOP BREADCRUMB / NAV BAR ── */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '0.75rem' }}>
         <button
-          onClick={() => navigate('/dashboard?tab=appointments')}
+          onClick={() => navigate(isExpertUser ? '/expert?tab=appointments' : '/dashboard?tab=appointments')}
           className="btn btn-secondary"
           style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.9rem', fontSize: '0.85rem' }}
         >
-          <ArrowLeft size={16} /> Back to Appointments
+          <ArrowLeft size={16} /> {isExpertUser ? 'Back to Specialist Dashboard' : 'Back to Appointments'}
         </button>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -619,73 +640,165 @@ const AppointmentDetailsPage = () => {
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-          {/* Rebook Service */}
-          {serviceId && (
-            <Link
-              to={`/book?serviceId=${serviceId}`}
-              className="btn btn-secondary"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600 }}
-            >
-              <CalendarPlus size={16} /> Rebook Service
-            </Link>
-          )}
+          {isAssignedSpecialist ? (
+            <>
+              {(appointment.status === 'pending' || appointment.status === 'approved') && (
+                <button
+                  onClick={() => {
+                    setNewDate(appointment.date);
+                    setNewTime(appointment.time);
+                    setIsRescheduleOpen(true);
+                  }}
+                  className="btn btn-secondary"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', color: '#d97706', borderColor: 'rgba(245, 158, 11, 0.3)' }}
+                >
+                  <RotateCcw size={15} /> Propose New Time
+                </button>
+              )}
+            </>
+          ) : (
+            <>
+              {/* Rebook Service */}
+              {serviceId && (
+                <Link
+                  to={`/book?serviceId=${serviceId}`}
+                  className="btn btn-secondary"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600 }}
+                >
+                  <CalendarPlus size={16} /> Rebook Service
+                </Link>
+              )}
 
-          {/* Reschedule Date/Time (if pending or approved) */}
-          {(appointment.status === 'pending' || appointment.status === 'approved') && (
-            <button
-              onClick={() => {
-                setNewDate(appointment.date);
-                setNewTime(appointment.time);
-                setIsRescheduleOpen(true);
-              }}
-              className="btn btn-secondary"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', color: '#d97706', borderColor: 'rgba(245, 158, 11, 0.3)' }}
-            >
-              <RotateCcw size={15} /> Reschedule Session
-            </button>
-          )}
+              {/* Reschedule Date/Time (if pending or approved) */}
+              {(appointment.status === 'pending' || appointment.status === 'approved') && (
+                <button
+                  onClick={() => {
+                    setNewDate(appointment.date);
+                    setNewTime(appointment.time);
+                    setIsRescheduleOpen(true);
+                  }}
+                  className="btn btn-secondary"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', color: '#d97706', borderColor: 'rgba(245, 158, 11, 0.3)' }}
+                >
+                  <RotateCcw size={15} /> Reschedule Session
+                </button>
+              )}
 
-          {/* Delete Booking */}
-          <button
-            onClick={() => setIsDeleteConfirmOpen(true)}
-            className="btn btn-outline"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.3)' }}
-          >
-            <Trash2 size={15} /> Delete Booking
-          </button>
+              {/* Delete Booking */}
+              <button
+                onClick={() => setIsDeleteConfirmOpen(true)}
+                className="btn btn-outline"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.3)' }}
+              >
+                <Trash2 size={15} /> Delete Booking
+              </button>
+            </>
+          )}
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-          {/* Pay Button if unpaid */}
-          {!isPaid && (appointment.status === 'approved' || appointment.status === 'pending') && (
-            <button
-              disabled={paying}
-              onClick={handlePay}
-              className="btn btn-primary"
-              style={{
-                background: 'linear-gradient(135deg, #10b981, #059669)',
-                color: '#ffffff',
-                fontWeight: 800,
-                padding: '0.75rem 1.4rem',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.5rem'
-              }}
-            >
-              <CreditCard size={17} />
-              <span>{paying ? 'Processing...' : `Pay Expert (₦${price.toLocaleString()})`}</span>
-            </button>
-          )}
+          {isAssignedSpecialist ? (
+            <>
+              {appointment.status === 'pending' && (
+                <>
+                  <button
+                    disabled={updatingStatus}
+                    onClick={() => handleUpdateStatus('cancelled')}
+                    className="btn btn-outline"
+                    style={{ color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.3)', fontWeight: 600 }}
+                  >
+                    Decline Request
+                  </button>
+                  <button
+                    disabled={updatingStatus}
+                    onClick={() => handleUpdateStatus('approved')}
+                    className="btn btn-primary"
+                    style={{
+                      background: 'linear-gradient(135deg, #10b981, #059669)',
+                      color: '#ffffff',
+                      fontWeight: 700,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.5rem'
+                    }}
+                  >
+                    <CheckCircle2 size={16} />
+                    <span>{updatingStatus ? 'Updating...' : 'Approve Booking'}</span>
+                  </button>
+                </>
+              )}
 
-          {/* Review Button if paid and completed */}
-          {isPaid && (
-            <button
-              onClick={() => setIsReviewModalOpen(true)}
-              className="btn btn-secondary"
-              style={{ border: '1px solid #f59e0b', color: '#d97706', background: '#fffbe8', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
-            >
-              <Star size={16} fill="#d97706" /> Leave Review
-            </button>
+              {appointment.status === 'approved' && (
+                <button
+                  disabled={updatingStatus}
+                  onClick={() => handleUpdateStatus('completed')}
+                  className="btn btn-primary"
+                  style={{
+                    background: 'linear-gradient(135deg, #10b981, #047857)',
+                    color: '#ffffff',
+                    fontWeight: 800,
+                    padding: '0.75rem 1.4rem',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    boxShadow: '0 4px 14px rgba(16, 185, 129, 0.3)'
+                  }}
+                >
+                  <CheckCircle2 size={17} />
+                  <span>{updatingStatus ? 'Releasing Escrow...' : 'Mark as Completed & Release Payout'}</span>
+                </button>
+              )}
+
+              {appointment.status === 'completed' && (
+                <span style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                  color: '#10b981',
+                  background: '#dcfce7',
+                  padding: '0.6rem 1.1rem',
+                  borderRadius: '12px',
+                  fontWeight: 700,
+                  fontSize: '0.9rem'
+                }}>
+                  <CheckCircle2 size={16} /> Completed & Escrow Paid
+                </span>
+              )}
+            </>
+          ) : (
+            <>
+              {/* Pay Button if unpaid */}
+              {!isPaid && (appointment.status === 'approved' || appointment.status === 'pending') && (
+                <button
+                  disabled={paying}
+                  onClick={handlePay}
+                  className="btn btn-primary"
+                  style={{
+                    background: 'linear-gradient(135deg, #10b981, #059669)',
+                    color: '#ffffff',
+                    fontWeight: 800,
+                    padding: '0.75rem 1.4rem',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.5rem'
+                  }}
+                >
+                  <CreditCard size={17} />
+                  <span>{paying ? 'Processing...' : `Pay Expert (₦${price.toLocaleString()})`}</span>
+                </button>
+              )}
+
+              {/* Review Button if paid and completed */}
+              {isPaid && appointment.status === 'completed' && (
+                <button
+                  onClick={() => setIsReviewModalOpen(true)}
+                  className="btn btn-secondary"
+                  style={{ border: '1px solid #f59e0b', color: '#d97706', background: '#fffbe8', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
+                >
+                  <Star size={16} fill="#d97706" /> Leave Review
+                </button>
+              )}
+            </>
           )}
         </div>
       </motion.div>
