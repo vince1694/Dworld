@@ -6,12 +6,14 @@ const {
   createAdvert,
   updateAdvert,
   toggleAdvertStatus,
-  deleteAdvert
+  deleteAdvert,
+  downloadMedia
 } = require('../controllers/advertController');
 const { protect, authorize } = require('../middleware/auth');
 
-// Public route to view active adverts
+// Public route to view active adverts and download media to device
 router.get('/', getActiveAdverts);
+router.get('/download', downloadMedia);
 
 // Admin routes
 router.get('/admin', protect, authorize('admin'), getAllAdverts);

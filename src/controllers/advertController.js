@@ -131,11 +131,64 @@ const deleteAdvert = async (req, res, next) => {
   }
 };
 
+// Stream media for direct saving to phone photos / camera roll
+const downloadMedia = async (req, res, next) => {
+  try {
+    const { url, title } = req.query;
+    if (!url) {
+      return res.status(400).json({ success: false, message: 'Media URL required' });
+    }
+
+    const https = require('https');
+    const http = require('http');
+
+    const ext = url.split('.').pop().split('?')[0].toLowerCase();
+    const isImage = ['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(ext);
+    const fileExt = isImage ? (ext || 'jpg') : 'mp4';
+    const defaultMime = isImage ? `image/${fileExt === 'jpg' ? 'jpeg' : fileExt}` : 'video/mp4';
+
+    const safeFilename = (title || 'dworld-commercial')
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, '-')
+      .replace(/-+/g, '-') + `.${fileExt}`;
+
+    const fetchStream = (targetUrl, redirectCount = 0) => {
+      if (redirectCount > 5) {
+        return res.status(500).json({ success: false, message: 'Too many redirects' });
+      }
+
+      const client = targetUrl.startsWith('https') ? https : http;
+      client.get(targetUrl, (remoteRes) => {
+        if (remoteRes.statusCode === 301 || remoteRes.statusCode === 302 || remoteRes.statusCode === 307) {
+          const redirectLocation = remoteRes.headers.location;
+          if (redirectLocation) {
+            return fetchStream(redirectLocation, redirectCount + 1);
+          }
+        }
+
+        res.setHeader('Content-Disposition', `attachment; filename="${safeFilename}"`);
+        res.setHeader('Content-Type', remoteRes.headers['content-type'] || defaultMime);
+        remoteRes.pipe(res);
+      }).on('error', (err) => {
+        console.error('Error proxying media download:', err.message);
+        if (!res.headersSent) {
+          res.status(500).json({ success: false, message: 'Could not fetch video for download.' });
+        }
+      });
+    };
+
+    fetchStream(url);
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   getActiveAdverts,
   getAllAdverts,
   createAdvert,
   updateAdvert,
   toggleAdvertStatus,
-  deleteAdvert
+  deleteAdvert,
+  downloadMedia
 };

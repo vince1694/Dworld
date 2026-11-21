@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import BookingWizardModal from '../components/BookingWizardModal';
 import AIMatcherWidget from '../components/AIMatcherWidget';
+import AdvertReel from '../components/AdvertReel';
 import VerifiedBadge from '../components/VerifiedBadge';
 
 import { API_URL } from '../config/api';
@@ -229,6 +230,9 @@ const Services = () => {
           </button>
         </div>
       </header>
+
+      {/* Campus Commercials & Awareness Video Reel */}
+      <AdvertReel placement="all_campus" />
 
       {/* ================= TAB 1: SERVICES CATALOG ================= */}
       {activeTab === 'services' && (

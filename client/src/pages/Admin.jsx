@@ -40,7 +40,10 @@ import {
   ExternalLink,
   Tv,
   Sparkles,
-  Filter
+  Filter,
+  Download,
+  Smartphone,
+  Share2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ConfirmModal from '../components/ConfirmModal';
@@ -338,6 +341,67 @@ const Admin = () => {
       notify.error(err.response?.data?.message || 'Failed to save advert');
     } finally {
       setAdvertSaving(false);
+    }
+  };
+
+  const [savingToPhoneId, setSavingToPhoneId] = useState(null);
+
+  const handleSaveToPhone = async (adv) => {
+    if (!adv?.mediaUrl) {
+      notify.error('No video URL found for this advert');
+      return;
+    }
+
+    const isYouTube = adv.mediaUrl.includes('youtube.com') || adv.mediaUrl.includes('youtu.be');
+    if (isYouTube) {
+      window.open(adv.mediaUrl, '_blank');
+      addToast('Opening YouTube video. You can download or save it in the YouTube mobile app.', 'info');
+      return;
+    }
+
+    try {
+      setSavingToPhoneId(adv._id);
+      addToast('Preparing media file for phone photos...', 'info');
+
+      const downloadUrl = `${API_URL}/adverts/download?url=${encodeURIComponent(adv.mediaUrl)}&title=${encodeURIComponent(adv.title)}`;
+      const response = await fetch(downloadUrl);
+      if (!response.ok) throw new Error('Could not download media stream');
+
+      const blob = await response.blob();
+      const isVideo = adv.mediaType === 'video';
+      const ext = isVideo ? 'mp4' : 'jpg';
+      const mimeType = isVideo ? 'video/mp4' : 'image/jpeg';
+      const fileName = `${adv.title.toLowerCase().replace(/[^a-z0-9]/g, '-')}.${ext}`;
+      const file = new File([blob], fileName, { type: mimeType });
+
+      // iOS Safari & Android System Share Sheet -> Save to Photos
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: adv.title,
+          text: `Save ${adv.title} directly to your device photos`
+        });
+        addToast('Saved to Photos / Shared successfully! 🎉', 'success');
+      } else {
+        // Direct browser file download fallback
+        const objectUrl = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = objectUrl;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        window.URL.revokeObjectURL(objectUrl);
+        link.remove();
+        addToast('Video downloaded! On iPhone, open file and tap "Save Video" to send to Photos.', 'success');
+      }
+    } catch (err) {
+      if (err.name !== 'AbortError') {
+        console.warn('Share error, attempting direct window download:', err);
+        const downloadUrl = `${API_URL}/adverts/download?url=${encodeURIComponent(adv.mediaUrl)}&title=${encodeURIComponent(adv.title)}`;
+        window.open(downloadUrl, '_blank');
+      }
+    } finally {
+      setSavingToPhoneId(null);
     }
   };
 
@@ -1505,14 +1569,16 @@ const Admin = () => {
                               alignItems: 'center',
                               justifyContent: 'space-between',
                               paddingTop: '0.75rem',
-                              borderTop: '1px solid var(--border-light)'
+                              borderTop: '1px solid var(--border-light)',
+                              flexWrap: 'wrap',
+                              gap: '0.45rem'
                             }}>
                               <button
                                 onClick={() => handleToggleAdvertStatus(adv)}
                                 className="btn btn-secondary"
                                 style={{
                                   fontSize: '0.74rem',
-                                  padding: '0.35rem 0.7rem',
+                                  padding: '0.35rem 0.65rem',
                                   borderRadius: '8px',
                                   color: adv.isActive ? '#059669' : 'var(--text-muted)',
                                   borderColor: adv.isActive ? 'rgba(16, 185, 129, 0.3)' : undefined
@@ -1521,11 +1587,42 @@ const Admin = () => {
                                 <Power size={13} /> {adv.isActive ? 'Active' : 'Enable'}
                               </button>
 
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap' }}>
+                                <button
+                                  type="button"
+                                  disabled={savingToPhoneId === adv._id}
+                                  onClick={() => handleSaveToPhone(adv)}
+                                  className="btn btn-secondary"
+                                  style={{
+                                    padding: '0.35rem 0.65rem',
+                                    fontSize: '0.74rem',
+                                    borderRadius: '8px',
+                                    color: '#2563eb',
+                                    background: 'rgba(37, 99, 235, 0.08)',
+                                    borderColor: 'rgba(37, 99, 235, 0.25)',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '0.3rem',
+                                    fontWeight: 700
+                                  }}
+                                  title="Save video / media directly to your phone photos"
+                                >
+                                  {savingToPhoneId === adv._id ? (
+                                    <>
+                                      <Loader size={12} className="animate-spin" />
+                                      <span>Saving...</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Smartphone size={13} />
+                                      <span>Save to Photos</span>
+                                    </>
+                                  )}
+                                </button>
                                 <button
                                   onClick={() => openAdvertModal(adv)}
                                   className="btn btn-secondary"
-                                  style={{ padding: '0.35rem 0.65rem', fontSize: '0.74rem', borderRadius: '8px' }}
+                                  style={{ padding: '0.35rem 0.6rem', fontSize: '0.74rem', borderRadius: '8px' }}
                                   title="Edit Advert"
                                 >
                                   <Edit size={13} /> Edit
@@ -1533,7 +1630,7 @@ const Admin = () => {
                                 <button
                                   onClick={() => handleDeleteAdvert(adv._id)}
                                   className="btn btn-outline"
-                                  style={{ padding: '0.35rem 0.65rem', fontSize: '0.74rem', borderRadius: '8px', color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.3)' }}
+                                  style={{ padding: '0.35rem 0.6rem', fontSize: '0.74rem', borderRadius: '8px', color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.3)' }}
                                   title="Delete Advert"
                                 >
                                   <Trash2 size={13} />
@@ -1806,16 +1903,54 @@ const Admin = () => {
                 </div>
 
                 <div className="input-group" style={{ marginBottom: 0 }}>
-                  <label>Media / Video URL *</label>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
+                    <label style={{ margin: 0 }}>Media / Video URL *</label>
+                    <label
+                      htmlFor="advertDeviceFile"
+                      style={{
+                        margin: 0,
+                        fontSize: '0.74rem',
+                        color: 'var(--primary)',
+                        cursor: 'pointer',
+                        fontWeight: 700,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.25rem'
+                      }}
+                    >
+                      <Plus size={13} /> Pick from Device
+                    </label>
+                    <input
+                      id="advertDeviceFile"
+                      type="file"
+                      accept="video/*,image/*"
+                      style={{ display: 'none' }}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onload = () => {
+                            setAdvertForm(prev => ({
+                              ...prev,
+                              mediaUrl: reader.result,
+                              mediaType: file.type.startsWith('video') ? 'video' : 'image'
+                            }));
+                            addToast('Loaded media file from device!', 'info');
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                    />
+                  </div>
                   <input 
-                    type="url" 
-                    value={advertForm.mediaUrl} 
+                    type="text" 
+                    value={advertForm.mediaUrl.startsWith('data:') ? 'Loaded from device (' + advertForm.mediaType + ')' : advertForm.mediaUrl} 
                     onChange={(e) => setAdvertForm({ ...advertForm, mediaUrl: e.target.value })} 
                     placeholder="https://youtube.com/watch?v=... or direct MP4 URL"
                     required 
                   />
                   <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
-                    Paste a YouTube link, Cloudinary video URL, or direct video link.
+                    Paste a YouTube link, Cloudinary video URL, or choose a video directly from your phone.
                   </span>
                 </div>
 
@@ -1935,7 +2070,38 @@ const Admin = () => {
                 {previewVideo.description}
               </p>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
+                <button
+                  type="button"
+                  disabled={savingToPhoneId === previewVideo._id}
+                  onClick={() => handleSaveToPhone(previewVideo)}
+                  className="btn btn-primary"
+                  style={{
+                    background: 'linear-gradient(135deg, #2563eb, #1d4ed8)',
+                    color: '#ffffff',
+                    fontWeight: 700,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    fontSize: '0.85rem',
+                    padding: '0.6rem 1.15rem',
+                    borderRadius: '10px'
+                  }}
+                  title="Save this video directly to phone photos"
+                >
+                  {savingToPhoneId === previewVideo._id ? (
+                    <>
+                      <Loader size={16} className="animate-spin" />
+                      <span>Saving to Photos...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Smartphone size={16} />
+                      <span>Save to Phone Photos</span>
+                    </>
+                  )}
+                </button>
+
                 <button onClick={() => setPreviewVideo(null)} className="btn btn-secondary" style={{ background: '#1e293b', color: '#ffffff', borderColor: '#334155' }}>
                   Close Preview
                 </button>
