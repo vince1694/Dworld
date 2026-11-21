@@ -31,6 +31,7 @@ app.use(helmet({
             "style-src-elem": ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://cdnjs.cloudflare.com", "https://paystack.com", "https://*.paystack.com"],
             "font-src": ["'self'", "https://fonts.gstatic.com", "https://cdnjs.cloudflare.com", "https://paystack.com", "https://*.paystack.com", "data:"],
             "img-src": ["'self'", "data:", "blob:", "https:"],
+            "media-src": ["'self'", "data:", "blob:", "https:"],
             "frame-src": ["'self'", "https://checkout.paystack.com", "https://api.paystack.co", "https://*.paystack.com"],
             "connect-src": ["'self'", "https:", "http:", "wss:", "https://api.paystack.co", "https://checkout.paystack.com", "https://*.paystack.com"]
         }
@@ -100,6 +101,15 @@ app.use('/api/contact', require('./routes/contactRoutes'));
 app.use('/api/payments', require('./routes/paymentRoutes'));
 app.use('/api/payouts', require('./routes/payoutRoutes'));
 app.use('/api/adverts', require('./routes/advertRoutes'));
+
+// Serve static commercial video streams with range-request support
+const clientVideosPath = path.resolve(__dirname, '../client/public/videos');
+const distVideosPath = path.resolve(__dirname, '../client/dist/videos');
+if (fs.existsSync(distVideosPath)) {
+    app.use('/videos', express.static(distVideosPath, { maxAge: '7d' }));
+} else if (fs.existsSync(clientVideosPath)) {
+    app.use('/videos', express.static(clientVideosPath, { maxAge: '7d' }));
+}
 
 // Serve SEO and Crawler files directly with correct MIME types
 app.get('/robots.txt', (req, res) => {

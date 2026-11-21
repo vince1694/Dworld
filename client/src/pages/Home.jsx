@@ -18,6 +18,7 @@ import {
   Heart
 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import AdvertReel from '../components/AdvertReel';
 
 const Home = () => {
   const { user } = useAuth();
@@ -158,6 +159,11 @@ const Home = () => {
           </motion.div>
         </motion.div>
       </header>
+
+      {/* ── Official Commercial & Video Walkthrough Showcase ── */}
+      <div className="container" style={{ padding: '0 1.5rem', marginTop: '-1.5rem', marginBottom: '1.5rem', position: 'relative', zIndex: 10 }}>
+        <AdvertReel placement="all_campus" />
+      </div>
 
       {/* ── Feature Showcase Grid ─────────────────────── */}
       <section id="services" className="container" style={{ padding: '5rem 1.5rem' }}>

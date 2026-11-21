@@ -139,10 +139,13 @@ const downloadMedia = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Media URL required' });
     }
 
+    const fs = require('fs');
+    const path = require('path');
     const https = require('https');
     const http = require('http');
 
-    const ext = url.split('.').pop().split('?')[0].toLowerCase();
+    const cleanUrl = url.trim();
+    const ext = cleanUrl.split('.').pop().split('?')[0].toLowerCase();
     const isImage = ['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(ext);
     const fileExt = isImage ? (ext || 'jpg') : 'mp4';
     const defaultMime = isImage ? `image/${fileExt === 'jpg' ? 'jpeg' : fileExt}` : 'video/mp4';
@@ -152,6 +155,20 @@ const downloadMedia = async (req, res, next) => {
       .replace(/[^a-z0-9]/g, '-')
       .replace(/-+/g, '-') + `.${fileExt}`;
 
+    // 1. Direct local file serving if relative URL or local asset
+    if (cleanUrl.startsWith('/') || cleanUrl.startsWith('videos/')) {
+      const relPath = cleanUrl.startsWith('/') ? cleanUrl.slice(1) : cleanUrl;
+      const localDist = path.resolve(__dirname, '../../client/dist', relPath);
+      const localPub = path.resolve(__dirname, '../../client/public', relPath);
+      const targetFile = fs.existsSync(localDist) ? localDist : (fs.existsSync(localPub) ? localPub : null);
+
+      if (targetFile) {
+        res.setHeader('Content-Type', defaultMime);
+        return res.download(targetFile, safeFilename);
+      }
+    }
+
+    // 2. Fallback to HTTP/HTTPS streaming proxy for external CDN assets
     const fetchStream = (targetUrl, redirectCount = 0) => {
       if (redirectCount > 5) {
         return res.status(500).json({ success: false, message: 'Too many redirects' });
@@ -177,7 +194,7 @@ const downloadMedia = async (req, res, next) => {
       });
     };
 
-    fetchStream(url);
+    fetchStream(cleanUrl);
   } catch (err) {
     next(err);
   }

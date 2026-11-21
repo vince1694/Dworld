@@ -2058,9 +2058,11 @@ const Admin = () => {
                   />
                 ) : (
                   <video
+                    key={previewVideo.mediaUrl}
                     src={previewVideo.mediaUrl}
                     controls
                     autoPlay
+                    playsInline
                     style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'contain' }}
                   />
                 )}
