@@ -1319,7 +1319,7 @@ const Admin = () => {
                     onClick={() => openAdvertModal()}
                     className="btn btn-primary"
                     style={{
-                      background: 'linear-gradient(135deg, #ef4444, #dc2626)',
+                      background: 'linear-gradient(135deg, #4f46e5, #4338ca)',
                       display: 'inline-flex',
                       alignItems: 'center',
                       gap: '0.45rem',
@@ -1376,9 +1376,9 @@ const Admin = () => {
                           borderRadius: '9999px',
                           fontSize: '0.8rem',
                           fontWeight: 600,
-                          border: advertsFilter === f.key ? '1px solid #ef4444' : '1px solid var(--border-light)',
-                          background: advertsFilter === f.key ? 'rgba(239, 68, 68, 0.08)' : 'var(--surface)',
-                          color: advertsFilter === f.key ? '#ef4444' : 'var(--text-muted)',
+                          border: advertsFilter === f.key ? '1px solid #4f46e5' : '1px solid var(--border-light)',
+                          background: advertsFilter === f.key ? 'rgba(79, 70, 229, 0.08)' : 'var(--surface)',
+                          color: advertsFilter === f.key ? '#4f46e5' : 'var(--text-muted)',
                           cursor: 'pointer'
                         }}
                       >
@@ -2013,7 +2013,7 @@ const Admin = () => {
                   <button type="button" onClick={() => setIsAdvertModalOpen(false)} className="btn btn-secondary">
                     Cancel
                   </button>
-                  <button type="submit" disabled={advertSaving} className="btn btn-primary" style={{ background: 'linear-gradient(135deg, #ef4444, #dc2626)' }}>
+                  <button type="submit" disabled={advertSaving} className="btn btn-primary" style={{ background: 'linear-gradient(135deg, #4f46e5, #4338ca)' }}>
                     {advertSaving ? 'Saving Campaign...' : editingAdvertId ? 'Update Advert' : 'Create & Broadcast'}
                   </button>
                 </div>

@@ -27,6 +27,7 @@ const ExpertProfilePage = lazy(() => import('./pages/ExpertProfilePage'));
 const AppointmentDetailsPage = lazy(() => import('./pages/AppointmentDetailsPage'));
 const PaidServicesPage = lazy(() => import('./pages/PaidServicesPage'));
 const WithdrawPage = lazy(() => import('./pages/WithdrawPage'));
+const VideosPage = lazy(() => import('./pages/VideosPage'));
 
 const RouteFallback = () => (
   <div style={{
@@ -127,6 +128,9 @@ function App() {
                 </ProtectedRoute>
               } />
               <Route path="/wallet/withdraw" element={<Navigate to="/withdraw" replace />} />
+
+              {/* Public standalone video showcase page */}
+              <Route path="/videos" element={<VideosPage />} />
 
               <Route path="/chat" element={
                 <ProtectedRoute>
