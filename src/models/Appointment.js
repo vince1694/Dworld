@@ -62,36 +62,41 @@ appointmentSchema.statics.updateStatus = function(id, status) {
 };
 
 appointmentSchema.statics.getByStylist = async function(stylistId) {
+  const mongoose_id = typeof stylistId === 'string'
+    ? new mongoose.Types.ObjectId(stylistId)
+    : stylistId;
+
   const Service = mongoose.model('Service');
 
-  // Run service ID lookup in parallel with a direct stylist_id query
-  const [services, directApts] = await Promise.all([
-    Service.find({ stylist_id: stylistId }).select('_id').lean(),
-    this.find({ stylist_id: stylistId })
-      .populate('user_id', 'name email phone avatar matricNo')
-      .populate('service_id', 'name price location duration category image')
-      .sort({ date: -1, time: -1 })
-      .lean()
+  // Single parallel fan-out: service IDs + direct appointments at the same time
+  const [serviceIds, directApts] = await Promise.all([
+    Service.find({ stylist_id: mongoose_id }).select('_id').lean().then(s => s.map(x => x._id)),
+    this.find({ stylist_id: mongoose_id })
+        .select('-__v')
+        .populate('user_id',    'name email phone avatar matricNo')
+        .populate('service_id', 'name price location duration category image')
+        .sort({ date: -1, time: -1 })
+        .limit(100)
+        .lean()
   ]);
 
-  const serviceIds = services.map(s => s._id);
-
-  // Only do a second query if the stylist has services with appointments via service_id
-  // that weren't caught by the stylist_id direct query
   if (serviceIds.length === 0) return directApts;
 
   const directAptIds = new Set(directApts.map(a => a._id.toString()));
 
+  // Only fetch service-based appointments not already captured via stylist_id
   const serviceApts = await this.find({
     service_id: { $in: serviceIds },
-    stylist_id: { $exists: false }
+    $or: [{ stylist_id: { $exists: false } }, { stylist_id: null }]
   })
-    .populate('user_id', 'name email phone avatar matricNo')
+    .select('-__v')
+    .populate('user_id',    'name email phone avatar matricNo')
     .populate('service_id', 'name price location duration category image')
     .sort({ date: -1, time: -1 })
+    .limit(100)
     .lean();
 
-  // Merge, dedup, re-sort
+  // Merge & dedup
   const merged = [
     ...directApts,
     ...serviceApts.filter(a => !directAptIds.has(a._id.toString()))

@@ -15,9 +15,9 @@ const bookAppointment = async (req, res, next) => {
         }
 
         if (req.user && (req.user.role === 'expert' || req.user.role === 'stylist')) {
-            return res.status(403).json({ 
-                success: false, 
-                message: 'Experts cannot book appointments. Only customer accounts can book appointments.' 
+            return res.status(403).json({
+                success: false,
+                message: 'Experts cannot book appointments. Only customer accounts can book appointments.'
             });
         }
 
@@ -48,7 +48,7 @@ const bookAppointment = async (req, res, next) => {
         const existing = await Appointment.findOne(conflictQuery);
         if (existing) {
             // If the slot was held by an unpaid checkout that expired (> 20 mins ago), release it
-            const isUnpaidExpired = existing.paymentStatus === 'unpaid' && 
+            const isUnpaidExpired = existing.paymentStatus === 'unpaid' &&
                 (Date.now() - new Date(existing.createdAt).getTime()) > 20 * 60 * 1000;
 
             if (isUnpaidExpired) {
@@ -185,24 +185,78 @@ const getStylistDashboardData = async (req, res, next) => {
             return res.status(400).json({ success: false, message: 'User ID missing from token' });
         }
 
-        const appointments = await Appointment.getByStylist(stylistId);
+        const User = require('../models/User');
+        const Service = require('../models/Service');
 
-        // Calculate basic stats
-        const totalBookings = appointments.length;
+        // ── Run ALL queries in parallel ──────────────────────────────────────
+        const [appointments, services, expertUser] = await Promise.all([
+            Appointment.getByStylist(stylistId),
+            Service.find({ stylist_id: stylistId })
+                   .select('name price location duration category image description isActive')
+                   .sort({ createdAt: -1 })
+                   .lean(),
+            User.findById(stylistId)
+                .select('walletBalance transactions name email phone avatar specialty bio isActivated workingDays workingHours')
+                .lean()
+        ]);
+
+        // ── Compute stats in-memory (no extra DB round trips) ────────────────
+        const totalBookings   = appointments.length;
         const pendingRequests = appointments.filter(a => a.status === 'pending').length;
-        const totalEarnings = appointments
-            .filter(a => (a.status === 'approved' || a.status === 'completed') && a.paymentStatus === 'paid')
-            .reduce((sum, a) => sum + (a.expertPayout || (a.service_id?.price ? Math.round(a.service_id.price * 0.9) : 0)), 0);
+        const approvedCount   = appointments.filter(a => a.status === 'approved').length;
+        const completedCount  = appointments.filter(a => a.status === 'completed').length;
+        const cancelledCount  = appointments.filter(a => a.status === 'cancelled').length;
+
+        const paidApts = appointments.filter(
+            a => (a.status === 'approved' || a.status === 'completed') && a.paymentStatus === 'paid'
+        );
+        const totalEarnings = paidApts.reduce(
+            (sum, a) => sum + (a.expertPayout || (a.service_id?.price ? Math.round(a.service_id.price * 0.9) : 0)),
+            0
+        );
+
+        // This month earnings
+        const now = new Date();
+        const thisMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+        const monthlyEarnings = paidApts
+            .filter(a => a.date && a.date.startsWith(thisMonthStr))
+            .reduce((sum, a) => sum + (a.expertPayout || 0), 0);
+
+        // Escrow held (approved, paid, not yet released)
+        const escrowHeld = appointments
+            .filter(a => a.status === 'approved' && a.paymentStatus === 'paid' && a.escrowStatus === 'held')
+            .reduce((sum, a) => sum + (a.expertPayout || 0), 0);
+
+        // Wallet data
+        const walletBalance  = expertUser?.walletBalance || 0;
+        const transactions   = (expertUser?.transactions || []).slice(-50).reverse(); // last 50, newest first
 
         res.status(200).json({
             success: true,
             data: {
                 appointments: appointments || [],
+                services: services || [],
                 stats: {
-                    totalBookings: totalBookings || 0,
-                    pendingRequests: pendingRequests || 0,
-                    totalEarnings: totalEarnings || 0
-                }
+                    totalBookings,
+                    pendingRequests,
+                    approvedCount,
+                    completedCount,
+                    cancelledCount,
+                    totalEarnings,
+                    monthlyEarnings,
+                    escrowHeld
+                },
+                wallet: {
+                    walletBalance,
+                    transactions
+                },
+                expert: expertUser ? {
+                    name:         expertUser.name,
+                    isActivated:  expertUser.isActivated,
+                    workingDays:  expertUser.workingDays,
+                    workingHours: expertUser.workingHours,
+                    specialty:    expertUser.specialty
+                } : null
             }
         });
     } catch (error) {
@@ -232,9 +286,9 @@ const updateAppointmentStatus = async (req, res, next) => {
 
         const allowedStatuses = ['pending', 'approved', 'completed', 'cancelled'];
         if (!status || !allowedStatuses.includes(status)) {
-            return res.status(400).json({ 
-                success: false, 
-                message: `Invalid appointment status. Allowed statuses: ${allowedStatuses.join(', ')}` 
+            return res.status(400).json({
+                success: false,
+                message: `Invalid appointment status. Allowed statuses: ${allowedStatuses.join(', ')}`
             });
         }
 
@@ -251,7 +305,7 @@ const updateAppointmentStatus = async (req, res, next) => {
         let isStylist = false;
         if (appointment.stylist_id && appointment.stylist_id.toString() === user.id) isStylist = true;
         if (service_stylist_id && service_stylist_id.toString() === user.id) isStylist = true;
-        
+
         const appointmentUserId = appointment.user_id?._id ? appointment.user_id._id.toString() : appointment.user_id?.toString();
         const isClient = appointmentUserId === user.id;
 
@@ -260,16 +314,16 @@ const updateAppointmentStatus = async (req, res, next) => {
         }
 
         if (isClient && user.role !== 'admin' && !isStylist) {
-           if (status !== 'cancelled') {
-               return res.status(403).json({ success: false, message: 'Clients can only cancel their appointments' });
-           }
-           // Clients can only cancel appointments that are still pending
-           if (appointment.status !== 'pending') {
-               return res.status(403).json({ 
-                   success: false, 
-                   message: `This appointment has been ${appointment.status} by the expert and can no longer be cancelled.` 
-               });
-           }
+            if (status !== 'cancelled') {
+                return res.status(403).json({ success: false, message: 'Clients can only cancel their appointments' });
+            }
+            // Clients can only cancel appointments that are still pending
+            if (appointment.status !== 'pending') {
+                return res.status(403).json({
+                    success: false,
+                    message: `This appointment has been ${appointment.status} by the expert and can no longer be cancelled.`
+                });
+            }
         }
 
         if (status === 'completed') {
@@ -449,7 +503,7 @@ const getAllSlots = async (req, res, next) => {
 };
 
 const DEFAULT_SLOTS = [
-    '09:00 AM', '10:00 AM', '11:00 AM', 
+    '09:00 AM', '10:00 AM', '11:00 AM',
     '01:00 PM', '02:30 PM', '04:00 PM', '05:30 PM'
 ];
 
@@ -461,8 +515,8 @@ const getAvailableSlots = async (req, res, next) => {
         }
 
         const twentyMinsAgo = new Date(Date.now() - 20 * 60 * 1000);
-        const query = { 
-            date, 
+        const query = {
+            date,
             status: { $ne: 'cancelled' },
             $or: [
                 { paymentStatus: { $in: ['paid', 'refunded'] } },
@@ -524,9 +578,9 @@ const payAppointment = async (req, res, next) => {
         }
 
         if ((clientUser.walletBalance || 0) < amount) {
-            return res.status(400).json({ 
-                success: false, 
-                message: `Insufficient wallet balance (₦${(clientUser.walletBalance || 0).toLocaleString()}). Please top up at least ₦${(amount - (clientUser.walletBalance || 0)).toLocaleString()}.` 
+            return res.status(400).json({
+                success: false,
+                message: `Insufficient wallet balance (₦${(clientUser.walletBalance || 0).toLocaleString()}). Please top up at least ₦${(amount - (clientUser.walletBalance || 0)).toLocaleString()}.`
             });
         }
 

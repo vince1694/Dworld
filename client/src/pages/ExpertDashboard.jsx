@@ -348,12 +348,22 @@ const ExpertDashboard = () => {
   useEffect(() => {
     if (activeTab === 'wallet') {
       fetchMyPayouts();
-      axios.get(`${API_URL}/auth/wallet`).then(res => {
-        if (res.data?.success) {
-          setWalletBalance(res.data.data.walletBalance || 0);
-          setWalletTransactions(res.data.data.transactions || []);
-        }
-      }).catch(() => {});
+      // Only re-fetch wallet if cache is stale (dashboard already loaded it on mount)
+      if (isCacheStale('dworld_expert_wallet_bal', 2 * 60 * 1000)) {
+        axios.get(`${API_URL}/auth/wallet`).then(res => {
+          if (res.data?.success) {
+            const bal = res.data.data.walletBalance || 0;
+            const txs = res.data.data.transactions || [];
+            setWalletBalance(bal);
+            setWalletTransactions(txs);
+            try {
+              sessionStorage.setItem('dworld_expert_wallet_bal', JSON.stringify(bal));
+              sessionStorage.setItem('dworld_expert_wallet_txs', JSON.stringify(txs));
+              stampCache('dworld_expert_wallet_bal');
+            } catch {}
+          }
+        }).catch(() => {});
+      }
     }
   }, [activeTab]);
 
@@ -369,7 +379,7 @@ const ExpertDashboard = () => {
     try { sessionStorage.setItem(`${key}_ts`, Date.now().toString()); } catch {}
   };
 
-  // Batched fetch — appointments always revalidate; services & wallet only after 5 min TTL
+  // Batched fetch — single dashboard call returns everything; services & wallet only refresh separately after 5 min TTL
   const fetchData = async (forceShowLoading = false) => {
     const hasCache = !!sessionStorage.getItem('dworld_expert_appointments');
     if (!hasCache || forceShowLoading) {
@@ -378,51 +388,75 @@ const ExpertDashboard = () => {
       setIsRefreshing(true);
     }
 
-    const servicesStale = isCacheStale('dworld_expert_services');
-    const walletStale   = isCacheStale('dworld_expert_wallet_bal');
-
     try {
-      // Always fetch appointments and fresh wallet data
-      // Conditionally fetch services only if stale
-      const requests = [
-        axios.get(`${API_URL}/appointments/stylist-dashboard`),
-        servicesStale ? axios.get(`${API_URL}/services/my-services`) : Promise.resolve(null),
-        axios.get(`${API_URL}/auth/wallet`)
-      ];
+      // ONE API CALL returns: appointments, services, stats, wallet, expert meta
+      const dashRes = await axios.get(`${API_URL}/appointments/stylist-dashboard`);
 
-      const results = await Promise.allSettled(requests);
-      const appRes = results[0]?.status === 'fulfilled' ? results[0].value : null;
-      const srvRes = results[1]?.status === 'fulfilled' ? results[1].value : null;
-      const walletRes = results[2]?.status === 'fulfilled' ? results[2].value : null;
+      if (dashRes?.data?.success) {
+        const d = dashRes.data.data;
 
-      if (appRes?.data?.success) {
-        const apts = appRes.data.data.appointments || [];
+        // Appointments
+        const apts = d.appointments || [];
         setAppointments(apts);
         try { sessionStorage.setItem('dworld_expert_appointments', JSON.stringify(apts)); } catch {}
+
+        // Services (if returned from dashboard)
+        if (d.services && d.services.length >= 0) {
+          setServices(d.services);
+          try {
+            sessionStorage.setItem('dworld_expert_services', JSON.stringify(d.services));
+            stampCache('dworld_expert_services');
+          } catch {}
+        } else {
+          // Fallback: only fetch services if stale
+          const servicesStale = isCacheStale('dworld_expert_services');
+          if (servicesStale) {
+            axios.get(`${API_URL}/services/my-services`).then(r => {
+              if (r.data?.success) {
+                const srvs = r.data.data || [];
+                setServices(srvs);
+                try { sessionStorage.setItem('dworld_expert_services', JSON.stringify(srvs)); stampCache('dworld_expert_services'); } catch {}
+              }
+            }).catch(() => {});
+          }
+        }
+
+        // Wallet (from dashboard response — no extra /auth/wallet call needed)
+        if (d.wallet) {
+          const bal = d.wallet.walletBalance ?? 0;
+          const txs = d.wallet.transactions || [];
+          setWalletBalance(bal);
+          setWalletTransactions(txs);
+          try {
+            sessionStorage.setItem('dworld_expert_wallet_bal', JSON.stringify(bal));
+            sessionStorage.setItem('dworld_expert_wallet_txs', JSON.stringify(txs));
+            stampCache('dworld_expert_wallet_bal');
+          } catch {}
+          window.dispatchEvent(new CustomEvent('dworld_wallet_updated', { detail: { walletBalance: bal } }));
+        }
+
+        // Expert meta (working days/hours from dashboard — no extra /auth/me call)
+        if (d.expert?.workingDays) setWorkingDays(d.expert.workingDays);
+        if (d.expert?.workingHours) setWorkingHours(d.expert.workingHours);
       }
-      if (srvRes?.data?.success) {
-        const srvs = srvRes.data.data || [];
-        setServices(srvs);
-        try { sessionStorage.setItem('dworld_expert_services', JSON.stringify(srvs)); stampCache('dworld_expert_services'); } catch {}
-      }
-      if (walletRes?.data?.success) {
-        const bal = walletRes.data.data.walletBalance || 0;
-        const txs = walletRes.data.data.transactions || [];
-        setWalletBalance(bal);
-        setWalletTransactions(txs);
-        try {
-          sessionStorage.setItem('dworld_expert_wallet_bal', JSON.stringify(bal));
-          sessionStorage.setItem('dworld_expert_wallet_txs', JSON.stringify(txs));
-          stampCache('dworld_expert_wallet_bal');
-        } catch {}
-      }
-      // Sync availability from AuthContext user (no extra /auth/me call needed)
-      if (user?.workingDays) setWorkingDays(user.workingDays);
-      if (user?.workingHours) setWorkingHours(user.workingHours);
-    } catch (err) { 
-      console.error('Error fetching expert data', err); 
-    } finally { 
-      setLoading(false); 
+    } catch (err) {
+      console.error('Error fetching expert data', err);
+      // Fallback: try individual endpoints if dashboard fails
+      try {
+        const [srvRes, walletRes] = await Promise.allSettled([
+          axios.get(`${API_URL}/services/my-services`),
+          axios.get(`${API_URL}/auth/wallet`)
+        ]);
+        if (srvRes?.status === 'fulfilled' && srvRes.value?.data?.success) {
+          setServices(srvRes.value.data.data || []);
+        }
+        if (walletRes?.status === 'fulfilled' && walletRes.value?.data?.success) {
+          setWalletBalance(walletRes.value.data.data.walletBalance || 0);
+          setWalletTransactions(walletRes.value.data.data.transactions || []);
+        }
+      } catch {}
+    } finally {
+      setLoading(false);
       setIsRefreshing(false);
       setDataReady(true);
     }
@@ -718,8 +752,10 @@ const ExpertDashboard = () => {
     }
   };
 
-  const { pendingApps, approvedApps, completedApps, paidEarnings, totalBookings } = useMemo(() => {
-    let pending = 0, approved = 0, completed = 0, earnings = 0;
+  const { pendingApps, approvedApps, completedApps, paidEarnings, totalBookings, monthlyEarnings, escrowHeld } = useMemo(() => {
+    let pending = 0, approved = 0, completed = 0, earnings = 0, monthly = 0, escrow = 0;
+    const now = new Date();
+    const thisMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     for (let i = 0; i < appointments.length; i++) {
       const a = appointments[i];
       if (a.status === 'pending') pending++;
@@ -728,10 +764,17 @@ const ExpertDashboard = () => {
 
       // Only count earnings from paid appointments that are approved or completed (not cancelled)
       if (a.paymentStatus === 'paid' && (a.status === 'approved' || a.status === 'completed')) {
-        earnings += (a.expertPayout || Math.round((parseFloat(a.service_id?.price) || 0) * 0.90));
+        const payout = a.expertPayout || Math.round((parseFloat(a.service_id?.price) || 0) * 0.90);
+        earnings += payout;
+        // This month
+        if (a.date && a.date.startsWith(thisMonthStr)) monthly += payout;
+      }
+      // Escrow held: approved + paid + not yet released
+      if (a.status === 'approved' && a.paymentStatus === 'paid' && a.escrowStatus === 'held') {
+        escrow += (a.expertPayout || 0);
       }
     }
-    return { pendingApps: pending, approvedApps: approved, completedApps: completed, paidEarnings: earnings, totalBookings: appointments.length };
+    return { pendingApps: pending, approvedApps: approved, completedApps: completed, paidEarnings: earnings, totalBookings: appointments.length, monthlyEarnings: monthly, escrowHeld: escrow };
   }, [appointments]);
 
   const initials = (user?.name || 'E').split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase();
@@ -1209,12 +1252,13 @@ const ExpertDashboard = () => {
             </div>
 
             {/* ── KPI Stats Bento ── */}
-            <div className="kpi-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '1rem' }}>
+            <div className="kpi-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '1rem' }}>
               {loading ? [
                 { label: 'Confirmed', sub: 'Upcoming Sessions' },
                 { label: 'Pending', sub: 'Requires Action' },
                 { label: 'Completed', sub: 'Finished Services' },
-                { label: 'Paid Earnings', sub: 'Available Payout', gradient: true }
+                { label: 'Paid Earnings', sub: 'All-time Payout', gradient: true },
+                { label: 'This Month', sub: 'Monthly Earnings' }
               ].map(({ label, sub, gradient }) => (
                 <div key={label} className="kpi-card" style={{ padding: '1.25rem', borderRadius: '18px', background: gradient ? 'linear-gradient(135deg, #4f46e5, #7c3aed)' : 'var(--bg-card)', border: gradient ? 'none' : '1px solid var(--border-light)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -1260,8 +1304,8 @@ const ExpertDashboard = () => {
                   tab: 'appointments'
                 },
                 { 
-                  label: 'Paid Earnings', 
-                  sub: 'Direct Net Payout', 
+                  label: 'All-time Earnings', 
+                  sub: 'Net Payout Earned', 
                   value: `₦${paidEarnings.toLocaleString()}`, 
                   color: '#ffffff', 
                   bg: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)', 
@@ -1272,17 +1316,18 @@ const ExpertDashboard = () => {
                   tab: 'wallet'
                 },
                 { 
-                  label: 'Total Bookings', 
-                  sub: 'All-time Appointments', 
-                  value: totalBookings, 
+                  label: 'This Month', 
+                  sub: 'Monthly Earnings',
+                  value: `₦${monthlyEarnings.toLocaleString()}`, 
                   color: '#0ea5e9', 
                   bg: 'linear-gradient(135deg, rgba(14,165,233,0.08), rgba(14,165,233,0.02))', 
                   border: 'rgba(14,165,233,0.22)',
-                  icon: CalendarRange, 
+                  icon: BarChart2, 
                   iconBg: 'rgba(14,165,233,0.14)',
-                  tab: 'appointments'
+                  tab: 'wallet',
+                  sub2: escrowHeld > 0 ? `₦${escrowHeld.toLocaleString()} in escrow` : null
                 },
-              ].map(({ label, sub, value, color, bg, border, icon: Icon, iconBg, gradient, badge, tab }) => (
+              ].map(({ label, sub, sub2, value, color, bg, border, icon: Icon, iconBg, gradient, badge, tab }) => (
                 <div 
                   key={label} 
                   onClick={() => setSearchParams({ tab })}
@@ -1323,6 +1368,11 @@ const ExpertDashboard = () => {
                     {badge && (
                       <span style={{ fontSize: '0.68rem', padding: '0.12rem 0.5rem', borderRadius: '999px', background: '#d97706', color: '#fff', fontWeight: 800 }}>
                         {badge}
+                      </span>
+                    )}
+                    {sub2 && !badge && (
+                      <span style={{ fontSize: '0.65rem', padding: '0.1rem 0.4rem', borderRadius: '999px', background: 'rgba(14,165,233,0.15)', color: '#0ea5e9', fontWeight: 700 }}>
+                        {sub2}
                       </span>
                     )}
                   </div>
